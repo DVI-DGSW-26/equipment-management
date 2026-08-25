@@ -12,6 +12,7 @@ const NAV = [
   { to: '/depreciation', label: '감가상각' },
   { to: '/inspections', label: '안전검사' },
   { to: '/notifications', label: '알림' },
+  { to: '/settings/master', label: '마스터' },
 ];
 
 export default function AppLayout() {
