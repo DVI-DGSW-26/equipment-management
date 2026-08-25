@@ -9,6 +9,7 @@ import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 import NotificationPage from '@/pages/notifications/NotificationPage';
+import MasterPage from '@/pages/settings/MasterPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/depreciation" element={<DepreciationPage />} />
         <Route path="/inspections" element={<InspectionListPage />} />
         <Route path="/notifications" element={<NotificationPage />} />
+        <Route path="/settings/master" element={<MasterPage />} />
         <Route path="*" element={<Navigate to="/assets" replace />} />
       </Route>
     </Routes>
