@@ -94,14 +94,17 @@ function loginPage(nextPath: string, error?: string): Response {
 
 export default async function middleware(request: Request) {
   const password = process.env.SITE_PASSWORD || process.env.BASIC_AUTH_PASSWORD;
-  if (!password) return next();
+
+  // 미들웨어가 도는지, 비밀번호가 잡히는지 응답 헤더(x-site-guard)로 확인한다
+  if (!password) return next({ headers: { 'x-site-guard': 'off-no-password' } });
 
   const expected = await tokenOf(password);
   const url = new URL(request.url);
 
   // 이미 통과한 방문자
   const cookie = request.headers.get('cookie') ?? '';
-  if (cookie.split(/;\s*/).includes(`${COOKIE}=${expected}`)) return next();
+  if (cookie.split(/;\s*/).includes(`${COOKIE}=${expected}`))
+    return next({ headers: { 'x-site-guard': 'on-authenticated' } });
 
   // 로그인 제출
   if (request.method === 'POST' && url.pathname === LOGIN_PATH) {
