@@ -8,6 +8,7 @@ import InstrumentListPage from '@/pages/instruments/InstrumentListPage';
 import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
+import NotificationPage from '@/pages/notifications/NotificationPage';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/instruments/:id" element={<InstrumentDetailPage />} />
         <Route path="/depreciation" element={<DepreciationPage />} />
         <Route path="/inspections" element={<InspectionListPage />} />
+        <Route path="/notifications" element={<NotificationPage />} />
         <Route path="*" element={<Navigate to="/assets" replace />} />
       </Route>
     </Routes>
