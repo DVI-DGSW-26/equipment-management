@@ -61,9 +61,36 @@ export async function request<T>(
 
   const text = await res.text();
   if (!text) return undefined as T;
-  const json = JSON.parse(text) as BaseResponse<T>;
+  const json = unwrap<T>(text, path);
   // 봉투가 아닌 응답(혹시 모를 예외)은 본문을 그대로 돌려준다
   return json && typeof json === 'object' && 'data' in json ? json.data : (json as T);
+}
+
+/**
+ * 본문을 JSON 으로 읽는다.
+ *
+ * 프록시가 빠지면 /api 요청이 SPA fallback 에 걸려 index.html 이 돌아온다.
+ * 그대로 JSON.parse 하면 "Unexpected token '<'" 만 떠서 원인을 알 수 없으므로,
+ * HTML 이 온 경우를 따로 잡아 설정 문제라고 알려준다.
+ */
+function unwrap<T>(text: string, path: string): BaseResponse<T> {
+  const head = text.trimStart().slice(0, 20).toLowerCase();
+  if (head.startsWith('<!doctype') || head.startsWith('<html')) {
+    throw new ApiError(502, {
+      code: 'PROXY_NOT_CONFIGURED',
+      message:
+        `${path} 요청에 API 응답 대신 HTML 페이지가 돌아왔습니다. ` +
+        `/api 요청이 백엔드로 전달되지 않고 있습니다 — 배포 환경의 프록시 설정을 확인하세요.`,
+    });
+  }
+  try {
+    return JSON.parse(text) as BaseResponse<T>;
+  } catch {
+    throw new ApiError(502, {
+      code: 'INVALID_RESPONSE',
+      message: `${path} 응답을 해석할 수 없습니다: ${text.slice(0, 80)}`,
+    });
+  }
 }
 
 /** multipart 업로드. Content-Type 은 브라우저가 boundary 와 함께 붙인다 */
