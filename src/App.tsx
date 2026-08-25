@@ -4,6 +4,7 @@ import AssetListPage from '@/pages/assets/AssetListPage';
 import AssetNewPage from '@/pages/assets/AssetNewPage';
 import AssetDetailPage from '@/pages/assets/AssetDetailPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
+import InspectionListPage from '@/pages/inspections/InspectionListPage';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
                 <Route path="/assets/new" element={<AssetNewPage />} />
         <Route path="/assets/:id" element={<AssetDetailPage />} />
         <Route path="/depreciation" element={<DepreciationPage />} />
+        <Route path="/inspections" element={<InspectionListPage />} />
         <Route path="*" element={<Navigate to="/assets" replace />} />
       </Route>
     </Routes>
