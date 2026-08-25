@@ -4,6 +4,8 @@ import AssetListPage from '@/pages/assets/AssetListPage';
 import AssetNewPage from '@/pages/assets/AssetNewPage';
 import AssetDetailPage from '@/pages/assets/AssetDetailPage';
 import PhysicalAssetListPage from '@/pages/physicalAssets/PhysicalAssetListPage';
+import InstrumentListPage from '@/pages/instruments/InstrumentListPage';
+import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 
@@ -17,6 +19,8 @@ export default function App() {
                 <Route path="/assets/new" element={<AssetNewPage />} />
         <Route path="/assets/:id" element={<AssetDetailPage />} />
         <Route path="/physical-assets" element={<PhysicalAssetListPage />} />
+        <Route path="/instruments" element={<InstrumentListPage />} />
+        <Route path="/instruments/:id" element={<InstrumentDetailPage />} />
         <Route path="/depreciation" element={<DepreciationPage />} />
         <Route path="/inspections" element={<InspectionListPage />} />
         <Route path="*" element={<Navigate to="/assets" replace />} />
