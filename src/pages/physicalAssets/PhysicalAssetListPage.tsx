@@ -472,7 +472,7 @@ function PhysicalAssetModal({
   return (
     <Modal
       title={item ? '실물자산 수정' : '실물자산 등록'}
-      width={680}
+      width={900}
       onClose={onClose}
       footer={
         <>
@@ -687,7 +687,7 @@ function PhysicalAssetModal({
           />
           렌탈
         </label>
-        <label className="col-span-2 flex items-center gap-2 text-[19px]">
+        <label className="col-span-2 flex w-fit items-center gap-2 text-[19px]">
           <input
             type="checkbox"
             checked={form.excludedFromPrint}

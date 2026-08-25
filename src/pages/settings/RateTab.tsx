@@ -122,7 +122,7 @@ function RateModal({
   return (
     <Modal
       title={rate ? '상각률 수정' : '상각률 추가'}
-      width={420}
+      width={560}
       onClose={onClose}
       footer={
         <>

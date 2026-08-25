@@ -163,7 +163,7 @@ export default function StickerPreviewModal(props: Props) {
           </span>
         </span>
       }
-      width={760}
+      width={1000}
       onClose={onClose}
       footer={
         <>

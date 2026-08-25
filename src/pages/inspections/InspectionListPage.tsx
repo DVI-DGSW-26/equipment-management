@@ -297,7 +297,7 @@ function DetailModal({
           </span>
         </span>
       }
-      width={720}
+      width={940}
       onClose={onClose}
       footer={
         <>
@@ -514,7 +514,7 @@ function EquipmentModal({
   return (
     <Modal
       title={equipment ? '안전검사 대상 수정' : '안전검사 대상 등록'}
-      width={560}
+      width={740}
       onClose={onClose}
       footer={
         <>

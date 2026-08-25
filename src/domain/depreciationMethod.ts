@@ -16,6 +16,21 @@ export const allowedMethods = (
 };
 
 /**
+ * 계정과목을 골랐을 때 기본으로 잡을 상각방법.
+ *
+ * 마스터의 allowedMethods 는 정률법이 앞에 오는 경우가 많은데(기계장치·비품 등 6개 계정),
+ * 실무는 전 자산이 정액법이다(요구사항 3-2 "현재 정률법 적용 대상은 없습니다").
+ * 그래서 허용 목록에 정액법이 있으면 그것을 먼저 고른다.
+ */
+export const defaultMethod = (
+  accounts: AssetAccount[],
+  accountId: number | null,
+): DepreciationMethod => {
+  const allowed = allowedMethods(accounts, accountId);
+  return allowed.includes('STRAIGHT_LINE') ? 'STRAIGHT_LINE' : allowed[0];
+};
+
+/**
  * 상각률 조회. 내용연수 × 상각방법 조합으로 마스터에서 찾는다.
  * 사용자가 입력하지 않으며, 코드에 상수로 두지 않는다.
  * 조합이 없으면 null → 화면에 "마스터에 등록되지 않은 조합" 표시.

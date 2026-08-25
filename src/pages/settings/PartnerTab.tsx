@@ -118,7 +118,7 @@ function PartnerModal({
   return (
     <Modal
       title={partner ? '거래처 수정' : '거래처 추가'}
-      width={420}
+      width={560}
       onClose={onClose}
       footer={
         <>

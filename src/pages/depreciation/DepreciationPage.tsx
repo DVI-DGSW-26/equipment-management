@@ -162,7 +162,7 @@ function ScheduleTab({ fiscalYear }: { fiscalYear: number }) {
                   <td className="px-3 py-1.5">{r.accountName}</td>
                   <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                   <td className="px-3 py-1.5">{r.assetName}</td>
-                  <td className="px-3 py-1.5">{fmtDate(r.acquisitionDate)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.acquisitionDate)}</td>
                   {r.monthlyAmounts.map((v, i) => (
                     <td
                       key={i}
@@ -282,7 +282,7 @@ function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
             const v = totals[String(y)] ?? 0;
             return (
               <div key={y} className="flex items-center gap-2 text-[18px]">
-                <span className="w-14 text-fg-sub">{y}년</span>
+                <span className="w-20 shrink-0 whitespace-nowrap text-fg-sub">{y}년</span>
                 <span className="h-3 flex-1 bg-bg">
                   <span
                     className="block h-3 bg-accent"
@@ -409,7 +409,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     <td className="px-3 py-1.5">{r.accountName}</td>
                     <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
-                    <td className="px-3 py-1.5">{fmtDate(r.acquisitionDate)}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.acquisitionDate)}</td>
                     <td className="num px-3 py-1.5">{r.quantity?.toLocaleString('ko-KR')}</td>
                     <td className="num px-3 py-1.5">{won(r.beginningValue)}</td>
                     <td className="num px-3 py-1.5">{won(r.priorAccumulated)}</td>
@@ -519,7 +519,7 @@ function ForecastTab() {
           <div className="space-y-1 px-3 py-3">
             {d.years.map((y, i) => (
               <div key={y} className="flex items-center gap-2 text-[18px]">
-                <span className="w-14 text-fg-sub">{y}년</span>
+                <span className="w-20 shrink-0 whitespace-nowrap text-fg-sub">{y}년</span>
                 <span className="h-3 flex-1 bg-bg">
                   <span
                     className="block h-3 bg-accent"

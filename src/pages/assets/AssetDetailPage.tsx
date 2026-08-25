@@ -369,7 +369,7 @@ function EditModal({
   return (
     <Modal
       title="자산 수정"
-      width={640}
+      width={860}
       onClose={onClose}
       footer={
         <>
@@ -512,7 +512,7 @@ function EditModal({
             />
           </Field>
         </div>
-        <label className="col-span-2 flex items-center gap-2 text-[19px]">
+        <label className="col-span-2 flex w-fit items-center gap-2 text-[19px]">
           <input
             type="checkbox"
             checked={form.excludedFromPrint ?? false}
@@ -589,7 +589,7 @@ function CorrectModal({
   return (
     <Modal
       title="회계 정정"
-      width={640}
+      width={860}
       onClose={onClose}
       footer={
         <>

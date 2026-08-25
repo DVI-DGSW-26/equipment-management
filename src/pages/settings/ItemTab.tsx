@@ -129,7 +129,7 @@ function ItemModal({
   return (
     <Modal
       title={item ? '품목 수정' : '품목 추가'}
-      width={440}
+      width={580}
       onClose={onClose}
       footer={
         <>

@@ -7,7 +7,6 @@ import ItemTab from './ItemTab';
 import RateTab from './RateTab';
 import InstrumentLocationTab from './InstrumentLocationTab';
 import PartnerTab from './PartnerTab';
-import ConfigTab from './ConfigTab';
 
 type TabKey =
   | 'account'
@@ -15,8 +14,7 @@ type TabKey =
   | 'item'
   | 'rate'
   | 'instrument-location'
-  | 'partner'
-  | 'config';
+  | 'partner';
 
 const CODE_KINDS: CodeMasterKind[] = ['category', 'item-type', 'location', 'department'];
 
@@ -35,7 +33,6 @@ export default function MasterPage() {
           { key: 'rate' as TabKey, label: '상각률' },
           { key: 'instrument-location' as TabKey, label: '계측기 사용위치' },
           { key: 'partner' as TabKey, label: '거래처' },
-          { key: 'config' as TabKey, label: '미확정 설정' },
         ]}
         value={tab}
         onChange={setTab}
@@ -47,7 +44,6 @@ export default function MasterPage() {
       {tab === 'rate' && <RateTab />}
       {tab === 'instrument-location' && <InstrumentLocationTab />}
       {tab === 'partner' && <PartnerTab />}
-      {tab === 'config' && <ConfigTab />}
     </div>
   );
 }

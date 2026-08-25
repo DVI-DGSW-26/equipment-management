@@ -334,7 +334,7 @@ function VerifyModal({
   return (
     <Modal
       title={subscribing ? '알림 수신 등록' : '알림 수신 해지'}
-      width={440}
+      width={580}
       onClose={onClose}
       footer={
         <>

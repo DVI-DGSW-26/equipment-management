@@ -82,7 +82,7 @@ export default function InstrumentModal({
   return (
     <Modal
       title={instrument ? '계측기 수정' : '계측기 등록'}
-      width={640}
+      width={860}
       onClose={onClose}
       footer={
         <>

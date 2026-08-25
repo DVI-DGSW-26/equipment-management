@@ -122,7 +122,7 @@ function CodeModal({
   return (
     <Modal
       title={`${CODE_MASTER_LABEL[kind]} ${code ? '수정' : '추가'}`}
-      width={440}
+      width={580}
       onClose={onClose}
       footer={
         <>

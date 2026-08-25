@@ -14,7 +14,7 @@ import {
 import { queryKeys } from '@/api/queryKeys';
 import { useAccounts, useCategories, useDepartments, useItemTypes, useItems, useLocations, useRates } from '@/hooks/useMasters';
 import { isSuppliesItemEnabled, SUPPLIES_CATEGORY } from '@/domain/assetCode';
-import { allowedMethods, lookupRate } from '@/domain/depreciationMethod';
+import { allowedMethods, defaultMethod, lookupRate } from '@/domain/depreciationMethod';
 import { rateText } from '@/lib/won';
 import { toIsoDate } from '@/lib/date';
 import { useToast } from '@/components/toastContext';
@@ -96,7 +96,7 @@ export default function AssetNewPage() {
   const suppliesMode = isSuppliesItemEnabled(form.categoryCode);
   const accountId = form.accountId ? Number(form.accountId) : null;
   const methods = allowedMethods(accounts.data ?? [], accountId);
-  const method = (form.depreciationMethod || methods[0]) as DepreciationMethod;
+  const method = (form.depreciationMethod || defaultMethod(accounts.data ?? [], accountId)) as DepreciationMethod;
   const usefulLife = form.usefulLifeYears ? Number(form.usefulLifeYears) : null;
   const rate = lookupRate(rates.data ?? [], usefulLife, method);
 
@@ -191,7 +191,7 @@ export default function AssetNewPage() {
       usefulLifeYears:
         prev.usefulLifeYears ||
         (acc?.defaultUsefulLifeYears != null ? String(acc.defaultUsefulLifeYears) : ''),
-      depreciationMethod: acc?.allowedMethods?.[0] ?? prev.depreciationMethod,
+      depreciationMethod: defaultMethod(accounts.data ?? [], Number(value)),
     }));
   };
 
@@ -512,7 +512,7 @@ export default function AssetNewPage() {
               />
             </Field>
           </div>
-          <label className="col-span-4 flex items-center gap-2 text-[19px]">
+          <label className="col-span-4 flex w-fit items-center gap-2 text-[19px]">
             <input
               type="checkbox"
               checked={form.excludedFromPrint}

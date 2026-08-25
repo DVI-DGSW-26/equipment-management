@@ -28,9 +28,14 @@ export default function AppLayout() {
       <div className="min-h-screen bg-bg text-fg">
         <header className="border-b border-line bg-surface">
           <div className="flex h-28 items-center gap-6 px-8">
-            <span className="flex shrink-0 items-center gap-3 text-[24px]">
+            {/* 로고를 누르면 첫 화면(고정자산)으로 돌아온다 */}
+            <NavLink
+              to="/"
+              className="flex shrink-0 items-center rounded-sm hover:opacity-80"
+              aria-label="첫 화면으로"
+            >
               <img src="/logo.svg" alt="자산·기자재 관리" className="h-24 w-auto" />
-            </span>
+            </NavLink>
 
             <nav className="flex items-center gap-1">
               {NAV.map((item) => (

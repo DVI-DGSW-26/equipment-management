@@ -132,7 +132,7 @@ function AccountModal({
   return (
     <Modal
       title={account ? '계정과목 수정' : '계정과목 추가'}
-      width={440}
+      width={580}
       onClose={onClose}
       footer={
         <>

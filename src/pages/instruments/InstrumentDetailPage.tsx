@@ -415,7 +415,7 @@ function CalibrationModal({
   return (
     <Modal
       title={calibration ? '교정 이력 수정' : '교정 이력 등록'}
-      width={560}
+      width={740}
       onClose={onClose}
       footer={
         <>
