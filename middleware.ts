@@ -44,10 +44,12 @@ export default function middleware(request: Request) {
     }
   }
 
-  return new Response('인증이 필요합니다.', {
+  return new Response('인증이 필요합니다. 브라우저 로그인 창에 아이디와 비밀번호를 입력하세요.', {
     status: 401,
     headers: {
-      'WWW-Authenticate': 'Basic realm="자산·기자재 관리", charset="UTF-8"',
+      // realm 은 ASCII 만 쓴다. 한글을 넣으면 헤더가 통째로 버려져
+      // 브라우저가 로그인 창을 띄우지 않는다.
+      'WWW-Authenticate': 'Basic realm="Asset Management", charset="UTF-8"',
       'Content-Type': 'text/plain; charset=utf-8',
     },
   });
