@@ -81,14 +81,3 @@ export const appConfig = {
 /** 라벨지 한 장에 들어가는 칸 수 */
 export const labelsPerSheet = (): number =>
   appConfig.sticker.label.columns * appConfig.sticker.label.rows;
-
-/** 미확정 항목 개수 — 헤더 배지용 */
-export const unconfirmedCount = (): number =>
-  [
-    !appConfig.sticker.label.confirmed,
-    appConfig.sticker.fields.some((f) => !f.confirmed),
-    !appConfig.sticker.includeQr.confirmed,
-    !appConfig.notification.recipients.confirmed,
-    !appConfig.notification.channel.confirmed,
-    !appConfig.depreciation.intangibleBasisConfirmed,
-  ].filter(Boolean).length;

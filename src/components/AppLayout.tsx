@@ -1,6 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { unconfirmedCount } from '@/config/appConfig';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { ToastProvider } from '@/components/Toast';
@@ -16,8 +15,7 @@ const NAV = [
 ];
 
 export default function AppLayout() {
-  const pending = unconfirmedCount();
-  // 헤더 배지용. 실패해도 화면을 막지 않는다
+  // 안전검사 메뉴의 긴급 건수 배지용. 실패해도 화면을 막지 않는다
   const safety = useQuery({
     queryKey: queryKeys.inspections.summary(),
     queryFn: () => inspectionsApi.summary(),
@@ -56,15 +54,11 @@ export default function AppLayout() {
               ))}
             </nav>
 
+            {/*
+              미확정 설정 개수는 개발용 표시라 헤더에서 뺐다.
+              항목별 확정 여부는 마스터 화면의 "미확정 설정" 탭에서 본다.
+            */}
             <div className="ml-auto flex items-center gap-2 text-[18px]">
-              {pending > 0 && (
-                <span
-                  className="rounded-sm border border-warn/40 bg-warn/10 px-2 py-0.5 text-warn"
-                  title="appConfig 에서 관리 중인 미확정 항목"
-                >
-                  회신 대기 {pending}건
-                </span>
-              )}
               {safety.isError && (
                 <span
                   className="rounded-sm border border-danger/40 bg-danger/10 px-2 py-0.5 text-danger"
