@@ -11,6 +11,7 @@ const NAV = [
   { to: '/instruments', label: '계측기' },
   { to: '/depreciation', label: '감가상각' },
   { to: '/inspections', label: '안전검사' },
+  { to: '/notifications', label: '알림' },
 ];
 
 export default function AppLayout() {
