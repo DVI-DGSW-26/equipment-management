@@ -15,7 +15,13 @@ export interface RequestOptions {
  * 개발 중에는 vite 프록시(/api → 백엔드)를 탄다. 백엔드에 CORS 헤더가 없어 직접 호출은 실패한다.
  * 배포 시 같은 오리진에 얹거나 .env 의 VITE_API_BASE_URL 을 절대 주소로 바꾼다.
  */
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+/*
+ * 값이 비어 있으면 기본값으로 돌린다.
+ * ?? 를 쓰면 빈 문자열을 "설정된 값"으로 받아들여서, 배포 환경에
+ * VITE_API_BASE_URL 이 빈 값으로 들어가면 /api 접두어가 통째로 사라진다.
+ * 그러면 /instrument 같은 화면 주소를 호출하게 되고 index.html 이 돌아온다.
+ */
+const BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || '/api';
 
 const buildUrl = (path: string, query?: QueryParams): string => {
   const url = new URL(`${BASE_URL}${path}`, window.location.origin);
