@@ -181,19 +181,23 @@ export default function PhysicalAssetListPage() {
               <table className="w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                    <th className="w-8 px-2 py-2">
-                      <input
-                        type="checkbox"
-                        checked={sel.allOnPageSelected}
-                        disabled={!sel.showSelectColumn}
-                        onChange={sel.toggleAll}
-                        title={
-                          sel.showSelectColumn
-                            ? `출력 가능한 ${sel.printableRows.length}건 전체 선택`
-                            : '이 페이지에는 스티커 출력 가능한 자산이 없습니다.'
-                        }
-                        aria-label="전체 선택"
-                      />
+                    {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}
+                    <th className={`${thClass} w-24`}>
+                      <label className="flex w-fit items-center gap-2 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={sel.allOnPageSelected}
+                          disabled={!sel.showSelectColumn}
+                          onChange={sel.toggleAll}
+                          title={
+                            sel.showSelectColumn
+                              ? `출력 가능한 ${sel.printableRows.length}건 전체 선택`
+                              : '이 페이지에는 스티커 출력 가능한 자산이 없습니다.'
+                          }
+                          aria-label="스티커 출력 대상 전체 선택"
+                        />
+                        스티커
+                      </label>
                     </th>
                     <th className={thClass}>자산등록</th>
                     <th className={thClass}>자산코드</th>
@@ -212,7 +216,7 @@ export default function PhysicalAssetListPage() {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="border-b border-line hover:bg-bg">
-                      <td className="px-2 py-2">
+                      <td className="px-3 py-2">
                         <input
                           type="checkbox"
                           checked={sel.isSelected(r.id)}

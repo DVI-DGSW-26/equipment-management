@@ -377,14 +377,18 @@ export default function AssetListPage() {
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     {sel.showSelectColumn && (
-                      <th className="w-8 px-2 py-2">
-                        <input
-                          type="checkbox"
-                          checked={sel.allOnPageSelected}
-                          onChange={sel.toggleAll}
-                          title={`출력 가능한 ${sel.printableRows.length}건 전체 선택`}
-                          aria-label="전체 선택"
-                        />
+                      /* 무엇을 위한 선택인지 열 제목으로 알린다 */
+                      <th className={`${thClass} w-24`}>
+                        <label className="flex w-fit items-center gap-2 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={sel.allOnPageSelected}
+                            onChange={sel.toggleAll}
+                            title={`출력 가능한 ${sel.printableRows.length}건 전체 선택`}
+                            aria-label="스티커 출력 대상 전체 선택"
+                          />
+                          스티커
+                        </label>
                       </th>
                     )}
                     <th className={thClass}>자산코드</th>
@@ -407,7 +411,7 @@ export default function AssetListPage() {
                       className="cursor-pointer border-b border-line hover:bg-bg"
                     >
                       {sel.showSelectColumn && (
-                        <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={sel.isSelected(a.id)}
