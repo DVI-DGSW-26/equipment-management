@@ -10,6 +10,21 @@ export const won = (value: Won | null | undefined): string => {
   return Math.round(value).toLocaleString('ko-KR');
 };
 
+/**
+ * 국고보조금 상계 전 무형자산은 원장상 상각누계액이 기초가액보다 커서
+ * 장부가액이 음수로 나온다. 계산 오류가 아니라 원장 값 그대로다
+ * (백엔드 확인 2026-08-25). 일반 자산은 상각한도 초과 시 당기 상각비를
+ * 0으로 건너뛰는 방어 로직이 있어 음수가 되지 않는다.
+ *
+ * 음수를 그대로 보여주면 오류로 오해하므로 "-" 로 두고,
+ * 사유는 "결산 전 기준" 배지로 알린다.
+ */
+export const bookValue = (value: Won | null | undefined): string =>
+  value != null && Number.isFinite(value) && value < 0 ? '-' : won(value);
+
+export const PRE_SETTLEMENT_NOTE =
+  '국고보조금 상계 전 기준이라 장부가액을 표시하지 않습니다. 회계팀 결산 후 정상 범위로 들어옵니다.';
+
 /** 1397960000 → "1,397,960,000원" */
 export const wonUnit = (value: Won | null | undefined): string => {
   const v = won(value);

@@ -20,7 +20,7 @@ import { codeText, NO_CODE_REASON, SEQUENCE_MISSING_REASON } from '@/domain/asse
 import { allowedMethods } from '@/domain/depreciationMethod';
 import { LOCKED_NOTICE } from '@/domain/editability';
 import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
-import { rateText, won, wonUnit } from '@/lib/won';
+import { bookValue, PRE_SETTLEMENT_NOTE, rateText, won, wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import {
@@ -178,7 +178,12 @@ export default function AssetDetailPage() {
                 <span className="num block">{won(a.accumulatedDepreciation)}</span>
               </Def>
               <Def label="당기말장부가액">
-                <span className="num block font-semibold">{won(a.bookValue)}</span>
+                <span
+                  className="num block font-semibold"
+                  title={a.bookValue < 0 ? PRE_SETTLEMENT_NOTE : undefined}
+                >
+                  {bookValue(a.bookValue)}
+                </span>
               </Def>
               <Def label="개시 기준연도 / 개시 누계액">
                 {a.openingFiscalYear ?? '-'} / {won(a.openingAccumulatedDepreciation)}
@@ -302,7 +307,7 @@ function DepreciationHistory({ assetId }: { assetId: number }) {
                 <td className="px-3 py-2">{r.depreciationMethodLabel ?? '-'}</td>
                 <td className="num px-3 py-2">{won(r.depreciation)}</td>
                 <td className="num px-3 py-2">{won(r.accumulated)}</td>
-                <td className="num px-3 py-2">{won(r.bookValue)}</td>
+                <td className="num px-3 py-2">{bookValue(r.bookValue)}</td>
               </tr>
             ))}
           </tbody>

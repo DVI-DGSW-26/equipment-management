@@ -14,7 +14,7 @@ import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { appConfig } from '@/config/appConfig';
 import { codeText, isPrintable } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
-import { won } from '@/lib/won';
+import { bookValue, PRE_SETTLEMENT_NOTE, won } from '@/lib/won';
 import { fmtDate } from '@/lib/date';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
@@ -456,7 +456,9 @@ export default function AssetListPage() {
                       <td className="px-3 py-2">{fmtDate(a.acquisitionDate)}</td>
                       <td className="num px-3 py-2">{won(a.acquisitionCost)}</td>
                       <td className="num px-3 py-2">{won(a.accumulatedDepreciation)}</td>
-                      <td className="num px-3 py-2">{won(a.bookValue)}</td>
+                      <td className="num px-3 py-2" title={a.bookValue < 0 ? PRE_SETTLEMENT_NOTE : undefined}>
+                        {bookValue(a.bookValue)}
+                      </td>
                       <td className="px-3 py-2">{a.usingDeptName ?? '-'}</td>
                       <td className="px-3 py-2">{a.locationName ?? '-'}</td>
                       <td className="px-3 py-2">{a.statusLabel}</td>

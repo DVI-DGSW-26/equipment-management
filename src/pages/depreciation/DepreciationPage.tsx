@@ -4,7 +4,7 @@ import { depreciationApi, type ForecastGroupBy, type YearlyRow } from '@/api/dep
 import { queryKeys } from '@/api/queryKeys';
 import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate } from '@/lib/date';
-import { won, wonRatio, wonShort } from '@/lib/won';
+import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import {
   Badge,
@@ -339,7 +339,7 @@ function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
                       </td>
                     ))}
                     <td className="num px-3 py-1.5">{won(r.byYear[toYear]?.accumulated)}</td>
-                    <td className="num px-3 py-1.5">{won(r.byYear[toYear]?.bookValue)}</td>
+                    <td className="num px-3 py-1.5">{bookValue(r.byYear[toYear]?.bookValue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -369,7 +369,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
             { label: '자산 건수', value: `${g.assetCount.toLocaleString('ko-KR')}건` },
             { label: '기초가액', value: won(g.beginningValue) },
             { label: '당기 상각비', value: won(g.currentDepreciation) },
-            { label: '당기말장부가액', value: won(g.endingBookValue) },
+            { label: '당기말장부가액', value: bookValue(g.endingBookValue) },
           ]}
         />
       )}
@@ -413,14 +413,14 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     <td className="num px-3 py-1.5">{r.quantity?.toLocaleString('ko-KR')}</td>
                     <td className="num px-3 py-1.5">{won(r.beginningValue)}</td>
                     <td className="num px-3 py-1.5">{won(r.priorAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{won(r.priorBookValue)}</td>
+                    <td className="num px-3 py-1.5">{bookValue(r.priorBookValue)}</td>
                     <td className="num px-3 py-1.5">{r.usefulLifeYears ?? '-'}</td>
                     <td className="num px-3 py-1.5">{r.depreciationRate ?? '-'}</td>
                     <td className="px-3 py-1.5">{r.depreciationMethodLabel ?? '-'}</td>
                     <td className="num px-3 py-1.5">{won(r.annualRangeAmount)}</td>
                     <td className="num px-3 py-1.5">{won(r.currentDepreciation)}</td>
                     <td className="num px-3 py-1.5">{won(r.endingAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{won(r.endingBookValue)}</td>
+                    <td className="num px-3 py-1.5">{bookValue(r.endingBookValue)}</td>
                   </tr>
                 ))}
                 {d.subtotals.map((s) => (
@@ -431,12 +431,12 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     <td className="num px-3 py-1.5">{s.quantity?.toLocaleString('ko-KR')}</td>
                     <td className="num px-3 py-1.5">{won(s.beginningValue)}</td>
                     <td className="num px-3 py-1.5">{won(s.priorAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{won(s.priorBookValue)}</td>
+                    <td className="num px-3 py-1.5">{bookValue(s.priorBookValue)}</td>
                     <td colSpan={3} />
                     <td className="num px-3 py-1.5">{won(s.annualRangeAmount)}</td>
                     <td className="num px-3 py-1.5">{won(s.currentDepreciation)}</td>
                     <td className="num px-3 py-1.5">{won(s.endingAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{won(s.endingBookValue)}</td>
+                    <td className="num px-3 py-1.5">{bookValue(s.endingBookValue)}</td>
                   </tr>
                 ))}
               </tbody>
