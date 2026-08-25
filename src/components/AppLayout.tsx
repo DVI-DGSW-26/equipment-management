@@ -7,6 +7,7 @@ import { ToastProvider } from '@/components/Toast';
 
 const NAV = [
   { to: '/assets', label: '고정자산' },
+  { to: '/physical-assets', label: '실물자산' },
   { to: '/depreciation', label: '감가상각' },
   { to: '/inspections', label: '안전검사' },
 ];
