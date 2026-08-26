@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { notificationsApi, ALERT_TYPE_LABEL, type AlertType } from '@/api/notifications';
+import {
+  notificationsApi,
+  ALERT_TYPE_LABEL,
+  type AlertSettings,
+  type AlertType,
+} from '@/api/notifications';
 import { queryKeys } from '@/api/queryKeys';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
@@ -17,25 +22,36 @@ import {
   thClass,
 } from '@/components/ui';
 
-export default function NotificationPage() {
+/**
+ * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
+ * 계측기 화면과 안전검사 화면이 각자 자기 유형으로 불러 쓴다.
+ *
+ * 수신 이메일 목록은 서버가 유형을 구분하지 않아 두 화면이 같은 목록을 본다.
+ * 팀·유형별 분리 발송은 백엔드 추가 개발 건이다.
+ */
+export default function AlertTab({ type }: { type: AlertType }) {
   const [mode, setMode] = useState<'subscribe' | 'unsubscribe' | null>(null);
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">알림</h1>
-      <SettingsSection />
+      <SettingsSection type={type} />
       <EmailSection
+        type={type}
         onSubscribe={() => setMode('subscribe')}
         onUnsubscribe={() => setMode('unsubscribe')}
       />
-      <SendSection />
-      <LogSection />
+      <SendSection type={type} />
+      <LogSection type={type} />
       {mode && <VerifyModal mode={mode} onClose={() => setMode(null)} />}
     </div>
   );
 }
 
-/* ---------- 발송 시점 설정 ---------- */
+/** 유형별로 손대는 설정 키가 다르다 */
+const settingsKey = (type: AlertType): keyof AlertSettings =>
+  type === 'CALIBRATION' ? 'calibrationDaysBefore' : 'safetyDaysBefore';
+
+/* ---------- 발송 시점 ---------- */
 
 /** "60, 30, 7" 처럼 입력받아 정수 배열로. 0~365 범위 밖은 서버가 거른다 */
 const parseDays = (text: string): number[] =>
@@ -48,22 +64,20 @@ const parseDays = (text: string): number[] =>
 
 const formatDays = (days: number[] | undefined): string => (days ?? []).join(', ');
 
-function SettingsSection() {
+function SettingsSection({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [draft, setDraft] = useState<{ calibration: string; safety: string } | null>(null);
+  const [draft, setDraft] = useState<string | null>(null);
+  const key = settingsKey(type);
 
   const q = useQuery({
     queryKey: queryKeys.notifications.settings(),
     queryFn: () => notificationsApi.settings(),
   });
 
+  // 자기 유형의 키만 보낸다. 다른 유형 설정은 건드리지 않는다
   const save = useMutation({
-    mutationFn: () =>
-      notificationsApi.updateSettings({
-        calibrationDaysBefore: parseDays(draft!.calibration),
-        safetyDaysBefore: parseDays(draft!.safety),
-      }),
+    mutationFn: () => notificationsApi.updateSettings({ [key]: parseDays(draft!) }),
     onSuccess: (r) => {
       toast.ok('발송 시점을 저장했습니다.');
       qc.setQueryData(queryKeys.notifications.settings(), r);
@@ -72,17 +86,13 @@ function SettingsSection() {
     onError: toast.fail,
   });
 
-  const startEdit = () =>
-    setDraft({
-      calibration: formatDays(q.data?.calibrationDaysBefore),
-      safety: formatDays(q.data?.safetyDaysBefore),
-    });
+  const days = q.data?.[key];
 
   return (
     <Section
-      title="발송 시점"
+      title={`${ALERT_TYPE_LABEL[type]} 알림 발송 시점`}
       right={
-        draft ? (
+        draft !== null ? (
           <>
             <button type="button" className={btnClass} onClick={() => setDraft(null)}>
               취소
@@ -97,7 +107,12 @@ function SettingsSection() {
             </button>
           </>
         ) : (
-          <button type="button" className={btnClass} disabled={!q.data} onClick={startEdit}>
+          <button
+            type="button"
+            className={btnClass}
+            disabled={!q.data}
+            onClick={() => setDraft(formatDays(days))}
+          >
             수정
           </button>
         )
@@ -105,46 +120,28 @@ function SettingsSection() {
     >
       <QueryState isPending={q.isPending} error={q.error} />
       {q.data && (
-        <div className="grid grid-cols-1 gap-3 px-3 py-3 md:grid-cols-2">
+        <div className="px-3 py-3">
           <Field
-            label="교정 알림"
-            hint="차기 교정일 며칠 전에 보낼지. 0 = 당일. 쉼표로 구분"
+            label={
+              type === 'CALIBRATION'
+                ? '차기 교정일 며칠 전에 보낼지'
+                : '검사유효 만료일 며칠 전에 보낼지'
+            }
+            hint="0 = 당일. 여러 번 보내려면 쉼표로 구분 (예: 60, 30, 7)"
           >
-            {draft ? (
+            {draft !== null ? (
               <input
-                className={inputClass}
-                value={draft.calibration}
-                onChange={(e) => setDraft({ ...draft, calibration: e.target.value })}
-                placeholder="예: 30, 7, 0"
-              />
-            ) : (
-              <div className="flex flex-wrap gap-1 py-1.5">
-                {q.data.calibrationDaysBefore.length === 0 ? (
-                  <Badge tone="warn">발송 안 함</Badge>
-                ) : (
-                  q.data.calibrationDaysBefore.map((d) => (
-                    <Badge key={d} tone="accent">
-                      {d === 0 ? '당일' : `${d}일 전`}
-                    </Badge>
-                  ))
-                )}
-              </div>
-            )}
-          </Field>
-          <Field label="안전검사 알림" hint="검사유효 만료일 며칠 전에 보낼지. 쉼표로 구분">
-            {draft ? (
-              <input
-                className={inputClass}
-                value={draft.safety}
-                onChange={(e) => setDraft({ ...draft, safety: e.target.value })}
+                className={`${inputClass} max-w-md`}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
                 placeholder="예: 60, 30, 7"
               />
             ) : (
               <div className="flex flex-wrap gap-1 py-1.5">
-                {q.data.safetyDaysBefore.length === 0 ? (
+                {(days ?? []).length === 0 ? (
                   <Badge tone="warn">발송 안 함</Badge>
                 ) : (
-                  q.data.safetyDaysBefore.map((d) => (
+                  (days ?? []).map((d) => (
                     <Badge key={d} tone="accent">
                       {d === 0 ? '당일' : `${d}일 전`}
                     </Badge>
@@ -155,20 +152,18 @@ function SettingsSection() {
           </Field>
         </div>
       )}
-      <p className="border-t border-line px-3 py-2 text-[18px] text-fg-muted">
-        매일 배치가 이 시점에 맞춰 자동 발송합니다 (교정 09:00, 안전검사 09:05). 0~365 범위의
-        정수만 저장됩니다.
-      </p>
     </Section>
   );
 }
 
-/* ---------- 수신 이메일 ---------- */
+/* ---------- 수신 이메일 (교정·안전검사 공용) ---------- */
 
 function EmailSection({
+  type,
   onSubscribe,
   onUnsubscribe,
 }: {
+  type: AlertType;
   onSubscribe: () => void;
   onUnsubscribe: () => void;
 }) {
@@ -181,8 +176,7 @@ function EmailSection({
     queryFn: () => notificationsApi.emails(),
   });
 
-  const invalidate = () =>
-    void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
+  const invalidate = () => void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
 
   /** 등록 담당자가 관리팀 주소를 대신 넣는 경로. 인증 없이 바로 수신 상태가 된다 */
   const add = useMutation({
@@ -203,6 +197,8 @@ function EmailSection({
     },
     onError: toast.fail,
   });
+
+  const other = type === 'CALIBRATION' ? '안전검사' : '교정';
 
   return (
     <Section
@@ -234,6 +230,10 @@ function EmailSection({
         </>
       }
     >
+      <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
+        이 목록은 <b>{other} 알림과 함께 쓰는 공용 목록</b>입니다. 여기 등록된 주소는 {other} 알림도
+        같이 받습니다. 팀별·유형별로 나눠 보내는 기능은 아직 서버에 없습니다.
+      </p>
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
         <b className="text-fg-sub">바로 등록</b>은 등록 담당자가 관리팀 주소를 대신 넣는 경로로,
         인증 없이 즉시 수신 상태가 됩니다. <b className="text-fg-sub">본인 인증 등록</b>은 주소
@@ -275,7 +275,11 @@ function EmailSection({
                     type="button"
                     className="whitespace-nowrap text-[18px] text-danger hover:underline"
                     onClick={() => {
-                      if (window.confirm(`${e.email} 을 수신 목록에서 제거합니다.`))
+                      if (
+                        window.confirm(
+                          `${e.email} 을 수신 목록에서 제거합니다. 교정·안전검사 알림이 모두 끊깁니다.`,
+                        )
+                      )
                         remove.mutate(e.id);
                     }}
                   >
@@ -394,39 +398,30 @@ function VerifyModal({
 
 /* ---------- 수동 발송 ---------- */
 
-function SendSection() {
+function SendSection({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [baseDate, setBaseDate] = useState(toIsoDate(new Date()));
+  const label = ALERT_TYPE_LABEL[type];
 
   const send = useMutation({
-    mutationFn: (type: AlertType) =>
+    mutationFn: () =>
       type === 'CALIBRATION'
         ? notificationsApi.sendCalibrationAlert(baseDate)
         : notificationsApi.sendSafetyAlert(baseDate),
-    onSuccess: (r, type) => {
+    onSuccess: (r) => {
       const skipped = r.skippedCount > 0 ? ` / 당일 중복 ${r.skippedCount} 건너뜀` : '';
       toast.ok(
-        `${ALERT_TYPE_LABEL[type]} 알림 — 대상 ${r.targetCount} / 성공 ${r.sentCount} / 실패 ${r.failedCount}${skipped}`,
+        `${label} 알림 — 대상 ${r.targetCount} / 성공 ${r.sentCount} / 실패 ${r.failedCount}${skipped}`,
       );
       void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
     },
     onError: toast.fail,
   });
 
-  const confirmSend = (type: AlertType) => {
-    if (
-      window.confirm(
-        `${baseDate} 기준으로 ${ALERT_TYPE_LABEL[type]} 알림 메일을 실제로 발송합니다.
-같은 대상에 오늘 이미 발송됐다면 서버가 건너뜁니다. 진행할까요?`,
-      )
-    )
-      send.mutate(type);
-  };
-
   return (
     <Section title="수동 발송">
-      <div className="flex items-end gap-3 px-3 py-3">
+      <div className="flex flex-wrap items-end gap-3 px-3 py-3">
         <label className="block">
           <span className="mb-0.5 block text-[18px] text-fg-sub">기준일</span>
           <input
@@ -440,17 +435,16 @@ function SendSection() {
           type="button"
           className={btnPrimaryClass}
           disabled={send.isPending}
-          onClick={() => confirmSend('CALIBRATION')}
+          onClick={() => {
+            if (
+              window.confirm(
+                `${baseDate} 기준으로 ${label} 알림 메일을 실제로 발송합니다. 같은 대상에 오늘 이미 발송됐다면 서버가 건너뜁니다. 진행할까요?`,
+              )
+            )
+              send.mutate();
+          }}
         >
-          교정 알림 발송
-        </button>
-        <button
-          type="button"
-          className={btnPrimaryClass}
-          disabled={send.isPending}
-          onClick={() => confirmSend('SAFETY')}
-        >
-          안전검사 알림 발송
+          {label} 알림 발송
         </button>
         <span className="pb-1 text-[18px] text-fg-muted">
           기준일에서 역산해 대상을 다시 계산하고, 인증 완료된 수신자에게 메일을 보냅니다. 같은
@@ -463,20 +457,39 @@ function SendSection() {
 
 /* ---------- 발송 이력 ---------- */
 
-function LogSection() {
+/**
+ * 서버 /notification/log 에 유형 필터가 없어 한 번에 받아 화면에서 거른다.
+ * 보관 기간이 30일이라 넘칠 일이 거의 없고, 넘치면 위에 경고를 띄운다.
+ */
+const LOG_FETCH = 500;
+
+function LogSection({ type }: { type: AlertType }) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
-  const query = useMemo(() => ({ page, size }), [page, size]);
 
   const q = useQuery({
-    queryKey: queryKeys.notifications.logs(query),
-    queryFn: () => notificationsApi.logs(query),
+    queryKey: queryKeys.notifications.logs({ page: 0, size: LOG_FETCH }),
+    queryFn: () => notificationsApi.logs({ page: 0, size: LOG_FETCH }),
   });
 
-  const rows = q.data?.items ?? [];
+  const rows = useMemo(
+    () => (q.data?.items ?? []).filter((l) => l.alertType === type),
+    [q.data, type],
+  );
+  const totalPages = Math.ceil(rows.length / size);
+  const pageRows = rows.slice(page * size, (page + 1) * size);
+  const truncated = (q.data?.total ?? 0) > LOG_FETCH;
 
   return (
-    <Section title="발송 이력" right={<span className="text-[18px] text-fg-muted">30일 보관</span>}>
+    <Section
+      title={`${ALERT_TYPE_LABEL[type]} 발송 이력`}
+      right={<span className="text-[18px] text-fg-muted">30일 보관</span>}
+    >
+      {truncated && (
+        <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
+          이력이 {LOG_FETCH}건을 넘어 최근 {LOG_FETCH}건만 보고 있습니다.
+        </p>
+      )}
       <QueryState
         isPending={q.isPending}
         error={q.error}
@@ -489,17 +502,15 @@ function LogSection() {
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>발송 일시</th>
-                <th className={thClass}>구분</th>
                 <th className={thClass}>대상</th>
                 <th className={thClass}>수신자</th>
                 <th className={thClass}>결과</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((l) => (
+              {pageRows.map((l) => (
                 <tr key={l.id} className="border-b border-line">
                   <td className="px-3 py-2">{fmtDateTime(l.sentAt)}</td>
-                  <td className="px-3 py-2">{ALERT_TYPE_LABEL[l.alertType]}</td>
                   <td className="px-3 py-2 text-fg-sub">
                     {l.instrumentId
                       ? `계측기 #${l.instrumentId}`
@@ -516,9 +527,9 @@ function LogSection() {
             </tbody>
           </table>
           <Pagination
-            page={q.data?.page ?? 0}
-            totalPages={q.data?.totalPages ?? 0}
-            total={q.data?.total ?? 0}
+            page={page}
+            totalPages={totalPages}
+            total={rows.length}
             size={size}
             onChange={setPage}
             onSizeChange={(s) => {
