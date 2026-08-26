@@ -10,6 +10,7 @@ import {
 } from '@/api/notifications';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
+import { ApiError } from '@/api/types';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
@@ -176,9 +177,6 @@ function useTeamOptions(): string[] {
   );
 }
 
-const typeText = (types: AlertType[]): string =>
-  types.length === 0 ? '-' : types.map((t) => ALERT_TYPE_LABEL[t]).join(' · ');
-
 /**
  * 담당반을 지정하면 교정 알림을 한 통도 못 받는다.
  *
@@ -194,9 +192,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState('');
-  const [showAll, setShowAll] = useState(false);
-  const [editing, setEditing] = useState<NotificationEmail | null>(null);
-  const teamOptions = useTeamOptions();
+  const [editingTeam, setEditingTeam] = useState<NotificationEmail | null>(null);
 
   const q = useQuery({
     queryKey: queryKeys.notifications.emails(),
@@ -205,31 +201,70 @@ function RecipientBlock({ type }: { type: AlertType }) {
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
 
-  const all = useMemo(() => q.data ?? [], [q.data]);
+  // 이 화면은 자기 유형만 책임진다. 다른 유형 수신자는 그 화면에서 관리한다
   const rows = useMemo(
-    () => (showAll ? all : all.filter((e) => e.alertTypes.includes(type))),
-    [all, showAll, type],
+    () => (q.data ?? []).filter((e) => e.alertTypes.includes(type)),
+    [q.data, type],
   );
-  const hidden = all.length - rows.length;
+  const other: AlertType = type === 'CALIBRATION' ? 'SAFETY' : 'CALIBRATION';
 
   /**
-   * 등록 담당자가 관리팀 주소를 대신 넣는 경로. 인증 없이 바로 수신 상태가 된다.
-   * 이 화면에서 넣었으면 이 화면의 알림을 받으라는 뜻이라, 자기 유형으로 등록한다.
+   * 주소를 넣으면 이 화면의 알림을 받게 된다. 인증 절차는 없다.
+   *
+   * 다른 화면에서 이미 등록한 주소면 서버가 409 를 준다. 그때는 등록 대신
+   * 그 주소에 이 유형만 더해 준다. 쓰는 사람은 "이미 있다" 를 알 필요가 없다.
    */
   const add = useMutation({
-    mutationFn: () => notificationsApi.addEmail(draft.trim(), { alertTypes: [type] }),
-    onSuccess: (e) => {
-      toast.ok(`${e.email} 등록했습니다. ${ALERT_TYPE_LABEL[type]} 알림을 받습니다.`);
+    mutationFn: async (): Promise<{ email: string; already: boolean }> => {
+      const email = draft.trim();
+      try {
+        const created = await notificationsApi.addEmail(email, { alertTypes: [type] });
+        return { email: created.email, already: false };
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 409) throw err;
+        const found = (await notificationsApi.emails()).find(
+          (e) => e.email.toLowerCase() === email.toLowerCase(),
+        );
+        if (!found) throw err;
+        if (found.alertTypes.includes(type)) return { email: found.email, already: true };
+        await notificationsApi.updatePreferences(found.id, {
+          alertTypes: [...found.alertTypes, type],
+        });
+        return { email: found.email, already: false };
+      }
+    },
+    onSuccess: ({ email, already }) => {
+      toast.ok(
+        already
+          ? `${email} 은 이미 ${ALERT_TYPE_LABEL[type]} 알림을 받고 있습니다.`
+          : `${email} 등록했습니다.`,
+      );
       setDraft('');
       invalidate();
     },
     onError: toast.fail,
   });
 
+  /** 다른 알림도 받는 주소면 이 유형만 뺀다. 아니면 목록에서 지운다 */
   const remove = useMutation({
-    mutationFn: (id: number) => notificationsApi.removeEmail(id),
+    mutationFn: (e: NotificationEmail) => {
+      const rest = e.alertTypes.filter((t) => t !== type);
+      return rest.length > 0
+        ? notificationsApi.updatePreferences(e.id, { alertTypes: rest }).then(() => undefined)
+        : notificationsApi.removeEmail(e.id);
+    },
     onSuccess: () => {
-      toast.ok('수신 목록에서 제거했습니다.');
+      toast.ok(`${ALERT_TYPE_LABEL[type]} 알림 수신자에서 뺐습니다.`);
+      invalidate();
+    },
+    onError: toast.fail,
+  });
+
+  /** 교정 화면에서 "교정 미수신" 을 그 자리에서 풀 수 있게 한다 */
+  const clearTeams = useMutation({
+    mutationFn: (e: NotificationEmail) => notificationsApi.updatePreferences(e.id, { teams: [] }),
+    onSuccess: () => {
+      toast.ok('담당반을 비웠습니다. 이제 교정 알림을 받습니다.');
       invalidate();
     },
     onError: toast.fail,
@@ -237,22 +272,10 @@ function RecipientBlock({ type }: { type: AlertType }) {
 
   return (
     <>
-      {type === 'CALIBRATION' && (
-        <p className="border-b border-line bg-danger/10 px-3 py-2 text-[18px] text-danger">
-          <b>교정 알림을 받을 사람은 담당반을 비워 두세요.</b> 계측기에는 담당반 항목이 없어,
-          담당반을 지정한 주소는 교정 알림 대상에서 빠집니다.
-        </p>
-      )}
-
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
         <span className="text-[18px] text-fg-sub">
           수신자 <b className="text-fg">{rows.length}명</b>
         </span>
-        <label className="flex items-center gap-2 whitespace-nowrap text-[18px] text-fg-sub">
-          <input type="checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} />
-          다른 유형까지 보기
-          {hidden > 0 && !showAll && <span className="text-fg-muted">({hidden}명 숨김)</span>}
-        </label>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <input
             type="email"
@@ -277,11 +300,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         isPending={q.isPending}
         error={q.error}
         isEmpty={rows.length === 0}
-        emptyText={
-          all.length > 0
-            ? `${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. "다른 유형까지 보기" 로 ${all.length}명을 확인하거나 새로 등록하세요.`
-            : '등록된 수신자가 없습니다. 지금은 알림이 아무에게도 가지 않습니다.'
-        }
+        emptyText={`${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. 위에 주소를 넣으면 바로 받습니다.`}
       />
 
       {rows.length > 0 && (
@@ -289,8 +308,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>이메일</th>
-              <th className={thClass}>받는 알림</th>
-              <th className={thClass}>담당반</th>
+              <th className={thClass}>{type === 'SAFETY' ? '담당반' : '수신 여부'}</th>
               <th className={thClass}>상태</th>
               <th className={thClass}>등록일</th>
               <th className={thClass} />
@@ -299,27 +317,46 @@ function RecipientBlock({ type }: { type: AlertType }) {
           <tbody>
             {rows.map((e) => (
               <tr key={e.id} className="border-b border-line">
-                <td className="px-3 py-2">{e.email}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-fg-sub">
-                  {typeText(e.alertTypes)}
+                <td className="px-3 py-2">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {e.email}
+                    {e.alertTypes.includes(other) && (
+                      <Badge title={`${ALERT_TYPE_LABEL[other]} 화면에서도 관리됩니다`}>
+                        {ALERT_TYPE_LABEL[other]}도 받음
+                      </Badge>
+                    )}
+                  </span>
                 </td>
-                <td className="px-3 py-2 text-fg-sub">
-                  {e.teams.length === 0 ? (
-                    <span className="text-fg-muted">전체</span>
-                  ) : (
-                    <span className="flex flex-wrap items-center gap-2">
-                      {e.teams.join(', ')}
-                      {calibrationBlocked(e) && (
-                        <Badge
-                          tone="danger"
-                          title="계측기에 담당반 항목이 없어, 담당반을 지정한 주소는 교정 알림 대상에서 빠집니다"
+
+                {type === 'SAFETY' ? (
+                  <td className="px-3 py-2 text-fg-sub">
+                    {e.teams.length === 0 ? (
+                      <span className="text-fg-muted">전체</span>
+                    ) : (
+                      e.teams.join(', ')
+                    )}
+                  </td>
+                ) : (
+                  <td className="px-3 py-2">
+                    {calibrationBlocked(e) ? (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Badge tone="danger">받지 못함</Badge>
+                        <button
+                          type="button"
+                          className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                          disabled={clearTeams.isPending}
+                          onClick={() => clearTeams.mutate(e)}
+                          title={`담당반 ${e.teams.join(', ')} 이 지정돼 있어 교정 알림 대상에서 빠집니다`}
                         >
-                          교정 미수신
-                        </Badge>
-                      )}
-                    </span>
-                  )}
-                </td>
+                          담당반 비우고 받기
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="text-fg-muted">정상</span>
+                    )}
+                  </td>
+                )}
+
                 <td className="px-3 py-2">
                   {e.status === 'VERIFIED' ? (
                     <Badge tone="accent">{e.statusLabel}</Badge>
@@ -332,23 +369,25 @@ function RecipientBlock({ type }: { type: AlertType }) {
                 </td>
                 <td className="px-3 py-2 text-right">
                   <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      className="whitespace-nowrap text-[18px] text-accent hover:underline"
-                      onClick={() => setEditing(e)}
-                    >
-                      수정
-                    </button>
+                    {type === 'SAFETY' && (
+                      <button
+                        type="button"
+                        className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                        onClick={() => setEditingTeam(e)}
+                      >
+                        담당반
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="whitespace-nowrap text-[18px] text-danger hover:underline"
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            `${e.email} 을 수신 목록에서 제거합니다. 받고 있던 알림이 모두 끊깁니다.`,
-                          )
-                        )
-                          remove.mutate(e.id);
+                        const rest = e.alertTypes.filter((t) => t !== type);
+                        const msg =
+                          rest.length > 0
+                            ? `${e.email} 을 ${ALERT_TYPE_LABEL[type]} 알림에서 뺍니다. ${ALERT_TYPE_LABEL[other]} 알림은 계속 받습니다.`
+                            : `${e.email} 을 수신 목록에서 지웁니다. 받고 있던 알림이 모두 끊깁니다.`;
+                        if (window.confirm(msg)) remove.mutate(e);
                       }}
                     >
                       제거
@@ -361,14 +400,90 @@ function RecipientBlock({ type }: { type: AlertType }) {
         </table>
       )}
 
-      {editing && (
-        <PreferencesModal
-          email={editing}
-          teamOptions={teamOptions}
-          onClose={() => setEditing(null)}
-        />
-      )}
+      {editingTeam && <TeamModal email={editingTeam} onClose={() => setEditingTeam(null)} />}
     </>
+  );
+}
+
+/**
+ * 담당반은 안전검사 대상에만 있는 값이라 여기서만 고친다.
+ * 교정도 받는 주소면 담당반을 지정하는 순간 교정이 끊기므로 그 자리에서 경고한다.
+ */
+function TeamModal({ email, onClose }: { email: NotificationEmail; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [teams, setTeams] = useState<string[]>(email.teams);
+  const teamOptions = useTeamOptions();
+
+  const save = useMutation({
+    mutationFn: (): Promise<NotificationEmail> =>
+      notificationsApi.updatePreferences(email.id, { teams } satisfies EmailPreferences),
+    onSuccess: () => {
+      toast.ok('담당반을 저장했습니다.');
+      void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
+      onClose();
+    },
+    onError: toast.fail,
+  });
+
+  const breaksCalibration = calibrationBlocked({ alertTypes: email.alertTypes, teams });
+
+  return (
+    <Modal
+      title={`${email.email} 담당반`}
+      width={560}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className={btnClass} onClick={onClose}>
+            취소
+          </button>
+          <button
+            type="button"
+            className={btnPrimaryClass}
+            disabled={save.isPending}
+            onClick={() => save.mutate()}
+          >
+            저장
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-[18px] text-fg-sub">
+          고른 담당반의 설비 알림만 받습니다. 아무것도 고르지 않으면 담당반과 상관없이 전부 받습니다.
+        </p>
+
+        {breaksCalibration && (
+          <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-[18px] text-danger">
+            <b>이 주소는 교정 알림도 받고 있습니다.</b> 담당반을 지정하면 교정 알림이 끊깁니다.
+            계측기에는 담당반 항목이 없기 때문입니다.
+          </p>
+        )}
+
+        {teamOptions.length === 0 ? (
+          <p className="text-[18px] text-fg-muted">
+            안전검사 대상에 등록된 담당반이 없습니다. 대상 등록 화면에서 담당반을 먼저 지정하세요.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {teamOptions.map((t) => (
+              <label key={t} className="flex items-center gap-2 text-[19px]">
+                <input
+                  type="checkbox"
+                  checked={teams.includes(t)}
+                  onChange={() =>
+                    setTeams(teams.includes(t) ? teams.filter((x) => x !== t) : [...teams, t])
+                  }
+                />
+                {t}
+              </label>
+            ))}
+            {teams.length === 0 && <span className="text-[18px] text-fg-muted">전체 수신</span>}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -459,111 +574,6 @@ function SendModal({ type, onClose }: { type: AlertType; onClose: () => void }) 
           평소에는 서버가 매일 아침 자동으로 보냅니다. 이 버튼은 급할 때 한 번 더 보내는 용도입니다.
           오늘 이미 받은 대상은 건너뛰고, 한 사람이 하루에 받는 메일은 한 통입니다.
         </p>
-      </div>
-    </Modal>
-  );
-}
-
-/** 주소 하나의 받을 알림 유형·담당반을 고친다 */
-function PreferencesModal({
-  email,
-  teamOptions,
-  onClose,
-}: {
-  email: NotificationEmail;
-  teamOptions: string[];
-  onClose: () => void;
-}) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [alertTypes, setAlertTypes] = useState<AlertType[]>(email.alertTypes);
-  const [teams, setTeams] = useState<string[]>(email.teams);
-
-  const toggle = <T,>(list: T[], v: T): T[] =>
-    list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
-
-  const save = useMutation({
-    mutationFn: (): Promise<NotificationEmail> =>
-      notificationsApi.updatePreferences(email.id, { alertTypes, teams } satisfies EmailPreferences),
-    onSuccess: () => {
-      toast.ok('수신 조건을 저장했습니다.');
-      void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
-      onClose();
-    },
-    onError: toast.fail,
-  });
-
-  return (
-    <Modal
-      title={`${email.email} 수신 조건`}
-      width={560}
-      onClose={onClose}
-      footer={
-        <>
-          <button type="button" className={btnClass} onClick={onClose}>
-            취소
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={save.isPending || alertTypes.length === 0}
-            onClick={() => save.mutate()}
-          >
-            저장
-          </button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <Field
-          label="받을 알림"
-          required
-          error={alertTypes.length === 0 ? '최소 한 가지는 골라야 합니다.' : undefined}
-        >
-          <div className="flex flex-wrap gap-4 py-1.5">
-            {(['CALIBRATION', 'SAFETY'] as const).map((t) => (
-              <label key={t} className="flex items-center gap-2 text-[19px]">
-                <input
-                  type="checkbox"
-                  checked={alertTypes.includes(t)}
-                  onChange={() => setAlertTypes(toggle(alertTypes, t))}
-                />
-                {ALERT_TYPE_LABEL[t]}
-              </label>
-            ))}
-          </div>
-        </Field>
-
-        {calibrationBlocked({ alertTypes, teams }) && (
-          <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-[18px] text-danger">
-            <b>이대로 저장하면 교정 알림은 한 통도 가지 않습니다.</b> 계측기에 담당반 항목이 없어,
-            담당반을 지정한 주소는 교정 대상에서 빠집니다. 교정 알림도 받아야 하면 담당반을 모두
-            해제하세요.
-          </p>
-        )}
-
-        <Field
-          label="담당반"
-          hint={
-            teamOptions.length === 0
-              ? '안전검사 대상에 등록된 담당반이 없어 고를 값이 없습니다.'
-              : '아무것도 고르지 않으면 담당반과 상관없이 전부 받습니다. 안전검사 알림에만 적용됩니다.'
-          }
-        >
-          <div className="flex flex-wrap gap-4 py-1.5">
-            {teamOptions.map((t) => (
-              <label key={t} className="flex items-center gap-2 text-[19px]">
-                <input
-                  type="checkbox"
-                  checked={teams.includes(t)}
-                  onChange={() => setTeams(toggle(teams, t))}
-                />
-                {t}
-              </label>
-            ))}
-            {teams.length === 0 && <span className="text-[18px] text-fg-muted">전체 담당반 수신</span>}
-          </div>
-        </Field>
       </div>
     </Modal>
   );
