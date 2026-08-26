@@ -26,8 +26,9 @@ import {
   Pagination,
   QueryState,
   Section,
+  TableScroll,
   StatCards,
-  thClass,
+  stickyThClass,
 } from '@/components/ui';
 
 const EMPTY: AssetFilter = {};
@@ -372,13 +373,13 @@ export default function AssetListPage() {
 
         {rows.length > 0 && (
           <>
-            <div className="overflow-x-auto">
+            <TableScroll>
               <table className="w-max min-w-full text-[19px]">
                 <thead>
-                  <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                  <tr className="text-left text-fg-sub">
                     {sel.showSelectColumn && (
                       /* 무엇을 위한 선택인지 열 제목으로 알린다 */
-                      <th className={`${thClass} w-24`}>
+                      <th className={`${stickyThClass} w-24`}>
                         <label className="flex w-fit items-center gap-2 whitespace-nowrap">
                           <input
                             type="checkbox"
@@ -391,16 +392,16 @@ export default function AssetListPage() {
                         </label>
                       </th>
                     )}
-                    <th className={thClass}>자산코드</th>
-                    <th className={thClass}>계정과목</th>
-                    <th className={thClass}>자산명</th>
-                    <th className={thClass}>취득일자</th>
-                    <th className={`${thClass} text-right`}>취득가액</th>
-                    <th className={`${thClass} text-right`}>상각누계액</th>
-                    <th className={`${thClass} text-right`}>장부가액</th>
-                    <th className={thClass}>사용부서</th>
-                    <th className={thClass}>사용위치</th>
-                    <th className={thClass}>상태</th>
+                    <th className={stickyThClass}>자산코드</th>
+                    <th className={stickyThClass}>계정과목</th>
+                    <th className={stickyThClass}>자산명</th>
+                    <th className={stickyThClass}>취득일자</th>
+                    <th className={`${stickyThClass} text-right`}>취득가액</th>
+                    <th className={`${stickyThClass} text-right`}>상각누계액</th>
+                    <th className={`${stickyThClass} text-right`}>장부가액</th>
+                    <th className={stickyThClass}>사용부서</th>
+                    <th className={stickyThClass}>사용위치</th>
+                    <th className={stickyThClass}>상태</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -470,7 +471,7 @@ export default function AssetListPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
 
             <Pagination
               page={list.data?.page ?? 0}

@@ -12,9 +12,10 @@ import {
   inputClass,
   QueryState,
   Section,
+  TableScroll,
   StatCards,
   Tabs,
-  thClass,
+  stickyThClass,
 } from '@/components/ui';
 
 type TabKey = 'schedule' | 'yearly' | 'ledger' | 'forecast';
@@ -186,23 +187,23 @@ function ScheduleTab({
         }
       />
       {d && d.rows.length > 0 && (
-        <div className="overflow-x-auto">
+        <TableScroll>
           <table className="w-max min-w-full text-[18px]">
             <thead>
-              <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                <th className={thClass}>계정과목</th>
-                <th className={thClass}>자산코드</th>
-                <th className={thClass}>자산명</th>
-                <th className={thClass}>취득일</th>
+              <tr className="text-left text-fg-sub">
+                <th className={stickyThClass}>계정과목</th>
+                <th className={stickyThClass}>자산코드</th>
+                <th className={stickyThClass}>자산명</th>
+                <th className={stickyThClass}>취득일</th>
                 {MONTHS.map((m) => (
                   <th
                     key={m}
-                    className={`${thClass} text-right ${estFrom && m >= estFrom ? 'text-fg-muted' : ''}`}
+                    className={`${stickyThClass} text-right ${estFrom && m >= estFrom ? 'text-fg-muted' : ''}`}
                   >
                     {m}월
                   </th>
                 ))}
-                <th className={`${thClass} text-right`}>합계</th>
+                <th className={`${stickyThClass} text-right`}>합계</th>
               </tr>
             </thead>
             <tbody>
@@ -243,7 +244,7 @@ function ScheduleTab({
               </tr>
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       )}
     </Section>
   );
@@ -370,21 +371,21 @@ function YearlyTab({
           emptyText="조회 결과가 없습니다."
         />
         {pivot.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
-                <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                  <th className={thClass}>자산코드</th>
-                  <th className={thClass}>자산명</th>
-                  <th className={thClass}>계정과목</th>
-                  <th className={thClass}>상각방법</th>
+                <tr className="text-left text-fg-sub">
+                  <th className={stickyThClass}>자산코드</th>
+                  <th className={stickyThClass}>자산명</th>
+                  <th className={stickyThClass}>계정과목</th>
+                  <th className={stickyThClass}>상각방법</th>
                   {years.map((y) => (
-                    <th key={y} className={`${thClass} text-right`}>
+                    <th key={y} className={`${stickyThClass} text-right`}>
                       {y} 상각비
                     </th>
                   ))}
-                  <th className={`${thClass} text-right`}>{toYear} 상각누계액</th>
-                  <th className={`${thClass} text-right`}>{toYear} 장부가액</th>
+                  <th className={`${stickyThClass} text-right`}>{toYear} 상각누계액</th>
+                  <th className={`${stickyThClass} text-right`}>{toYear} 장부가액</th>
                 </tr>
               </thead>
               <tbody>
@@ -405,7 +406,7 @@ function YearlyTab({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         )}
       </Section>
     </div>
@@ -443,25 +444,25 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
           emptyText="대장 데이터가 없습니다."
         />
         {d && d.rows.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
-                <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                  <th className={thClass}>계정과목</th>
-                  <th className={thClass}>자산코드</th>
-                  <th className={thClass}>자산명</th>
-                  <th className={thClass}>취득일</th>
-                  <th className={`${thClass} text-right`}>수량</th>
-                  <th className={`${thClass} text-right`}>기초가액</th>
-                  <th className={`${thClass} text-right`}>전기말누계</th>
-                  <th className={`${thClass} text-right`}>전기말장부</th>
-                  <th className={`${thClass} text-right`}>내용연수</th>
-                  <th className={`${thClass} text-right`}>상각률</th>
-                  <th className={thClass}>상각방법</th>
-                  <th className={`${thClass} text-right`}>범위액</th>
-                  <th className={`${thClass} text-right`}>회사계상</th>
-                  <th className={`${thClass} text-right`}>당기말누계</th>
-                  <th className={`${thClass} text-right`}>당기말장부</th>
+                <tr className="text-left text-fg-sub">
+                  <th className={stickyThClass}>계정과목</th>
+                  <th className={stickyThClass}>자산코드</th>
+                  <th className={stickyThClass}>자산명</th>
+                  <th className={stickyThClass}>취득일</th>
+                  <th className={`${stickyThClass} text-right`}>수량</th>
+                  <th className={`${stickyThClass} text-right`}>기초가액</th>
+                  <th className={`${stickyThClass} text-right`}>전기말누계</th>
+                  <th className={`${stickyThClass} text-right`}>전기말장부</th>
+                  <th className={`${stickyThClass} text-right`}>내용연수</th>
+                  <th className={`${stickyThClass} text-right`}>상각률</th>
+                  <th className={stickyThClass}>상각방법</th>
+                  <th className={`${stickyThClass} text-right`}>범위액</th>
+                  <th className={`${stickyThClass} text-right`}>회사계상</th>
+                  <th className={`${stickyThClass} text-right`}>당기말누계</th>
+                  <th className={`${stickyThClass} text-right`}>당기말장부</th>
                 </tr>
               </thead>
               <tbody>
@@ -502,7 +503,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         )}
       </Section>
     </div>
@@ -605,20 +606,20 @@ function ForecastTab() {
           emptyText="예상 데이터가 없습니다."
         />
         {d && d.rows.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
-                <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                  <th className={thClass}>
+                <tr className="text-left text-fg-sub">
+                  <th className={stickyThClass}>
                     {groupBy === 'asset' ? '자산' : groupBy === 'dept' ? '부서' : '구분'}
                   </th>
-                  {groupBy === 'asset' && <th className={thClass}>상각방법</th>}
+                  {groupBy === 'asset' && <th className={stickyThClass}>상각방법</th>}
                   {d.years.map((y) => (
-                    <th key={y} className={`${thClass} text-right`}>
+                    <th key={y} className={`${stickyThClass} text-right`}>
                       {y}
                     </th>
                   ))}
-                  <th className={`${thClass} text-right`}>기간 합계</th>
+                  <th className={`${stickyThClass} text-right`}>기간 합계</th>
                 </tr>
               </thead>
               <tbody>
@@ -652,7 +653,7 @@ function ForecastTab() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         )}
       </Section>
     </div>

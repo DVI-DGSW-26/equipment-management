@@ -26,7 +26,8 @@ import {
   Pagination,
   QueryState,
   Section,
-  thClass,
+  TableScroll,
+  stickyThClass,
 } from '@/components/ui';
 
 export default function PhysicalAssetListPage() {
@@ -177,12 +178,12 @@ export default function PhysicalAssetListPage() {
         />
         {rows.length > 0 && (
           <>
-            <div className="overflow-x-auto">
+            <TableScroll>
               <table className="w-max min-w-full text-[19px]">
                 <thead>
-                  <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                  <tr className="text-left text-fg-sub">
                     {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}
-                    <th className={`${thClass} w-24`}>
+                    <th className={`${stickyThClass} w-24`}>
                       <label className="flex w-fit items-center gap-2 whitespace-nowrap">
                         <input
                           type="checkbox"
@@ -199,18 +200,18 @@ export default function PhysicalAssetListPage() {
                         스티커
                       </label>
                     </th>
-                    <th className={thClass}>자산등록</th>
-                    <th className={thClass}>자산코드</th>
-                    <th className={thClass}>품명</th>
-                    <th className={thClass}>자산구분</th>
-                    <th className={thClass}>위치</th>
-                    <th className={thClass}>부서</th>
-                    <th className={thClass}>구입일</th>
-                    <th className={thClass}>모델명</th>
-                    <th className={thClass}>제조업체</th>
-                    <th className={`${thClass} text-right`}>구입금액</th>
-                    <th className={thClass}>상태</th>
-                    <th className={thClass} />
+                    <th className={stickyThClass}>자산등록</th>
+                    <th className={stickyThClass}>자산코드</th>
+                    <th className={stickyThClass}>품명</th>
+                    <th className={stickyThClass}>자산구분</th>
+                    <th className={stickyThClass}>위치</th>
+                    <th className={stickyThClass}>부서</th>
+                    <th className={stickyThClass}>구입일</th>
+                    <th className={stickyThClass}>모델명</th>
+                    <th className={stickyThClass}>제조업체</th>
+                    <th className={`${stickyThClass} text-right`}>구입금액</th>
+                    <th className={stickyThClass}>상태</th>
+                    <th className={stickyThClass} />
                   </tr>
                 </thead>
                 <tbody>
@@ -269,7 +270,7 @@ export default function PhysicalAssetListPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
             <Pagination
               page={list.data?.page ?? 0}
               totalPages={list.data?.totalPages ?? 0}

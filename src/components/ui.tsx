@@ -17,6 +17,24 @@ export const btnDangerClass =
 
 export const thClass = 'px-3 py-2 font-medium';
 
+/**
+ * 넓은 표를 담는 상자.
+ *
+ * 표만 감싸면 가로 스크롤바가 표 맨 아래에 붙는다. 행이 많으면 화면을 끝까지
+ * 내려야 스크롤바에 닿아서, 오른쪽 열을 보려고 한 번 내렸다 다시 올라와야 한다.
+ * 높이를 화면 안으로 묶어 두 방향 스크롤바가 늘 손 닿는 데 있게 한다.
+ * 대신 안에서 내릴 때 열 이름이 사라지지 않도록 표 머리를 고정한다(stickyThClass).
+ */
+export function TableScroll({ children }: { children: ReactNode }) {
+  return <div className="max-h-[70vh] overflow-auto">{children}</div>;
+}
+
+/**
+ * TableScroll 안에서 스크롤해도 남아 있는 표 머리.
+ * 표는 border-collapse 라 고정된 칸의 테두리가 사라진다. 밑줄은 그림자로 그린다.
+ */
+export const stickyThClass = `${thClass} sticky top-0 z-10 bg-bg shadow-[inset_0_-1px_0_var(--color-line)]`;
+
 export function Section({
   title,
   right,
