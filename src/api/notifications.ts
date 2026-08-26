@@ -66,6 +66,9 @@ export interface AlertSettings {
 /**
  * 수신 등록·해지는 2단계다.
  * ① request 로 인증코드 메일 발송 → ② verify 로 6자리 코드 확인.
+ *
+ * 화면은 해지 쪽만 쓴다. 등록은 관리 담당자가 addEmail 로 대신 넣는 경로 하나로 통일했다.
+ * subscribeRequest/subscribeVerify 는 서버에 그대로 있어 메일 본문 안내 등에서 쓸 수 있게 남긴다.
  */
 export const notificationsApi = {
   emails: () => request<NotificationEmail[]>('GET', '/notification-email'),

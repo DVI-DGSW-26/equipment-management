@@ -33,19 +33,15 @@ import {
  * 목록 자체는 하나라서 두 화면이 같은 목록을 보되, 기본은 자기 유형 수신자만 보여준다.
  */
 export default function AlertTab({ type }: { type: AlertType }) {
-  const [mode, setMode] = useState<'subscribe' | 'unsubscribe' | null>(null);
+  const [unsubscribing, setUnsubscribing] = useState(false);
 
   return (
     <div className="space-y-3">
       <SettingsSection type={type} />
-      <EmailSection
-        type={type}
-        onSubscribe={() => setMode('subscribe')}
-        onUnsubscribe={() => setMode('unsubscribe')}
-      />
+      <EmailSection type={type} onUnsubscribe={() => setUnsubscribing(true)} />
       <SendSection type={type} />
       <LogSection type={type} />
-      {mode && <VerifyModal mode={mode} type={type} onClose={() => setMode(null)} />}
+      {unsubscribing && <UnsubscribeModal onClose={() => setUnsubscribing(false)} />}
     </div>
   );
 }
@@ -190,11 +186,9 @@ const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): bo
 
 function EmailSection({
   type,
-  onSubscribe,
   onUnsubscribe,
 }: {
   type: AlertType;
-  onSubscribe: () => void;
   onUnsubscribe: () => void;
 }) {
   const qc = useQueryClient();
@@ -270,10 +264,7 @@ function EmailSection({
             disabled={add.isPending || draft.trim() === ''}
             onClick={() => add.mutate()}
           >
-            바로 등록
-          </button>
-          <button type="button" className={btnClass} onClick={onSubscribe}>
-            본인 인증 등록
+            등록
           </button>
           <button type="button" className={btnClass} onClick={onUnsubscribe}>
             본인 인증 해지
@@ -291,12 +282,11 @@ function EmailSection({
         </p>
       )}
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
-        <b className="text-fg-sub">바로 등록</b>은 등록 담당자가 관리팀 주소를 대신 넣는 경로로,
-        인증 없이 즉시 수신 상태가 됩니다. <b className="text-fg-sub">본인 인증 등록</b>은 주소
-        소유자가 직접 하는 방식이며 6자리 코드가 메일로 갑니다(10분 유효·1회용, 5회 오답 시 폐기,
-        같은 주소 60초 내 재요청 거절). 인증을 마친 주소에만 알림이 발송됩니다. 이 화면에서 넣은
-        주소는 <b className="text-fg-sub">{ALERT_TYPE_LABEL[type]} 알림</b>을 받도록 등록되며,
-        받을 알림과 담당반은 등록 뒤 <b className="text-fg-sub">수정</b>에서 바꿀 수 있습니다.
+        관리 담당자가 주소를 넣으면 인증 절차 없이 바로 수신 상태가 됩니다. 이 화면에서 넣은 주소는{' '}
+        <b className="text-fg-sub">{ALERT_TYPE_LABEL[type]} 알림</b>을 받도록 등록되며, 받을 알림과
+        담당반은 등록 뒤 <b className="text-fg-sub">수정</b>에서 바꿀 수 있습니다.{' '}
+        <b className="text-fg-sub">본인 인증 해지</b>는 주소 소유자가 직접 수신을 끊는 경로로, 6자리
+        코드가 메일로 갑니다(10분 유효·1회용, 5회 오답 시 폐기).
       </p>
       <QueryState
         isPending={q.isPending}
@@ -500,29 +490,22 @@ function PreferencesModal({
   );
 }
 
-/** 등록·해지 공용 2단계 모달 */
-function VerifyModal({
-  mode,
-  type,
-  onClose,
-}: {
-  mode: 'subscribe' | 'unsubscribe';
-  /** 이 화면에서 등록했으면 이 유형을 받겠다는 뜻이라 확정 시 같이 보낸다 */
-  type: AlertType;
-  onClose: () => void;
-}) {
+/**
+ * 주소 소유자가 스스로 수신을 끊는 2단계 경로.
+ *
+ * 등록은 관리 담당자가 대신 넣는 경로 하나만 둔다. 사내 인원이 소수라
+ * 본인 인증 등록까지 두면 같은 일을 하는 길이 둘이 되어 오히려 헷갈린다.
+ * 해지는 메일을 받은 사람이 관리자를 거치지 않고 끊을 수 있어야 해서 남긴다.
+ */
+function UnsubscribeModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const subscribing = mode === 'subscribe';
 
   const sendCode = useMutation({
-    mutationFn: () =>
-      subscribing
-        ? notificationsApi.subscribeRequest(email.trim())
-        : notificationsApi.unsubscribeRequest(email.trim()),
+    mutationFn: () => notificationsApi.unsubscribeRequest(email.trim()),
     onSuccess: (r) => {
       setExpiresAt(r.expiresAt);
       toast.ok('인증코드를 보냈습니다. 메일함을 확인하세요.');
@@ -531,16 +514,9 @@ function VerifyModal({
   });
 
   const verify = useMutation({
-    mutationFn: () =>
-      subscribing
-        ? notificationsApi.subscribeVerify(email.trim(), code.trim(), [type]).then(() => undefined)
-        : notificationsApi.unsubscribeVerify(email.trim(), code.trim()),
+    mutationFn: () => notificationsApi.unsubscribeVerify(email.trim(), code.trim()),
     onSuccess: () => {
-      toast.ok(
-        subscribing
-          ? `수신 등록을 마쳤습니다. ${ALERT_TYPE_LABEL[type]} 알림을 받습니다.`
-          : '수신을 해지했습니다.',
-      );
+      toast.ok('수신을 해지했습니다. 이 주소로는 더 이상 알림이 가지 않습니다.');
       void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
       onClose();
     },
@@ -549,7 +525,7 @@ function VerifyModal({
 
   return (
     <Modal
-      title={subscribing ? '알림 수신 등록' : '알림 수신 해지'}
+      title="알림 수신 해지"
       width={580}
       onClose={onClose}
       footer={
@@ -563,7 +539,7 @@ function VerifyModal({
             disabled={verify.isPending || !expiresAt || code.trim().length < 6}
             onClick={() => verify.mutate()}
           >
-            {subscribing ? '등록 확정' : '해지 확정'}
+            해지 확정
           </button>
         </>
       }
