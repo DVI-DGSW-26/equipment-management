@@ -7,7 +7,6 @@ import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations } from '@/hooks/useMasters';
 import { currentYear, fmtDate } from '@/lib/date';
 import { useToast } from '@/components/toastContext';
-import AlertTab from '@/pages/notifications/AlertTab';
 import InstrumentModal from './InstrumentModal';
 import {
   Badge,
@@ -20,7 +19,7 @@ import {
   thClass,
 } from '@/components/ui';
 
-type TabKey = 'list' | 'annual' | 'alert';
+type TabKey = 'list' | 'annual';
 
 export default function InstrumentListPage() {
   const [tab, setTab] = useState<TabKey>('list');
@@ -32,14 +31,11 @@ export default function InstrumentListPage() {
         tabs={[
           { key: 'list' as const, label: '계측기 목록' },
           { key: 'annual' as const, label: '연간 교정검사 LIST' },
-          { key: 'alert' as const, label: '알림' },
         ]}
         value={tab}
         onChange={setTab}
       />
-      {tab === 'list' && <ListTab />}
-      {tab === 'annual' && <AnnualTab />}
-      {tab === 'alert' && <AlertTab type="CALIBRATION" />}
+      {tab === 'list' ? <ListTab /> : <AnnualTab />}
     </div>
   );
 }
