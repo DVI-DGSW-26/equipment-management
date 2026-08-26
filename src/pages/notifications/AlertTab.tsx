@@ -130,7 +130,7 @@ function SettingsSection({ type }: { type: AlertType }) {
                 ? '차기 교정일 며칠 전에 보낼지'
                 : '검사유효 만료일 며칠 전에 보낼지'
             }
-            hint="0 = 당일. 여러 번 보내려면 쉼표로 구분 (예: 60, 30, 7)"
+            hint="0 = 당일. 여러 번 보내려면 쉼표로 구분 (예: 60, 30, 7). 같은 날 여러 시점이 겹쳐도 메일은 한 통으로 합쳐집니다"
           >
             {draft !== null ? (
               <input
@@ -176,6 +176,17 @@ function useTeamOptions(): string[] {
 
 const typeText = (types: AlertType[]): string =>
   types.length === 0 ? '-' : types.map((t) => ALERT_TYPE_LABEL[t]).join(' · ');
+
+/**
+ * 담당 팀을 지정하면 교정 알림을 한 통도 못 받는다.
+ *
+ * 계측기에는 팀 항목이 없어 서버가 모든 계측기를 "팀 없음" 으로 본다.
+ * 발송 규칙상 팀 없는 대상은 teams 가 빈 수신자에게만 가므로,
+ * 팀을 지정한 주소는 교정 대상 매칭에서 통째로 빠진다.
+ * 계측기에 팀 필드가 생기면(백엔드 03) 저절로 풀린다.
+ */
+const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): boolean =>
+  e.alertTypes.includes('CALIBRATION') && e.teams.length > 0;
 
 function EmailSection({
   type,
@@ -271,10 +282,11 @@ function EmailSection({
       }
     >
       {type === 'CALIBRATION' && (
-        <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
-          <b>교정 알림은 담당 팀을 가려서 보내지 못합니다.</b> 계측기에 팀 항목이 아직 없어,
-          교정 알림을 받는 사람은 담당 팀과 관계없이 전체 계측기 알림을 받습니다. 팀 지정은
-          안전검사 알림에만 적용됩니다.
+        <p className="border-b border-line bg-danger/10 px-3 py-2 text-[18px] text-danger">
+          <b>담당 팀을 지정한 주소는 교정 알림을 받지 못합니다.</b> 계측기에는 팀 항목이 아직
+          없어서, 서버가 모든 계측기를 &ldquo;팀 없음&rdquo;으로 봅니다. 팀 없는 대상은 담당 팀을
+          비워 둔 사람에게만 발송되므로, 팀을 지정하면 교정 알림 대상에서 통째로 빠집니다.
+          교정 알림을 받아야 하는 사람은 <b>담당 팀을 비워 두세요.</b>
         </p>
       )}
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
@@ -319,7 +331,17 @@ function EmailSection({
                   {e.teams.length === 0 ? (
                     <span className="text-fg-muted">전체 팀</span>
                   ) : (
-                    e.teams.join(', ')
+                    <span className="flex flex-wrap items-center gap-2">
+                      {e.teams.join(', ')}
+                      {calibrationBlocked(e) && (
+                        <Badge
+                          tone="danger"
+                          title="계측기에 팀 항목이 없어, 팀을 지정한 주소는 교정 알림 대상에서 빠집니다"
+                        >
+                          교정 미수신
+                        </Badge>
+                      )}
+                    </span>
                   )}
                 </td>
                 <td className="px-3 py-2">
@@ -441,6 +463,14 @@ function PreferencesModal({
             ))}
           </div>
         </Field>
+
+        {calibrationBlocked({ alertTypes, teams }) && (
+          <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-[18px] text-danger">
+            <b>이대로 저장하면 교정 알림은 한 통도 가지 않습니다.</b> 계측기에 팀 항목이 없어,
+            담당 팀을 지정한 주소는 교정 대상에서 빠집니다. 교정 알림도 받아야 하면 담당 팀을 모두
+            해제하세요.
+          </p>
+        )}
 
         <Field
           label="담당 팀"
@@ -628,8 +658,9 @@ function SendSection({ type }: { type: AlertType }) {
           {label} 알림 발송
         </button>
         <span className="pb-1 text-[18px] text-fg-muted">
-          기준일에서 역산해 대상을 다시 계산하고, 인증 완료된 수신자에게 메일을 보냅니다. 같은
-          대상에 당일 발송 이력이 있으면 서버가 건너뜁니다.
+          기준일에서 역산해 대상을 다시 계산하고, 인증 완료된 수신자에게 메일을 보냅니다. 한 사람이
+          하루에 받는 메일은 한 통입니다 — 여러 시점이 같은 날 겹치면 한 통에 모아 보내고, 당일
+          발송 이력이 있는 대상은 건너뜁니다.
         </span>
       </div>
     </Section>
