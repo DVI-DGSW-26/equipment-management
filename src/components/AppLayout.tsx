@@ -26,7 +26,7 @@ export default function AppLayout() {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-bg text-fg">
-        <header className="border-b border-line bg-surface">
+        <header className="no-print border-b border-line bg-surface">
           <div className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 sm:h-28 sm:flex-nowrap sm:px-8 sm:py-0">
             {/* 로고를 누르면 첫 화면(고정자산)으로 돌아온다 */}
             <NavLink

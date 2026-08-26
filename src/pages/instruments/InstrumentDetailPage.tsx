@@ -118,7 +118,15 @@ export default function InstrumentDetailPage() {
         <h1 className="text-[24px] font-semibold">{d?.name ?? '계측기 이력카드'}</h1>
         {d && <span className="code text-[19px] text-fg-sub">{d.mgmtNo}</span>}
         {overdue && <Badge tone="danger">차기 교정일 경과</Badge>}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={btnClass}
+            disabled={!d}
+            onClick={() => navigate(`/instruments/${instrumentId}/card`)}
+          >
+            이력카드
+          </button>
           <button type="button" className={btnClass} disabled={!d} onClick={() => setEditing(true)}>
             수정
           </button>
@@ -380,7 +388,11 @@ function CalibrationModal({
     cost: calibration?.cost != null ? String(calibration.cost) : '',
     actionNote: calibration?.actionNote ?? '',
     confirmedBy: calibration?.confirmedBy ?? '',
+    remark: calibration?.remark ?? '',
   });
+
+  // 이력카드의 "수리여부" 칸. 미입력과 "무" 를 구분해야 해서 별도로 둔다
+  const [repaired, setRepaired] = useState<boolean | null>(calibration?.repaired ?? null);
 
   const partners = usePartners();
 
@@ -398,6 +410,8 @@ function CalibrationModal({
         cost: form.cost ? Number(form.cost) : undefined,
         actionNote: form.actionNote || undefined,
         confirmedBy: form.confirmedBy || undefined,
+        repaired: repaired ?? undefined,
+        remark: form.remark || undefined,
       };
       return calibration
         ? calibrationsApi.update(calibration.id, body)
@@ -508,12 +522,32 @@ function CalibrationModal({
             onChange={(e) => set('confirmedBy', e.target.value)}
           />
         </Field>
+        <Field label="수리여부" hint="이력카드에 그대로 찍힌다">
+          <select
+            className={inputClass}
+            value={repaired == null ? '' : repaired ? 'Y' : 'N'}
+            onChange={(e) => setRepaired(e.target.value === '' ? null : e.target.value === 'Y')}
+          >
+            <option value="">미입력</option>
+            <option value="N">무</option>
+            <option value="Y">유</option>
+          </select>
+        </Field>
         <div className="col-span-2">
           <Field label="이상발생 조치">
             <input
               className={inputClass}
               value={form.actionNote}
               onChange={(e) => set('actionNote', e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="비고">
+            <input
+              className={inputClass}
+              value={form.remark}
+              onChange={(e) => set('remark', e.target.value)}
             />
           </Field>
         </div>

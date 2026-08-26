@@ -6,6 +6,7 @@ import AssetDetailPage from '@/pages/assets/AssetDetailPage';
 import PhysicalAssetListPage from '@/pages/physicalAssets/PhysicalAssetListPage';
 import InstrumentListPage from '@/pages/instruments/InstrumentListPage';
 import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
+import InstrumentCardPage from '@/pages/instruments/InstrumentCardPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 import NotificationPage from '@/pages/notifications/NotificationPage';
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/physical-assets" element={<PhysicalAssetListPage />} />
         <Route path="/instruments" element={<InstrumentListPage />} />
         <Route path="/instruments/:id" element={<InstrumentDetailPage />} />
+        <Route path="/instruments/:id/card" element={<InstrumentCardPage />} />
         <Route path="/depreciation" element={<DepreciationPage />} />
         <Route path="/inspections" element={<InspectionListPage />} />
         <Route path="/notifications" element={<NotificationPage />} />

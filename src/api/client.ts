@@ -145,6 +145,12 @@ export async function requestFile(
 }
 
 /** 받은 파일을 브라우저 다운로드로 넘긴다 */
+/**
+ * <img src> 처럼 브라우저가 직접 받아야 하는 경로용 주소.
+ * fetch 를 거치지 않으므로 BASE_URL 만 붙여 준다.
+ */
+export const apiUrl = (path: string): string => `${BASE_URL}${path}`;
+
 export const saveFile = ({ blob, filename }: DownloadResult): void => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

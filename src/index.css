@@ -54,6 +54,39 @@
   }
 }
 
+/*
+  인쇄. 계측기 이력카드가 A4 가로 양식이라 그 기준으로 잡는다.
+  화면에서만 쓰는 것(상단 메뉴·버튼)은 .no-print 로 뺀다.
+*/
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* 종이에서는 배경색이 안 나오는 프린터가 많아 선으로만 구분한다 */
+  body {
+    background: #fff;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* 표가 페이지 중간에서 잘리지 않게 */
+  .card-sheet {
+    break-inside: avoid;
+  }
+
+  .card-sheet tr {
+    break-inside: avoid;
+  }
+}
+
 @utility num {
   /* 금액·수량 셀: 우측 정렬 + 자릿수 고정폭 */
   text-align: right;

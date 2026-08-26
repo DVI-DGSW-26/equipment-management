@@ -21,12 +21,15 @@ export interface Calibration {
   result: CalibrationResult | null;
   /** 결과 표기 (O / X) */
   resultMark: string | null;
+  /** 수리여부. 이력카드의 "수리여부" 칸 */
+  repaired: boolean | null;
   agencyId: number | null;
   agencyName: string | null;
   certificateNo: string | null;
   cost: number | null;
   actionNote: string | null;
   confirmedBy: string | null;
+  remark: string | null;
   performed: boolean;
 }
 
@@ -65,8 +68,10 @@ export interface SaveCalibrationPayload {
   agencyId?: number;
   certificateNo?: string;
   cost?: number;
+  repaired?: boolean;
   actionNote?: string;
   confirmedBy?: string;
+  remark?: string;
 }
 
 export const calibrationsApi = {
