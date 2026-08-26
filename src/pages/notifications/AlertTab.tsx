@@ -29,7 +29,7 @@ import {
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
  * 계측기 화면과 안전검사 화면이 각자 자기 유형으로 불러 쓴다.
  *
- * 수신 이메일은 주소 하나가 alertTypes 로 받을 유형을, teams 로 담당 팀을 가진다.
+ * 수신 이메일은 주소 하나가 alertTypes 로 받을 유형을, teams 로 담당반을 가진다.
  * 목록 자체는 하나라서 두 화면이 같은 목록을 보되, 기본은 자기 유형 수신자만 보여준다.
  */
 export default function AlertTab({ type }: { type: AlertType }) {
@@ -161,7 +161,7 @@ function SettingsSection({ type }: { type: AlertType }) {
 
 /* ---------- 수신 이메일 ---------- */
 
-/** 팀 선택지는 안전검사 대상에 실제로 등록된 값에서 뽑는다. 팀 마스터 API 는 아직 없다 */
+/** 담당반 선택지는 안전검사 대상에 실제로 등록된 값에서 뽑는다. 담당반 마스터 API 는 아직 없다 */
 function useTeamOptions(): string[] {
   const q = useQuery({
     queryKey: queryKeys.inspections.list({}),
@@ -178,12 +178,12 @@ const typeText = (types: AlertType[]): string =>
   types.length === 0 ? '-' : types.map((t) => ALERT_TYPE_LABEL[t]).join(' · ');
 
 /**
- * 담당 팀을 지정하면 교정 알림을 한 통도 못 받는다.
+ * 담당반을 지정하면 교정 알림을 한 통도 못 받는다.
  *
- * 계측기에는 팀 항목이 없어 서버가 모든 계측기를 "팀 없음" 으로 본다.
- * 발송 규칙상 팀 없는 대상은 teams 가 빈 수신자에게만 가므로,
- * 팀을 지정한 주소는 교정 대상 매칭에서 통째로 빠진다.
- * 계측기에 팀 필드가 생기면(백엔드 03) 저절로 풀린다.
+ * 계측기에는 담당반 항목이 없어 서버가 모든 계측기를 "담당반 없음" 으로 본다.
+ * 발송 규칙상 담당반이 없는 대상은 teams 가 빈 수신자에게만 가므로,
+ * 담당반을 지정한 주소는 교정 대상 매칭에서 통째로 빠진다.
+ * 계측기에 담당반 필드가 생기면(백엔드 03) 저절로 풀린다.
  */
 const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): boolean =>
   e.alertTypes.includes('CALIBRATION') && e.teams.length > 0;
@@ -283,10 +283,11 @@ function EmailSection({
     >
       {type === 'CALIBRATION' && (
         <p className="border-b border-line bg-danger/10 px-3 py-2 text-[18px] text-danger">
-          <b>담당 팀을 지정한 주소는 교정 알림을 받지 못합니다.</b> 계측기에는 팀 항목이 아직
-          없어서, 서버가 모든 계측기를 &ldquo;팀 없음&rdquo;으로 봅니다. 팀 없는 대상은 담당 팀을
-          비워 둔 사람에게만 발송되므로, 팀을 지정하면 교정 알림 대상에서 통째로 빠집니다.
-          교정 알림을 받아야 하는 사람은 <b>담당 팀을 비워 두세요.</b>
+          <b>담당반을 지정한 주소는 교정 알림을 받지 못합니다.</b> 계측기에는 담당반 항목이
+          아직 없어서, 서버가 모든 계측기를 &ldquo;담당반 없음&rdquo;으로 봅니다. 담당반이 비어
+          있는 대상은 담당반을 비워 둔 사람에게만 발송되므로, 담당반을 지정하면 교정 알림
+          대상에서 통째로 빠집니다.
+          교정 알림을 받아야 하는 사람은 <b>담당반을 비워 두세요.</b>
         </p>
       )}
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
@@ -295,7 +296,7 @@ function EmailSection({
         소유자가 직접 하는 방식이며 6자리 코드가 메일로 갑니다(10분 유효·1회용, 5회 오답 시 폐기,
         같은 주소 60초 내 재요청 거절). 인증을 마친 주소에만 알림이 발송됩니다. 이 화면에서 넣은
         주소는 <b className="text-fg-sub">{ALERT_TYPE_LABEL[type]} 알림</b>을 받도록 등록되며,
-        받을 알림과 담당 팀은 등록 뒤 <b className="text-fg-sub">수정</b>에서 바꿀 수 있습니다.
+        받을 알림과 담당반은 등록 뒤 <b className="text-fg-sub">수정</b>에서 바꿀 수 있습니다.
       </p>
       <QueryState
         isPending={q.isPending}
@@ -313,7 +314,7 @@ function EmailSection({
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>이메일</th>
               <th className={thClass}>받는 알림</th>
-              <th className={thClass}>담당 팀</th>
+              <th className={thClass}>담당반</th>
               <th className={thClass}>상태</th>
               <th className={thClass}>인증 완료</th>
               <th className={thClass}>등록일</th>
@@ -329,14 +330,14 @@ function EmailSection({
                 </td>
                 <td className="px-3 py-2 text-fg-sub">
                   {e.teams.length === 0 ? (
-                    <span className="text-fg-muted">전체 팀</span>
+                    <span className="text-fg-muted">전체</span>
                   ) : (
                     <span className="flex flex-wrap items-center gap-2">
                       {e.teams.join(', ')}
                       {calibrationBlocked(e) && (
                         <Badge
                           tone="danger"
-                          title="계측기에 팀 항목이 없어, 팀을 지정한 주소는 교정 알림 대상에서 빠집니다"
+                          title="계측기에 담당반 항목이 없어, 담당반을 지정한 주소는 교정 알림 대상에서 빠집니다"
                         >
                           교정 미수신
                         </Badge>
@@ -394,7 +395,7 @@ function EmailSection({
   );
 }
 
-/** 주소 하나의 받을 알림 유형·담당 팀을 고친다 */
+/** 주소 하나의 받을 알림 유형·담당반을 고친다 */
 function PreferencesModal({
   email,
   teamOptions,
@@ -466,18 +467,18 @@ function PreferencesModal({
 
         {calibrationBlocked({ alertTypes, teams }) && (
           <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-[18px] text-danger">
-            <b>이대로 저장하면 교정 알림은 한 통도 가지 않습니다.</b> 계측기에 팀 항목이 없어,
-            담당 팀을 지정한 주소는 교정 대상에서 빠집니다. 교정 알림도 받아야 하면 담당 팀을 모두
+            <b>이대로 저장하면 교정 알림은 한 통도 가지 않습니다.</b> 계측기에 담당반 항목이 없어,
+            담당반을 지정한 주소는 교정 대상에서 빠집니다. 교정 알림도 받아야 하면 담당반을 모두
             해제하세요.
           </p>
         )}
 
         <Field
-          label="담당 팀"
+          label="담당반"
           hint={
             teamOptions.length === 0
-              ? '안전검사 대상에 등록된 팀이 없어 고를 값이 없습니다.'
-              : '아무것도 고르지 않으면 팀과 상관없이 전부 받습니다. 안전검사 알림에만 적용됩니다.'
+              ? '안전검사 대상에 등록된 담당반이 없어 고를 값이 없습니다.'
+              : '아무것도 고르지 않으면 담당반과 상관없이 전부 받습니다. 안전검사 알림에만 적용됩니다.'
           }
         >
           <div className="flex flex-wrap gap-4 py-1.5">
@@ -491,7 +492,7 @@ function PreferencesModal({
                 {t}
               </label>
             ))}
-            {teams.length === 0 && <span className="text-[18px] text-fg-muted">전체 팀 수신</span>}
+            {teams.length === 0 && <span className="text-[18px] text-fg-muted">전체 담당반 수신</span>}
           </div>
         </Field>
       </div>
@@ -675,7 +676,7 @@ function LogSection({ type }: { type: AlertType }) {
   const [team, setTeam] = useState('');
   const teamOptions = useTeamOptions();
 
-  // 유형·팀 모두 서버가 걸러 준다. 팀 필터는 안전검사에만 의미가 있다
+  // 유형·담당반 모두 서버가 걸러 준다. 담당반 필터는 안전검사에만 의미가 있다
   const query = useMemo(
     () => ({ page, size, alertType: type, team: team || undefined }),
     [page, size, type, team],
@@ -702,7 +703,7 @@ function LogSection({ type }: { type: AlertType }) {
                 setPage(0);
               }}
             >
-              <option value="">전체 팀</option>
+              <option value="">담당반 전체</option>
               {teamOptions.map((t) => (
                 <option key={t} value={t}>
                   {t}
