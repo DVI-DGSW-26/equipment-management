@@ -29,18 +29,36 @@ import {
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
  * 계측기 화면과 안전검사 화면이 각자 자기 유형으로 불러 쓴다.
  *
+ * "언제 보내나" 와 "누구에게 보내나" 는 따로 볼 일이 없어 한 상자에 담는다.
  * 수신 이메일은 주소 하나가 alertTypes 로 받을 유형을, teams 로 담당반을 가진다.
  * 목록 자체는 하나라서 두 화면이 같은 목록을 보되, 기본은 자기 유형 수신자만 보여준다.
  */
 export default function AlertTab({ type }: { type: AlertType }) {
+  const [sending, setSending] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
 
   return (
     <div className="space-y-3">
-      <SettingsSection type={type} />
-      <EmailSection type={type} onUnsubscribe={() => setUnsubscribing(true)} />
-      <SendSection type={type} />
+      <Section
+        title={`${ALERT_TYPE_LABEL[type]} 알림`}
+        right={
+          <>
+            <button type="button" className={btnClass} onClick={() => setUnsubscribing(true)}>
+              본인 인증 해지
+            </button>
+            <button type="button" className={btnClass} onClick={() => setSending(true)}>
+              수동 발송
+            </button>
+          </>
+        }
+      >
+        <ScheduleRow type={type} />
+        <RecipientBlock type={type} />
+      </Section>
+
       <LogSection type={type} />
+
+      {sending && <SendModal type={type} onClose={() => setSending(false)} />}
       {unsubscribing && <UnsubscribeModal onClose={() => setUnsubscribing(false)} />}
     </div>
   );
@@ -61,9 +79,7 @@ const parseDays = (text: string): number[] =>
     .map(Number)
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 365);
 
-const formatDays = (days: number[] | undefined): string => (days ?? []).join(', ');
-
-function SettingsSection({ type }: { type: AlertType }) {
+function ScheduleRow({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<string | null>(null);
@@ -86,13 +102,25 @@ function SettingsSection({ type }: { type: AlertType }) {
   });
 
   const days = q.data?.[key];
+  const basis = type === 'CALIBRATION' ? '차기 교정일' : '검사유효 만료일';
 
   return (
-    <Section
-      title={`${ALERT_TYPE_LABEL[type]} 알림 발송 시점`}
-      right={
-        draft !== null ? (
-          <>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
+      <span className="text-[18px] text-fg-sub">발송 시점</span>
+
+      {q.isPending && <span className="text-[18px] text-fg-muted">불러오는 중…</span>}
+
+      {draft !== null ? (
+        <>
+          <input
+            className={`${inputClass} w-52`}
+            value={draft}
+            placeholder="예: 60, 30, 7"
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <span className="text-[18px] text-fg-muted">{basis} 기준. 쉼표로 구분, 0 = 당일</span>
+          <div className="ml-auto flex gap-2">
             <button type="button" className={btnClass} onClick={() => setDraft(null)}>
               취소
             </button>
@@ -104,58 +132,36 @@ function SettingsSection({ type }: { type: AlertType }) {
             >
               저장
             </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={btnClass}
-            disabled={!q.data}
-            onClick={() => setDraft(formatDays(days))}
-          >
-            수정
-          </button>
-        )
-      }
-    >
-      <QueryState isPending={q.isPending} error={q.error} />
-      {q.data && (
-        <div className="px-3 py-3">
-          <Field
-            label={
-              type === 'CALIBRATION'
-                ? '차기 교정일 며칠 전에 보낼지'
-                : '검사유효 만료일 며칠 전에 보낼지'
-            }
-            hint="0 = 당일. 여러 번 보내려면 쉼표로 구분 (예: 60, 30, 7). 같은 날 여러 시점이 겹쳐도 메일은 한 통으로 합쳐집니다"
-          >
-            {draft !== null ? (
-              <input
-                className={`${inputClass} max-w-md`}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="예: 60, 30, 7"
-              />
+          </div>
+        </>
+      ) : (
+        q.data && (
+          <>
+            {(days ?? []).length === 0 ? (
+              <Badge tone="warn">발송 안 함</Badge>
             ) : (
-              <div className="flex flex-wrap gap-1 py-1.5">
-                {(days ?? []).length === 0 ? (
-                  <Badge tone="warn">발송 안 함</Badge>
-                ) : (
-                  (days ?? []).map((d) => (
-                    <Badge key={d} tone="accent">
-                      {d === 0 ? '당일' : `${d}일 전`}
-                    </Badge>
-                  ))
-                )}
-              </div>
+              (days ?? []).map((d) => (
+                <Badge key={d} tone="accent">
+                  {d === 0 ? '당일' : `${d}일 전`}
+                </Badge>
+              ))
             )}
-          </Field>
-        </div>
+            <span className="text-[18px] text-fg-muted">{basis} 기준 · 매일 아침 자동 발송</span>
+            <button
+              type="button"
+              className={`${btnClass} ml-auto`}
+              onClick={() => setDraft((days ?? []).join(', '))}
+            >
+              수정
+            </button>
+          </>
+        )
       )}
-    </Section>
+    </div>
   );
 }
 
-/* ---------- 수신 이메일 ---------- */
+/* ---------- 수신자 ---------- */
 
 /** 담당반 선택지는 안전검사 대상에 실제로 등록된 값에서 뽑는다. 담당반 마스터 API 는 아직 없다 */
 function useTeamOptions(): string[] {
@@ -184,13 +190,7 @@ const typeText = (types: AlertType[]): string =>
 const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): boolean =>
   e.alertTypes.includes('CALIBRATION') && e.teams.length > 0;
 
-function EmailSection({
-  type,
-  onUnsubscribe,
-}: {
-  type: AlertType;
-  onUnsubscribe: () => void;
-}) {
+function RecipientBlock({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState('');
@@ -236,20 +236,24 @@ function EmailSection({
   });
 
   return (
-    <Section
-      title={
-        <>
-          {ALERT_TYPE_LABEL[type]} 알림 수신자{' '}
-          <span className="font-normal text-fg-muted">{rows.length}명</span>
-        </>
-      }
-      right={
-        <>
-          <label className="flex items-center gap-2 whitespace-nowrap text-[18px] text-fg-sub">
-            <input type="checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} />
-            다른 유형까지 보기
-            {hidden > 0 && !showAll && <span className="text-fg-muted">({hidden}명 숨김)</span>}
-          </label>
+    <>
+      {type === 'CALIBRATION' && (
+        <p className="border-b border-line bg-danger/10 px-3 py-2 text-[18px] text-danger">
+          <b>교정 알림을 받을 사람은 담당반을 비워 두세요.</b> 계측기에는 담당반 항목이 없어,
+          담당반을 지정한 주소는 교정 알림 대상에서 빠집니다.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
+        <span className="text-[18px] text-fg-sub">
+          수신자 <b className="text-fg">{rows.length}명</b>
+        </span>
+        <label className="flex items-center gap-2 whitespace-nowrap text-[18px] text-fg-sub">
+          <input type="checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} />
+          다른 유형까지 보기
+          {hidden > 0 && !showAll && <span className="text-fg-muted">({hidden}명 숨김)</span>}
+        </label>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <input
             type="email"
             className={`${inputClass} w-56`}
@@ -266,28 +270,9 @@ function EmailSection({
           >
             등록
           </button>
-          <button type="button" className={btnClass} onClick={onUnsubscribe}>
-            본인 인증 해지
-          </button>
-        </>
-      }
-    >
-      {type === 'CALIBRATION' && (
-        <p className="border-b border-line bg-danger/10 px-3 py-2 text-[18px] text-danger">
-          <b>담당반을 지정한 주소는 교정 알림을 받지 못합니다.</b> 계측기에는 담당반 항목이
-          아직 없어서, 서버가 모든 계측기를 &ldquo;담당반 없음&rdquo;으로 봅니다. 담당반이 비어
-          있는 대상은 담당반을 비워 둔 사람에게만 발송되므로, 담당반을 지정하면 교정 알림
-          대상에서 통째로 빠집니다.
-          교정 알림을 받아야 하는 사람은 <b>담당반을 비워 두세요.</b>
-        </p>
-      )}
-      <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
-        관리 담당자가 주소를 넣으면 인증 절차 없이 바로 수신 상태가 됩니다. 이 화면에서 넣은 주소는{' '}
-        <b className="text-fg-sub">{ALERT_TYPE_LABEL[type]} 알림</b>을 받도록 등록되며, 받을 알림과
-        담당반은 등록 뒤 <b className="text-fg-sub">수정</b>에서 바꿀 수 있습니다.{' '}
-        <b className="text-fg-sub">본인 인증 해지</b>는 주소 소유자가 직접 수신을 끊는 경로로, 6자리
-        코드가 메일로 갑니다(10분 유효·1회용, 5회 오답 시 폐기).
-      </p>
+        </div>
+      </div>
+
       <QueryState
         isPending={q.isPending}
         error={q.error}
@@ -295,9 +280,10 @@ function EmailSection({
         emptyText={
           all.length > 0
             ? `${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. "다른 유형까지 보기" 로 ${all.length}명을 확인하거나 새로 등록하세요.`
-            : '등록된 수신 이메일이 없습니다. 지금은 알림이 아무에게도 가지 않습니다.'
+            : '등록된 수신자가 없습니다. 지금은 알림이 아무에게도 가지 않습니다.'
         }
       />
+
       {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
@@ -306,7 +292,6 @@ function EmailSection({
               <th className={thClass}>받는 알림</th>
               <th className={thClass}>담당반</th>
               <th className={thClass}>상태</th>
-              <th className={thClass}>인증 완료</th>
               <th className={thClass}>등록일</th>
               <th className={thClass} />
             </tr>
@@ -342,8 +327,9 @@ function EmailSection({
                     <Badge tone="warn">{e.statusLabel}</Badge>
                   )}
                 </td>
-                <td className="px-3 py-2">{fmtDateTime(e.verifiedAt)}</td>
-                <td className="px-3 py-2">{fmtDateTime(e.createdAt)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-fg-sub">
+                  {fmtDateTime(e.createdAt)}
+                </td>
                 <td className="px-3 py-2 text-right">
                   <div className="flex justify-end gap-3">
                     <button
@@ -374,6 +360,7 @@ function EmailSection({
           </tbody>
         </table>
       )}
+
       {editing && (
         <PreferencesModal
           email={editing}
@@ -381,7 +368,99 @@ function EmailSection({
           onClose={() => setEditing(null)}
         />
       )}
-    </Section>
+    </>
+  );
+}
+
+/* ---------- 수동 발송 ---------- */
+
+/**
+ * 누르면 진짜 메일이 나간다. 몇 명에게 가는지 먼저 보여주고 확인받는다.
+ * 평소에는 서버가 매일 아침 자동으로 보내므로 이 경로는 예비 수단이다.
+ */
+function SendModal({ type, onClose }: { type: AlertType; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [baseDate, setBaseDate] = useState(toIsoDate(new Date()));
+  const label = ALERT_TYPE_LABEL[type];
+
+  const emails = useQuery({
+    queryKey: queryKeys.notifications.emails(),
+    queryFn: () => notificationsApi.emails(),
+  });
+  const targets = (emails.data ?? []).filter(
+    (e) => e.status === 'VERIFIED' && e.alertTypes.includes(type),
+  );
+
+  const send = useMutation({
+    mutationFn: () =>
+      type === 'CALIBRATION'
+        ? notificationsApi.sendCalibrationAlert(baseDate)
+        : notificationsApi.sendSafetyAlert(baseDate),
+    onSuccess: (r) => {
+      const skipped = r.skippedCount > 0 ? ` / 당일 중복 ${r.skippedCount} 건너뜀` : '';
+      toast.ok(
+        `${label} 알림 — 대상 ${r.targetCount} / 성공 ${r.sentCount} / 실패 ${r.failedCount}${skipped}`,
+      );
+      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      onClose();
+    },
+    onError: toast.fail,
+  });
+
+  return (
+    <Modal
+      title={`${label} 알림 수동 발송`}
+      width={560}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className={btnClass} onClick={onClose}>
+            취소
+          </button>
+          <button
+            type="button"
+            className={btnPrimaryClass}
+            disabled={send.isPending}
+            onClick={() => send.mutate()}
+          >
+            {send.isPending ? '보내는 중…' : '지금 발송'}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p
+          className={
+            targets.length === 0
+              ? 'rounded-sm border border-warn/40 bg-warn/10 px-3 py-2 text-[19px] text-warn'
+              : 'rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-[19px] text-danger'
+          }
+        >
+          {targets.length === 0 ? (
+            '등록된 수신자가 없어 메일이 나가지 않습니다.'
+          ) : (
+            <>
+              <b>{targets.length}명</b>에게 실제로 메일이 나갑니다.
+            </>
+          )}
+        </p>
+
+        <Field label="기준일" hint="이 날짜에서 역산해 대상을 다시 계산합니다">
+          <input
+            type="date"
+            className={`${inputClass} w-48`}
+            value={baseDate}
+            onChange={(e) => setBaseDate(e.target.value)}
+          />
+        </Field>
+
+        <p className="text-[18px] text-fg-muted">
+          평소에는 서버가 매일 아침 자동으로 보냅니다. 이 버튼은 급할 때 한 번 더 보내는 용도입니다.
+          오늘 이미 받은 대상은 건너뛰고, 한 사람이 하루에 받는 메일은 한 통입니다.
+        </p>
+      </div>
+    </Modal>
   );
 }
 
@@ -581,66 +660,6 @@ function UnsubscribeModal({ onClose }: { onClose: () => void }) {
         </Field>
       </div>
     </Modal>
-  );
-}
-
-/* ---------- 수동 발송 ---------- */
-
-function SendSection({ type }: { type: AlertType }) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [baseDate, setBaseDate] = useState(toIsoDate(new Date()));
-  const label = ALERT_TYPE_LABEL[type];
-
-  const send = useMutation({
-    mutationFn: () =>
-      type === 'CALIBRATION'
-        ? notificationsApi.sendCalibrationAlert(baseDate)
-        : notificationsApi.sendSafetyAlert(baseDate),
-    onSuccess: (r) => {
-      const skipped = r.skippedCount > 0 ? ` / 당일 중복 ${r.skippedCount} 건너뜀` : '';
-      toast.ok(
-        `${label} 알림 — 대상 ${r.targetCount} / 성공 ${r.sentCount} / 실패 ${r.failedCount}${skipped}`,
-      );
-      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
-    },
-    onError: toast.fail,
-  });
-
-  return (
-    <Section title="수동 발송">
-      <div className="flex flex-wrap items-end gap-3 px-3 py-3">
-        <label className="block">
-          <span className="mb-0.5 block text-[18px] text-fg-sub">기준일</span>
-          <input
-            type="date"
-            className={`${inputClass} w-40`}
-            value={baseDate}
-            onChange={(e) => setBaseDate(e.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className={btnPrimaryClass}
-          disabled={send.isPending}
-          onClick={() => {
-            if (
-              window.confirm(
-                `${baseDate} 기준으로 ${label} 알림 메일을 실제로 발송합니다. 같은 대상에 오늘 이미 발송됐다면 서버가 건너뜁니다. 진행할까요?`,
-              )
-            )
-              send.mutate();
-          }}
-        >
-          {label} 알림 발송
-        </button>
-        <span className="pb-1 text-[18px] text-fg-muted">
-          기준일에서 역산해 대상을 다시 계산하고, 인증 완료된 수신자에게 메일을 보냅니다. 한 사람이
-          하루에 받는 메일은 한 통입니다 — 여러 시점이 같은 날 겹치면 한 통에 모아 보내고, 당일
-          발송 이력이 있는 대상은 건너뜁니다.
-        </span>
-      </div>
-    </Section>
   );
 }
 
