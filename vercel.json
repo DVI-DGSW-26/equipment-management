@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "http://112.146.55.78:3378/jagigo/:path*" },
+    { "source": "/api/:path*", "destination": "https://api.dvi-ind.com/jagigo/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -16,7 +16,7 @@ import { fileURLToPath, URL } from 'node:url'
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const target = env.VITE_API_PROXY_TARGET ?? 'http://112.146.55.78:3378/jagigo'
+  const target = env.VITE_API_PROXY_TARGET ?? 'https://api.dvi-ind.com/jagigo'
 
   const proxy = {
     '/api': {

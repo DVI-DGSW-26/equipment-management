@@ -10,6 +10,18 @@ export interface NotificationEmail {
   statusLabel: string;
   verifiedAt: IsoDateTime | null;
   createdAt: IsoDateTime;
+  /** 이 주소가 받을 알림 유형 */
+  alertTypes: AlertType[];
+  /** 담당 팀. 빈 배열이면 팀과 무관하게 전부 받는다 */
+  teams: string[];
+}
+
+/** 등록·수정 때 같이 보내는 수신 조건. 주지 않으면 서버 기본값을 따른다 */
+export interface EmailPreferences {
+  /** 등록 시 비우면 교정·안전검사 둘 다. 수정 시에는 최소 1개 (빈 배열은 400) */
+  alertTypes?: AlertType[];
+  /** 비우면 전체 팀 수신 */
+  teams?: string[];
 }
 
 export interface VerificationCodeSent {
@@ -58,16 +70,20 @@ export interface AlertSettings {
 export const notificationsApi = {
   emails: () => request<NotificationEmail[]>('GET', '/notification-email'),
   /** 담당자 직접 등록 — 인증 없이 즉시 VERIFIED. 이미 등록된 주소면 409 */
-  addEmail: (email: string) =>
-    request<NotificationEmail>('POST', '/notification-email', { body: { email } }),
+  addEmail: (email: string, prefs: EmailPreferences = {}) =>
+    request<NotificationEmail>('POST', '/notification-email', { body: { email, ...prefs } }),
+  /** 알림유형·담당팀 수정. 주지 않은 항목은 서버가 그대로 둔다 */
+  updatePreferences: (id: number, body: EmailPreferences) =>
+    request<NotificationEmail>('PATCH', `/notification-email/${id}`, { body }),
   removeEmail: (id: number) => request<void>('DELETE', `/notification-email/${id}`),
   subscribeRequest: (email: string) =>
     request<VerificationCodeSent>('POST', '/notification-email/subscribe/request', {
       body: { email },
     }),
-  subscribeVerify: (email: string, code: string) =>
+  /** alertTypes 를 같이 보내면 이 시점에 받을 유형이 확정된다. 비우면 기존 값 유지 */
+  subscribeVerify: (email: string, code: string, alertTypes?: AlertType[]) =>
     request<NotificationEmail>('POST', '/notification-email/subscribe/verify', {
-      body: { email, code },
+      body: { email, code, alertTypes },
     }),
   unsubscribeRequest: (email: string) =>
     request<VerificationCodeSent>('POST', '/notification-email/unsubscribe/request', {
@@ -86,7 +102,8 @@ export const notificationsApi = {
   updateSettings: (body: Partial<AlertSettings>) =>
     request<AlertSettings>('PATCH', '/notification/settings', { body }),
 
-  logs: (query: { page?: number; size?: number } = {}) =>
+  /** alertType 으로 유형별, team 으로 안전검사 팀별로 거른다 (서버가 걸러 준다) */
+  logs: (query: { page?: number; size?: number; alertType?: AlertType; team?: string } = {}) =>
     request<SpringPage<NotificationLog>>('GET', '/notification/log', { query }).then(
       toPage,
     ) as Promise<Page<NotificationLog>>,
