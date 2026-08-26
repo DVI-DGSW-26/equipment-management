@@ -126,7 +126,7 @@ function ListTab() {
       />
       {rows.length > 0 && (
         <>
-          <table className="w-full text-[19px]">
+          <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>관리번호</th>
@@ -255,10 +255,29 @@ function AnnualTab() {
         isPending={q.isPending}
         error={q.error}
         isEmpty={rows.length === 0}
-        emptyText={`${planYear}년 계획이 없습니다. "연간 계획 생성" 을 먼저 실행하세요.`}
+        emptyText={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{planYear}년 계획이 없습니다.</span>
+            <button
+              type="button"
+              className={btnPrimaryClass}
+              disabled={generate.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `${planYear}년 연간 교정계획을 일괄 생성합니다. 이미 있는 계획은 건너뜁니다.`,
+                  )
+                )
+                  generate.mutate();
+              }}
+            >
+              {generate.isPending ? '생성 중…' : '지금 계획 생성하기'}
+            </button>
+          </span>
+        }
       />
       {rows.length > 0 && (
-        <table className="w-full text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>관리번호</th>

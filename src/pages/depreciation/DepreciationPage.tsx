@@ -45,9 +45,19 @@ export default function DepreciationPage() {
     onError: toast.fail,
   });
 
+  /** 상단 버튼과 "계산 결과 없음" 안내에서 같이 쓴다 */
+  const runCalculate = () => {
+    if (
+      window.confirm(
+        `${fiscalYear}년 감가상각을 다시 계산합니다. 기존 계산 결과는 대체됩니다. 진행할까요?`,
+      )
+    )
+      calculate.mutate();
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-[24px] font-semibold">감가상각</h1>
         <select
           className="w-28 rounded-sm border border-line bg-surface px-2 py-1.5 text-[19px]"
@@ -65,14 +75,7 @@ export default function DepreciationPage() {
             type="button"
             className={btnPrimaryClass}
             disabled={calculate.isPending}
-            onClick={() => {
-              if (
-                window.confirm(
-                  `${fiscalYear}년 감가상각을 다시 계산합니다. 기존 계산 결과는 대체됩니다. 진행할까요?`,
-                )
-              )
-                calculate.mutate();
-            }}
+            onClick={runCalculate}
           >
             {calculate.isPending ? '계산 중…' : `${fiscalYear}년 상각 계산`}
           </button>
@@ -101,8 +104,20 @@ export default function DepreciationPage() {
         자산은 목록·상세에 “결산 전 기준” 표시가 붙습니다.
       </p>
 
-      {tab === 'schedule' && <ScheduleTab fiscalYear={fiscalYear} />}
-      {tab === 'yearly' && <YearlyTab fiscalYear={fiscalYear} />}
+      {tab === 'schedule' && (
+        <ScheduleTab
+          fiscalYear={fiscalYear}
+          onCalculate={runCalculate}
+          calculating={calculate.isPending}
+        />
+      )}
+      {tab === 'yearly' && (
+        <YearlyTab
+          fiscalYear={fiscalYear}
+          onCalculate={runCalculate}
+          calculating={calculate.isPending}
+        />
+      )}
       {tab === 'ledger' && <LedgerTab fiscalYear={fiscalYear} />}
       {tab === 'forecast' && <ForecastTab />}
     </div>
@@ -111,7 +126,35 @@ export default function DepreciationPage() {
 
 /* ---------- 감가상각비명세: 자산별 월별 ---------- */
 
-function ScheduleTab({ fiscalYear }: { fiscalYear: number }) {
+/** 계산 결과가 없을 때 상단까지 올라가지 않고 그 자리에서 실행할 수 있게 하는 버튼 */
+function CalculateHere({
+  label,
+  onCalculate,
+  calculating,
+}: {
+  label: string;
+  onCalculate: () => void;
+  calculating: boolean;
+}) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span>{label}</span>
+      <button type="button" className={btnPrimaryClass} disabled={calculating} onClick={onCalculate}>
+        {calculating ? '계산 중…' : '지금 계산하기'}
+      </button>
+    </span>
+  );
+}
+
+function ScheduleTab({
+  fiscalYear,
+  onCalculate,
+  calculating,
+}: {
+  fiscalYear: number;
+  onCalculate: () => void;
+  calculating: boolean;
+}) {
   const q = useQuery({
     queryKey: queryKeys.depreciation.schedule(fiscalYear),
     queryFn: () => depreciationApi.schedule(fiscalYear),
@@ -134,11 +177,17 @@ function ScheduleTab({ fiscalYear }: { fiscalYear: number }) {
         isPending={q.isPending}
         error={q.error}
         isEmpty={(d?.rows ?? []).length === 0}
-        emptyText={`${fiscalYear}년 계산 결과가 없습니다. 상단의 "${fiscalYear}년 상각 계산" 을 먼저 실행하세요.`}
+        emptyText={
+          <CalculateHere
+            label={`${fiscalYear}년 계산 결과가 없습니다.`}
+            onCalculate={onCalculate}
+            calculating={calculating}
+          />
+        }
       />
       {d && d.rows.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-[18px]">
+          <table className="w-max min-w-full text-[18px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>계정과목</th>
@@ -211,7 +260,15 @@ interface PivotRow {
   byYear: Record<number, YearlyRow>;
 }
 
-function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
+function YearlyTab({
+  fiscalYear,
+  onCalculate,
+  calculating,
+}: {
+  fiscalYear: number;
+  onCalculate: () => void;
+  calculating: boolean;
+}) {
   const [fromYear, setFromYear] = useState(fiscalYear - 2);
   const [toYear, setToYear] = useState(fiscalYear);
 
@@ -251,7 +308,7 @@ function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
   return (
     <div className="space-y-3">
       <Section title="조회 기간">
-        <div className="flex items-end gap-3 px-3 py-3">
+        <div className="flex flex-wrap items-end gap-3 px-3 py-3">
           <label className="block">
             <span className="mb-0.5 block text-[18px] text-fg-sub">시작 연도</span>
             <input
@@ -294,9 +351,13 @@ function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
             );
           })}
           {maxTotal === 0 && (
-            <p className="text-[18px] text-fg-muted">
-              해당 기간에 계산된 상각비가 없습니다. 연도별 상각 계산을 먼저 실행하세요.
-            </p>
+            <div className="text-[18px] text-fg-muted">
+              <CalculateHere
+                label={`해당 기간에 계산된 상각비가 없습니다. (상단에서 고른 ${fiscalYear}년 기준)`}
+                onCalculate={onCalculate}
+                calculating={calculating}
+              />
+            </div>
           )}
         </div>
       </Section>
@@ -310,7 +371,7 @@ function YearlyTab({ fiscalYear }: { fiscalYear: number }) {
         />
         {pivot.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-[18px]">
+            <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="border-b border-line bg-bg text-left text-fg-sub">
                   <th className={thClass}>자산코드</th>
@@ -383,7 +444,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         />
         {d && d.rows.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-[18px]">
+            <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="border-b border-line bg-bg text-left text-fg-sub">
                   <th className={thClass}>계정과목</th>
@@ -472,7 +533,7 @@ function ForecastTab() {
   return (
     <div className="space-y-3">
       <Section title="조회 조건">
-        <div className="flex items-end gap-3 px-3 py-3">
+        <div className="flex flex-wrap items-end gap-3 px-3 py-3">
           <label className="block">
             <span className="mb-0.5 block text-[18px] text-fg-sub">기간</span>
             <select
@@ -545,7 +606,7 @@ function ForecastTab() {
         />
         {d && d.rows.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-[18px]">
+            <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="border-b border-line bg-bg text-left text-fg-sub">
                   <th className={thClass}>
