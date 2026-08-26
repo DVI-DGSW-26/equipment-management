@@ -100,7 +100,7 @@ export default function InstrumentModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
           label="관리번호"
           hint={instrument ? '채번 후 변경하지 않습니다.' : '비우면 DVIG-001 형식으로 자동 채번'}

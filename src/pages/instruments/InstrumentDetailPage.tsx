@@ -111,7 +111,7 @@ export default function InstrumentDetailPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/instruments')}>
           ← 목록
         </button>
@@ -148,7 +148,7 @@ export default function InstrumentDetailPage() {
 
       {d && (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <Section title="계측기">
               <Def label="관리번호">
                 <span className="code">{d.mgmtNo}</span>
@@ -204,7 +204,7 @@ export default function InstrumentDetailPage() {
               emptyText="교정 이력이 없습니다."
             />
             {(calibrations.data ?? []).length > 0 && (
-              <table className="w-full text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     <th className={thClass}>계획 연도</th>
@@ -299,7 +299,7 @@ export default function InstrumentDetailPage() {
               emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
             />
             {(attachments.data ?? []).length > 0 && (
-              <table className="w-full text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     <th className={thClass}>파일명</th>
@@ -433,7 +433,7 @@ function CalibrationModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="계획 연도" required>
           <input
             className={`${inputClass} num`}

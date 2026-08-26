@@ -197,7 +197,7 @@ export default function AssetNewPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/assets')}>
           ← 목록
         </button>
@@ -212,7 +212,7 @@ export default function AssetNewPage() {
           </span>
         }
       >
-        <div className="flex items-center gap-3 px-3 py-3">
+        <div className="flex flex-wrap items-center gap-3 px-3 py-3">
           <span className="code text-[26px] font-semibold">
             {preview.data?.nextCode ?? (canPreview ? '조회 중…' : 'DV-··-···-·-··-···-··-··')}
           </span>
@@ -224,7 +224,7 @@ export default function AssetNewPage() {
         </div>
       </Section>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Section title="분류">
           <div className="space-y-3 px-3 py-3">
             <Field label="자산구분" required>
@@ -460,7 +460,7 @@ export default function AssetNewPage() {
       </div>
 
       <Section title="관리 정보">
-        <div className="grid grid-cols-4 gap-3 px-3 py-3">
+        <div className="grid grid-cols-1 gap-3 px-3 py-3 sm:grid-cols-2 xl:grid-cols-4">
           <Field label="매입처">
             <input
               className={inputClass}

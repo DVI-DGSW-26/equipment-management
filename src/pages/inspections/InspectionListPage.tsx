@@ -151,7 +151,7 @@ export default function InspectionListPage() {
           }
         />
         {rows.length > 0 && (
-          <table className="w-full text-[19px]">
+          <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>기한</th>
@@ -329,7 +329,7 @@ function DetailModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-sm border border-line">
           <Def label="형식번호">{equipment.modelNo ?? '-'}</Def>
           <Def label="설치장소">{equipment.installLocation ?? '-'}</Def>
@@ -374,7 +374,7 @@ function DetailModal({
 
           <div className="rounded-sm border border-line px-3 py-2">
             <div className="mb-2 text-[18px] font-medium">검사 완료 입력</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Field label="검사일" required>
                 <input
                   type="date"
@@ -429,7 +429,7 @@ function DetailModal({
           emptyText="검사 이력이 없습니다."
         />
         {(history.data ?? []).length > 0 && (
-          <table className="w-full text-[18px]">
+          <table className="w-max min-w-full text-[18px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>검사일</th>
@@ -532,7 +532,7 @@ function EquipmentModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="대상품명" required>
           <input
             className={inputClass}

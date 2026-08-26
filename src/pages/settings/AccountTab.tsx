@@ -37,7 +37,7 @@ export default function AccountTab() {
     >
       <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
       {(q.data ?? []).length > 0 && (
-        <table className="w-full text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>코드</th>

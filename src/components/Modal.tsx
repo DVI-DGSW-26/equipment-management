@@ -24,7 +24,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-fg/30 p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-fg/30 p-3 sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -46,7 +46,7 @@ export default function Modal({
         </div>
         <div className="px-3 py-3">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-3 py-2">
             {footer}
           </div>
         )}

@@ -172,7 +172,7 @@ export default function AssetListPage() {
       />
 
       <Section title="검색 조건">
-        <div className="grid grid-cols-5 gap-2 px-3 py-3">
+        <div className="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <label className="block">
             <span className="mb-0.5 block text-[18px] text-fg-sub">자산명</span>
             <input
@@ -373,7 +373,7 @@ export default function AssetListPage() {
         {rows.length > 0 && (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     {sel.showSelectColumn && (

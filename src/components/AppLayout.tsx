@@ -27,24 +27,24 @@ export default function AppLayout() {
     <ToastProvider>
       <div className="min-h-screen bg-bg text-fg">
         <header className="border-b border-line bg-surface">
-          <div className="flex h-28 items-center gap-6 px-8">
+          <div className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 sm:h-28 sm:flex-nowrap sm:px-8 sm:py-0">
             {/* 로고를 누르면 첫 화면(고정자산)으로 돌아온다 */}
             <NavLink
               to="/"
               className="flex shrink-0 items-center rounded-sm hover:opacity-80"
               aria-label="첫 화면으로"
             >
-              <img src="/logo.svg" alt="자산·기자재 관리" className="h-24 w-auto" />
+              <img src="/logo.svg" alt="자산·기자재 관리" className="h-12 w-auto sm:h-24" />
             </NavLink>
 
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 overflow-x-auto">
               {NAV.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
                     [
-                      'px-3 py-2 text-[19px] rounded-sm',
+                      'px-3 py-2 text-[19px] rounded-sm whitespace-nowrap',
                       isActive ? 'bg-accent text-white font-medium' : 'text-fg-sub hover:bg-bg',
                     ].join(' ')
                   }
@@ -76,7 +76,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="px-8 py-3">
+        <main className="px-3 py-3 sm:px-8">
           <Outlet />
         </main>
       </div>

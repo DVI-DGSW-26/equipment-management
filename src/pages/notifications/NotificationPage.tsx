@@ -105,7 +105,7 @@ function SettingsSection() {
     >
       <QueryState isPending={q.isPending} error={q.error} />
       {q.data && (
-        <div className="grid grid-cols-2 gap-3 px-3 py-3">
+        <div className="grid grid-cols-1 gap-3 px-3 py-3 md:grid-cols-2">
           <Field
             label="교정 알림"
             hint="차기 교정일 며칠 전에 보낼지. 0 = 당일. 쉼표로 구분"
@@ -247,7 +247,7 @@ function EmailSection({
         emptyText="등록된 수신 이메일이 없습니다. 지금은 알림이 아무에게도 가지 않습니다."
       />
       {(q.data ?? []).length > 0 && (
-        <table className="w-full text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>이메일</th>
@@ -485,7 +485,7 @@ function LogSection() {
       />
       {rows.length > 0 && (
         <>
-          <table className="w-full text-[19px]">
+          <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>발송 일시</th>

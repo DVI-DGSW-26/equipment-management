@@ -36,7 +36,8 @@ export function Section({
           <div className="flex flex-wrap items-center justify-end gap-2">{right}</div>
         </div>
       )}
-      {children}
+      {/* 좁은 화면에서 표가 넘칠 때 본문만 옆으로 밀린다. 화면 전체는 밀리지 않는다 */}
+      <div className="overflow-x-auto">{children}</div>
     </section>
   );
 }
@@ -58,12 +59,18 @@ const TONE: Record<NonNullable<StatCard['tone']>, string> = {
   warn: 'text-warn',
 };
 
+/** 좁은 화면에서는 2칸으로 접고, 넓어지면 카드 수만큼 펼친다 */
+const STAT_COLS: Record<number, string> = {
+  1: 'md:grid-cols-1',
+  2: 'md:grid-cols-2',
+  3: 'md:grid-cols-3',
+  4: 'md:grid-cols-4',
+  5: 'md:grid-cols-5',
+};
+
 export function StatCards({ cards }: { cards: StatCard[] }) {
   return (
-    <div
-      className="grid gap-3"
-      style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0,1fr))` }}
-    >
+    <div className={`grid grid-cols-2 gap-3 ${STAT_COLS[cards.length] ?? 'md:grid-cols-4'}`}>
       {cards.map((c) => {
         const body = (
           <>
@@ -171,7 +178,7 @@ export function QueryState({
   isPending: boolean;
   error: unknown;
   isEmpty?: boolean;
-  emptyText?: string;
+  emptyText?: ReactNode;
 }) {
   if (isPending) return <p className="px-3 py-6 text-[19px] text-fg-sub">불러오는 중…</p>;
   if (error) return <p className="px-3 py-6 text-[19px] text-danger">{errorMessage(error)}</p>;
@@ -198,7 +205,7 @@ export function Pagination({
   const from = total === 0 ? 0 : page * size + 1;
   const to = Math.min(total, (page + 1) * size);
   return (
-    <div className="flex items-center justify-between border-t border-line px-3 py-2 text-[18px] text-fg-sub">
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line px-3 py-2 text-[18px] text-fg-sub">
       <span>
         {from.toLocaleString('ko-KR')}–{to.toLocaleString('ko-KR')} / 총{' '}
         {total.toLocaleString('ko-KR')}건

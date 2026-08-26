@@ -74,7 +74,7 @@ export default function AssetDetailPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/assets')}>
           ← 목록
         </button>
@@ -128,7 +128,7 @@ export default function AssetDetailPage() {
 
       {a && (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <Section title="기본 정보">
               <Def label="자산코드">
                 <span className="code">{codeText(a.assetCode)}</span>
@@ -218,7 +218,7 @@ export default function AssetDetailPage() {
               emptyText="변경 이력이 없습니다."
             />
             {(history.data ?? []).length > 0 && (
-              <table className="w-full text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     <th className={thClass}>일시</th>
@@ -290,7 +290,7 @@ function DepreciationHistory({ assetId }: { assetId: number }) {
         emptyText="계산된 상각 이력이 없습니다. 감가상각 화면에서 해당 연도를 먼저 계산하세요."
       />
       {rows.length > 0 && (
-        <table className="w-full text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>연도</th>
@@ -387,7 +387,7 @@ function EditModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="자산명">
           <input
             className={inputClass}
@@ -610,7 +610,7 @@ function CorrectModal({
       <p className="mb-3 rounded-sm border border-warn/40 bg-warn/10 px-3 py-2 text-[18px] text-warn">
         {LOCKED_NOTICE}
       </p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="취득일자">
           <input
             type="date"

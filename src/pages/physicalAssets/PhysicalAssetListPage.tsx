@@ -178,7 +178,7 @@ export default function PhysicalAssetListPage() {
         {rows.length > 0 && (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}
@@ -506,7 +506,7 @@ function PhysicalAssetModal({
         </>
       }
     >
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Field label="품명" required>
           <input
             className={inputClass}
