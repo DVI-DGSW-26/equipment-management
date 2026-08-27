@@ -10,6 +10,7 @@ import {
   type SaveCalibrationPayload,
 } from '@/api/calibrations';
 import { attachmentsApi, fileSizeText } from '@/api/attachments';
+import { apiUrl } from '@/api/client';
 import { isAgency } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
@@ -310,6 +311,7 @@ export default function InstrumentDetailPage() {
               <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                    <th className={thClass} />
                     <th className={thClass}>파일명</th>
                     <th className={thClass}>형식</th>
                     <th className={`${thClass} text-right`}>크기</th>
@@ -320,6 +322,18 @@ export default function InstrumentDetailPage() {
                 <tbody>
                   {(attachments.data ?? []).map((f) => (
                     <tr key={f.id} className="border-b border-line hover:bg-bg">
+                      {/* 사진이면 어느 것인지 열어 보지 않아도 알 수 있게 */}
+                      <td className="px-3 py-2">
+                        {f.contentType?.startsWith('image/') ? (
+                          <img
+                            src={apiUrl(`/attachment/${f.id}/download`)}
+                            alt=""
+                            className="h-12 w-16 rounded-sm border border-line object-cover"
+                          />
+                        ) : (
+                          <span className="text-fg-muted">-</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{f.originalName}</td>
                       <td className="px-3 py-2 text-fg-sub">{f.contentType ?? '-'}</td>
                       <td className="num px-3 py-2">{fileSizeText(f.fileSize)}</td>
