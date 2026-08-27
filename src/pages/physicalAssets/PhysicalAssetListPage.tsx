@@ -11,6 +11,7 @@ import { useCategories, useDepartments, useItemTypes, useItems, useLocations } f
 import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
+import { useDebounced } from '@/hooks/useDebounced';
 import { fmtDate } from '@/lib/date';
 import { won } from '@/lib/won';
 import Modal from '@/components/Modal';
@@ -41,16 +42,20 @@ export default function PhysicalAssetListPage() {
   const [editing, setEditing] = useState<PhysicalAsset | 'new' | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
+  // 글자마다 서버를 부르지 않도록 손이 멎은 뒤에 한 번만 보낸다
+  const settledName = useDebounced(name);
+  const settledCode = useDebounced(assetCode);
+
   const query = useMemo(
     () => ({
-      name: name.trim() || undefined,
-      assetCode: assetCode.trim() || undefined,
+      name: settledName.trim() || undefined,
+      assetCode: settledCode.trim() || undefined,
       status: status || undefined,
       registered: registered === '' ? undefined : registered === 'true',
       page,
       size,
     }),
-    [name, assetCode, status, registered, page, size],
+    [settledName, settledCode, status, registered, page, size],
   );
 
   const list = useQuery({

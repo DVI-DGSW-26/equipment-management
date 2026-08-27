@@ -5,6 +5,7 @@ import { instrumentsApi } from '@/api/instruments';
 import { calibrationsApi } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations } from '@/hooks/useMasters';
+import { useDebounced } from '@/hooks/useDebounced';
 import { currentYear, fmtDate } from '@/lib/date';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -45,7 +46,6 @@ export default function InstrumentListPage() {
 function ListTab() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const [applied, setApplied] = useState('');
   const [locationId, setLocationId] = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
@@ -53,14 +53,17 @@ function ListTab() {
 
   const locations = useInstrumentLocations();
 
+  /** 조회 버튼 없이 입력하는 대로. 손이 멎은 뒤에 한 번만 보낸다 */
+  const settled = useDebounced(keyword);
+
   const query = useMemo(
     () => ({
-      keyword: applied || undefined,
+      keyword: settled.trim() || undefined,
       locationId: locationId ? Number(locationId) : undefined,
       page,
       size,
     }),
-    [applied, locationId, page, size],
+    [settled, locationId, page, size],
   );
 
   const list = useQuery({
@@ -89,12 +92,9 @@ function ListTab() {
             className={`${inputClass} w-48`}
             placeholder="관리번호·계측기명·S/NO"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                setApplied(keyword.trim());
-                setPage(0);
-              }
+            onChange={(e) => {
+              setKeyword(e.target.value);
+              setPage(0);
             }}
           />
           <select

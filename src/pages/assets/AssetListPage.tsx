@@ -11,6 +11,7 @@ import {
 import { saveFile } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
+import { useDebounced } from '@/hooks/useDebounced';
 import { appConfig } from '@/config/appConfig';
 import { codeText, isPrintable } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
@@ -30,8 +31,6 @@ import {
   StatCards,
   stickyThClass,
 } from '@/components/ui';
-
-const EMPTY: AssetFilter = {};
 
 /** 화면 입력값. select 는 전부 문자열로 다루고 요청 직전에 숫자로 바꾼다 */
 interface FormState {
@@ -78,23 +77,25 @@ export default function AssetListPage() {
   const toast = useToast();
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [filter, setFilter] = useState<AssetFilter>(EMPTY);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
   const [previewing, setPreviewing] = useState(false);
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+  // 조건을 건드리면 늘 첫 페이지부터 다시 본다
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-
-  const apply = () => {
-    setFilter(toFilter(form));
     setPage(0);
-    sel.clear();
   };
+
+  /**
+   * 조회 버튼 없이 입력하는 대로 결과가 바뀐다.
+   * 글자마다 서버를 부르지 않도록 손이 멎은 뒤에 한 번만 보낸다.
+   */
+  const settled = useDebounced(form);
+  const filter = useMemo(() => toFilter(settled), [settled]);
 
   const reset = () => {
     setForm(EMPTY_FORM);
-    setFilter(EMPTY);
     setPage(0);
     sel.clear();
   };
@@ -180,7 +181,6 @@ export default function AssetListPage() {
               className={inputClass}
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && apply()}
               placeholder="부분일치"
             />
           </label>
@@ -190,7 +190,6 @@ export default function AssetListPage() {
               className={inputClass}
               value={form.assetCode}
               onChange={(e) => set('assetCode', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && apply()}
             />
           </label>
           <label className="block">
@@ -291,12 +290,11 @@ export default function AssetListPage() {
             />
           </label>
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-2">
-          <button type="button" className={btnClass} onClick={reset}>
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2 text-[18px] text-fg-muted">
+          <span>입력하는 대로 결과가 바뀝니다.</span>
+          {list.isFetching && <span className="text-accent">조회 중…</span>}
+          <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
             초기화
-          </button>
-          <button type="button" className={btnPrimaryClass} onClick={apply}>
-            조회
           </button>
         </div>
       </Section>
