@@ -303,7 +303,7 @@ function DepreciationHistory({ assetId }: { assetId: number }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.fiscalYear} className="border-b border-line">
-                <td className="num px-3 py-2">{r.fiscalYear}</td>
+                <td className="px-3 py-2 tabular-nums">{r.fiscalYear}</td>
                 <td className="px-3 py-2">{r.depreciationMethodLabel ?? '-'}</td>
                 <td className="num px-3 py-2">{won(r.depreciation)}</td>
                 <td className="num px-3 py-2">{won(r.accumulated)}</td>

@@ -232,7 +232,7 @@ export default function InstrumentDetailPage() {
                 <tbody>
                   {(calibrations.data ?? []).map((c) => (
                     <tr key={c.id} className="border-b border-line hover:bg-bg">
-                      <td className="num px-3 py-2">{c.planYear}</td>
+                      <td className="px-3 py-2 tabular-nums">{c.planYear}</td>
                       <td className="px-3 py-2">{fmtDate(c.planDate)}</td>
                       <td className="px-3 py-2">{fmtDate(c.performedDate)}</td>
                       <td className="px-3 py-2">{fmtDate(c.nextDueDate)}</td>
