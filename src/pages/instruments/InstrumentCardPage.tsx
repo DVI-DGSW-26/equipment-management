@@ -6,7 +6,8 @@ import { calibrationsApi, type Calibration } from '@/api/calibrations';
 import { attachmentsApi } from '@/api/attachments';
 import { apiUrl } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { fmtDate } from '@/lib/date';
+import { format, parseISO } from 'date-fns';
+import type { IsoDate } from '@/api/types';
 import { btnClass, btnPrimaryClass, QueryState } from '@/components/ui';
 
 /**
@@ -28,6 +29,16 @@ const cycleText = (months: number | null | undefined): string => {
 };
 
 const repairText = (v: boolean | null): string => (v == null ? '' : v ? '유' : '무');
+
+/** 양식의 날짜 표기. 2017-02-02 → 17.02.02 */
+const cardDate = (v: IsoDate | null | undefined): string => {
+  if (!v) return '';
+  try {
+    return format(parseISO(v), 'yy.MM.dd');
+  } catch {
+    return v;
+  }
+};
 
 export default function InstrumentCardPage() {
   const { id } = useParams();
@@ -91,7 +102,7 @@ export default function InstrumentCardPage() {
       {d && (
         <div className="card-sheet border border-fg bg-surface text-[17px] text-fg">
           {/* 기본 정보 — 엑셀 양식의 2행 */}
-          <div className="grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
+          <div className="card-head grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
             <CardLabel>관리 NO</CardLabel>
             <CardValue mono>{d.mgmtNo}</CardValue>
             <CardLabel>계측기명</CardLabel>
@@ -116,8 +127,11 @@ export default function InstrumentCardPage() {
           </div>
 
           {/* 아래 — 왼쪽 사진 / 오른쪽 이력표 */}
-          <div className="grid grid-cols-1 border-t border-fg lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <div className="flex min-h-72 items-center justify-center border-b border-fg p-3 lg:border-r lg:border-b-0">
+          <div className="card-body grid grid-cols-1 border-t border-fg lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            <div className="card-photo relative flex min-h-72 items-center justify-center border-b border-fg p-3 lg:border-r lg:border-b-0">
+              <span className="absolute top-0 left-0 border-r border-b border-fg px-3 py-1 text-[17px]">
+                SKETCH
+              </span>
               {photo ? (
                 <img
                   src={apiUrl(`/attachment/${photo.id}/download`)}
@@ -132,7 +146,7 @@ export default function InstrumentCardPage() {
             </div>
 
             <div className="min-w-0">
-              <h2 className="border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold">
+              <h2 className="card-title border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold">
                 검교정 현황 (HISTORY) 및 이력사항
               </h2>
               <div className="overflow-x-auto">
@@ -150,12 +164,12 @@ export default function InstrumentCardPage() {
                   <tbody>
                     {rows.map((c) => (
                       <tr key={c.id} className="border-b border-line">
-                        <td className="border-r border-line px-2 py-1">{c.agencyName ?? ''}</td>
+                        <td className="border-r border-line px-2 py-1 text-center">{c.agencyName ?? ''}</td>
                         <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
-                          {fmtDate(c.performedDate)}
+                          {cardDate(c.performedDate)}
                         </td>
                         <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
-                          {fmtDate(c.nextDueDate)}
+                          {cardDate(c.nextDueDate)}
                         </td>
                         <td className="border-r border-line px-2 py-1 text-center">
                           {repairText(c.repaired)}
@@ -193,7 +207,7 @@ export default function InstrumentCardPage() {
 
 function CardLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-r border-b border-line bg-bg px-2 py-1.5 text-center whitespace-nowrap text-fg-sub">
+    <div className="border-r border-b border-fg bg-bg px-2 py-1.5 text-center font-medium whitespace-nowrap">
       {children}
     </div>
   );
@@ -202,7 +216,7 @@ function CardLabel({ children }: { children: React.ReactNode }) {
 function CardValue({ children, mono }: { children?: React.ReactNode; mono?: boolean }) {
   return (
     <div
-      className={`border-r border-b border-line px-2 py-1.5 last:border-r-0 ${mono ? 'code' : ''}`}
+      className={`border-r border-b border-fg px-2 py-1.5 text-center last:border-r-0 ${mono ? 'code' : ''}`}
     >
       {children == null || children === '' ? ' ' : children}
     </div>

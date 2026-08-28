@@ -68,9 +68,15 @@
     display: none !important;
   }
 
-  /* 종이에서는 배경색이 안 나오는 프린터가 많아 선으로만 구분한다 */
   body {
     background: #fff;
+  }
+
+  /* 이력카드는 라벨 칸의 회색이 양식의 일부라 인쇄에서도 살린다 */
+  .card-sheet,
+  .card-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   main {
@@ -78,12 +84,62 @@
   }
 
   /* 표가 페이지 중간에서 잘리지 않게 */
-  .card-sheet {
+  .card-sheet,
+  .card-sheet tr {
     break-inside: avoid;
   }
 
-  .card-sheet tr {
-    break-inside: avoid;
+  /*
+    이력카드는 A4 가로 한 장에 들어가야 한다.
+    화면에서는 넉넉하게 보여주고, 종이에서만 줄여 한 장에 맞춘다.
+  */
+  .card-sheet {
+    font-size: 9.5pt;
+  }
+
+  .card-head > div {
+    padding-top: 1.2mm;
+    padding-bottom: 1.2mm;
+  }
+
+  .card-title {
+    padding-top: 1mm;
+    padding-bottom: 1mm;
+    font-size: 11pt;
+  }
+
+  .card-sheet table {
+    font-size: 9pt;
+  }
+
+  .card-sheet th,
+  .card-sheet td {
+    padding-top: 0.7mm;
+    padding-bottom: 0.7mm;
+  }
+
+  /*
+    종이는 늘 A4 가로라 창 너비와 무관하게 2단으로 둔다.
+    브라우저가 인쇄 배치에 좁은 폭을 쓰면 lg: 분기가 풀려 사진이 표 위로 올라간다.
+  */
+  .card-body {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+
+  .card-photo {
+    min-height: 0;
+    padding: 2mm;
+    border-right: 1px solid var(--color-fg);
+    border-bottom: 0;
+  }
+
+  .card-photo img {
+    max-height: 120mm;
+  }
+
+  /* 표가 안에서 스크롤되지 않게 — 종이에는 다 펼쳐야 한다 */
+  .card-sheet .overflow-x-auto {
+    overflow: visible;
   }
 }
 
