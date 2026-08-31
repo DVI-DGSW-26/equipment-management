@@ -50,8 +50,12 @@ export interface PhysicalAssetListQuery {
 }
 
 export interface SavePhysicalAssetPayload {
-  /** 비우면 고정자산 미등록 소액 비품 */
-  assetId?: number;
+  /**
+   * 비우면 고정자산 미등록 소액 비품.
+   * 수정에서 연결을 끊을 때(자산등록 O→X)는 undefined 가 아니라 null 을 보낸다.
+   * undefined 는 JSON 에서 키째 빠져 서버가 예전 연결을 그대로 둔다.
+   */
+  assetId?: number | null;
   assetCode?: string;
   name: string;
   categoryCode?: string;
