@@ -313,21 +313,33 @@ export default function PhysicalAssetListPage() {
 
 /* ---------- 부모 고정자산 고르기 ---------- */
 
+/** 가나다 순. 숫자가 섞인 이름(2호기 vs 10호기)도 사람이 읽는 순서로 놓는다 */
+const koCollator = new Intl.Collator('ko', { numeric: true });
+
+/** 입력칸과 후보 목록에 같은 형식으로 자산을 적는다 */
+const assetLabel = (a: Asset) => `${a.name} — ${codeText(a.assetCode)} · ${a.accountName}`;
+
 /**
  * 부모 고정자산 선택.
  *
  * 예전에는 자산 ID 를 숫자로 직접 넣게 했는데, 그 번호는 DB 키라서 사용자가 알 길이 없다.
  * 자산명·자산코드로 찾아서 고르고, 고른 자산의 취득일·취득가액을 함께 보여줘 확인하게 한다.
  * 고정자산 196건이라 한 번 받아 화면에서 거른다.
+ *
+ * 검색칸과 셀렉트를 따로 두면 고른 자산이 옆 칸에 가 있어 눈이 두 번 움직인다.
+ * 한 칸으로 합쳐서, 치면 후보가 아래로 펼쳐지고 고르면 그 칸에 그대로 남게 한다.
  */
 function ParentAssetPicker({
   value,
+  error,
   onChange,
 }: {
   value: string;
+  error?: string;
   onChange: (assetId: string, parent?: Asset) => void;
 }) {
   const [keyword, setKeyword] = useState('');
+  const [open, setOpen] = useState(false);
 
   const query = { size: 500 };
   const q = useQuery({
@@ -336,61 +348,97 @@ function ParentAssetPicker({
     staleTime: 5 * 60_000,
   });
 
-  const assets = q.data?.items ?? [];
+  /* 서버 순서(등록순)는 눈으로 훑기 어렵다. 자산명 가나다 순으로 놓는다 */
+  const assets = useMemo(
+    () => [...(q.data?.items ?? [])].sort((a, b) => koCollator.compare(a.name, b.name)),
+    [q.data],
+  );
   const picked = assets.find((a) => String(a.id) === value);
 
   const k = keyword.trim().toLowerCase();
-  const matched = k
-    ? assets.filter(
-        (a) =>
-          a.name.toLowerCase().includes(k) || (a.assetCode ?? '').toLowerCase().includes(k),
-      )
-    : assets;
+  const matched = useMemo(() => {
+    if (k === '') return assets;
+    const has = (text: string | null) => (text ?? '').toLowerCase().includes(k);
+    const hit = assets.filter((a) => has(a.name) || has(a.assetCode) || has(a.accountName));
+    /* 이름 첫머리가 걸린 것을 위로. sort 가 안정적이라 그 안의 가나다 순은 그대로다 */
+    const first = (a: Asset) => Number(a.name.toLowerCase().startsWith(k));
+    return hit.sort((a, b) => first(b) - first(a));
+  }, [assets, k]);
+
+  /* 찾는 중에는 입력한 글자를, 다 고르고 나면 고른 자산을 그대로 보여준다 */
+  const text = open ? keyword : picked ? assetLabel(picked) : '';
+
+  const pick = (a: Asset) => {
+    setKeyword('');
+    setOpen(false);
+    onChange(String(a.id), a);
+  };
 
   return (
     <Field
       label="부모 고정자산"
-      hint="여러 개를 한 건으로 산 비품이면 그 고정자산을 고릅니다. 고정자산으로 등록하지 않은 소액 비품이면 비워 둡니다(스티커 출력 대상에서 빠집니다)."
+      required
+      error={error}
+      hint="이 비품이 딸린 고정자산입니다. 가나다 순으로 놓여 있고, 자산명·자산코드·계정과목으로 찾을 수 있습니다."
     >
-      <div className="flex gap-2">
+      <div className="relative">
         <input
-          className={`${inputClass} w-48`}
+          className={`${inputClass} w-full`}
           placeholder="자산명·자산코드로 찾기"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
-        <select
-          className={inputClass}
-          value={value}
-          onChange={(e) => {
-            const id = e.target.value;
-            onChange(
-              id,
-              assets.find((a) => String(a.id) === id),
-            );
+          value={text}
+          /* 다시 누르면 곧바로 다른 자산을 찾을 수 있게 검색어를 비우고 목록을 편다 */
+          onFocus={() => {
+            setKeyword('');
+            setOpen(true);
           }}
-        >
-          <option value="">고정자산 없음 (소액 비품)</option>
-          {matched.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name} — {codeText(a.assetCode)} · {a.accountName}
-            </option>
-          ))}
-        </select>
+          onChange={(e) => {
+            setKeyword(e.target.value);
+            setOpen(true);
+          }}
+          onBlur={() => setOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setOpen(false);
+            if (e.key === 'Enter' && open && matched.length > 0) {
+              e.preventDefault();
+              pick(matched[0]);
+            }
+          }}
+        />
+        {open && (
+          <ul className="absolute z-20 mt-0.5 max-h-64 w-full overflow-auto rounded-sm border border-line bg-surface shadow-lg">
+            {q.isLoading && <li className="px-3 py-2 text-[17px] text-fg-muted">불러오는 중…</li>}
+            {!q.isLoading && matched.length === 0 && (
+              <li className="px-3 py-2 text-[17px] text-warn">검색 결과가 없습니다.</li>
+            )}
+            {matched.map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  className={`block w-full px-3 py-1.5 text-left text-[18px] hover:bg-bg ${
+                    String(a.id) === value ? 'bg-bg' : ''
+                  }`}
+                  /* blur 보다 먼저 잡아야 목록이 닫히기 전에 선택이 먹는다 */
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pick(a);
+                  }}
+                >
+                  {assetLabel(a)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {picked && (
+      {picked && !open && (
         <p className="mt-1 text-[17px] text-fg-sub">
           취득 {fmtDate(picked.acquisitionDate)} · 취득가액 {won(picked.acquisitionCost)}원 · 수량{' '}
           {picked.quantity}
         </p>
       )}
-      {k !== '' && matched.length === 0 && (
-        <p className="mt-1 text-[17px] text-warn">검색 결과가 없습니다.</p>
-      )}
     </Field>
   );
 }
-
 /* ---------- 등록·수정 ---------- */
 
 function PhysicalAssetModal({
@@ -403,6 +451,9 @@ function PhysicalAssetModal({
   const qc = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState({
+    /* 자산등록 O/X. 서버는 이 값을 따로 받지 않고 부모 고정자산 연결 여부로 정하지만,
+       담당자는 목록의 O/X 를 그대로 고치고 싶어 하므로 화면에서는 독립된 칸으로 둔다 */
+    registered: item?.registered ?? false,
     assetId: item?.assetId != null ? String(item.assetId) : '',
     name: item?.name ?? '',
     categoryCode: item?.categoryCode ?? '',
@@ -423,6 +474,8 @@ function PhysicalAssetModal({
   });
 
   const suppliesMode = isSuppliesItemEnabled(form.categoryCode);
+  /* O 는 "어느 고정자산에 딸렸는지" 가 있어야 성립한다 */
+  const parentMissing = form.registered && form.assetId === '';
 
   const categories = useCategories();
   const itemTypes = useItemTypes();
@@ -439,7 +492,9 @@ function PhysicalAssetModal({
   const save = useMutation({
     mutationFn: () => {
       const body: SavePhysicalAssetPayload = {
-        assetId: form.assetId ? Number(form.assetId) : undefined,
+        // 자산등록 X 로 내릴 때는 null 을 보내야 서버가 연결을 지운다.
+        // undefined 로 두면 JSON 에서 키가 통째로 빠져 PATCH 가 예전 연결을 그대로 남긴다
+        assetId: form.registered && form.assetId ? Number(form.assetId) : null,
         name: form.name.trim(),
         categoryCode: form.categoryCode || undefined,
         itemTypeCode: suppliesMode ? form.itemTypeCode || undefined : undefined,
@@ -504,7 +559,7 @@ function PhysicalAssetModal({
           <button
             type="button"
             className={btnPrimaryClass}
-            disabled={save.isPending || form.name.trim() === ''}
+            disabled={save.isPending || form.name.trim() === '' || parentMissing}
             onClick={() => save.mutate()}
           >
             저장
@@ -520,27 +575,57 @@ function PhysicalAssetModal({
             onChange={(e) => set('name', e.target.value)}
           />
         </Field>
-        <div className="col-span-2">
-          <ParentAssetPicker
-            value={form.assetId}
-            onChange={(assetId, parent) =>
-              setForm((p) => ({
-                ...p,
-                assetId,
-                // 부모에게 있는 값으로 빈 칸만 채운다. 이미 입력한 건 건드리지 않는다
-                categoryCode: p.categoryCode || parent?.categoryCode || '',
-                itemTypeCode: p.itemTypeCode || parent?.itemTypeCode || '',
-                itemCode: p.itemCode || parent?.itemCode || '',
-                locationCode: p.locationCode || parent?.locationCode || '',
-                deptCode: p.deptCode || parent?.usingDeptCode || '',
-                acquisitionDate: p.acquisitionDate || parent?.acquisitionDate || '',
-                modelName: p.modelName || parent?.modelName || '',
-                spec: p.spec || parent?.spec || '',
-                supplier: p.supplier || parent?.supplier || '',
-              }))
-            }
-          />
-        </div>
+        <Field
+          label="자산등록"
+          hint={
+            form.registered
+              ? '목록의 자산등록 칸이 O 가 됩니다. 스티커 출력 대상입니다.'
+              : '목록의 자산등록 칸이 X 가 됩니다. 스티커 출력 대상에서 빠집니다.'
+          }
+        >
+          <div className="flex gap-4 py-1.5">
+            {([true, false] as const).map((v) => (
+              <label key={String(v)} className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="registered"
+                  checked={form.registered === v}
+                  /* X 로 내리면 골라 둔 고정자산도 같이 비운다. 남겨 두면 저장할 때 되살아난다 */
+                  onChange={() =>
+                    setForm((p) => ({ ...p, registered: v, assetId: v ? p.assetId : '' }))
+                  }
+                />
+                <Badge tone={v ? 'accent' : 'muted'}>{v ? 'O' : 'X'}</Badge>
+                <span className="text-[18px]">{v ? '고정자산 등록' : '소액 비품'}</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+        {/* O 일 때만 어느 고정자산인지 묻는다. X 면 물어볼 것이 없다 */}
+        {form.registered && (
+          <div className="col-span-3">
+            <ParentAssetPicker
+              value={form.assetId}
+              error={parentMissing ? '부모 고정자산을 골라야 자산등록 O 로 저장됩니다.' : undefined}
+              onChange={(assetId, parent) =>
+                setForm((p) => ({
+                  ...p,
+                  assetId,
+                  // 부모에게 있는 값으로 빈 칸만 채운다. 이미 입력한 건 건드리지 않는다
+                  categoryCode: p.categoryCode || parent?.categoryCode || '',
+                  itemTypeCode: p.itemTypeCode || parent?.itemTypeCode || '',
+                  itemCode: p.itemCode || parent?.itemCode || '',
+                  locationCode: p.locationCode || parent?.locationCode || '',
+                  deptCode: p.deptCode || parent?.usingDeptCode || '',
+                  acquisitionDate: p.acquisitionDate || parent?.acquisitionDate || '',
+                  modelName: p.modelName || parent?.modelName || '',
+                  spec: p.spec || parent?.spec || '',
+                  supplier: p.supplier || parent?.supplier || '',
+                }))
+              }
+            />
+          </div>
+        )}
         <Field label="자산구분">
           <select
             className={inputClass}
