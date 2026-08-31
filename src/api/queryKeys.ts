@@ -8,6 +8,9 @@ import type { PartnerType } from './instrumentMasters';
 
 /** TanStack Query 키 팩토리. 무효화 범위를 한 곳에서 관리 */
 export const queryKeys = {
+  auth: {
+    me: ['auth', 'me'] as const,
+  },
   assets: {
     all: ['assets'] as const,
     list: (q: AssetListQuery) => ['assets', 'list', q] as const,

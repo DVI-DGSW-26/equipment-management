@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { instrumentsApi } from '@/api/instruments';
 import { calibrationsApi, type Calibration } from '@/api/calibrations';
 import { attachmentsApi } from '@/api/attachments';
-import { apiUrl } from '@/api/client';
+import AuthImage from '@/components/AuthImage';
 import { queryKeys } from '@/api/queryKeys';
 import { format, parseISO } from 'date-fns';
 import type { IsoDate } from '@/api/types';
@@ -133,8 +133,8 @@ export default function InstrumentCardPage() {
                 SKETCH
               </span>
               {photo ? (
-                <img
-                  src={apiUrl(`/attachment/${photo.id}/download`)}
+                <AuthImage
+                  path={`/attachment/${photo.id}/download`}
                   alt={`${d.name} 사진`}
                   className="max-h-[420px] max-w-full object-contain"
                 />

@@ -1,7 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { authApi } from '@/api/auth';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
+import { logout } from '@/lib/session';
+import { Badge } from '@/components/ui';
 import { ToastProvider } from '@/components/Toast';
 
 const NAV = [
@@ -15,6 +18,15 @@ const NAV = [
 ];
 
 export default function AppLayout() {
+  const qc = useQueryClient();
+
+  // 로그인한 사람. 헤더에 이름과 권한을 띄운다
+  const me = useQuery({
+    queryKey: queryKeys.auth.me,
+    queryFn: () => authApi.me(),
+    staleTime: 30 * 60_000,
+  });
+
   // 안전검사 메뉴의 긴급 건수 배지용. 실패해도 화면을 막지 않는다
   const safety = useQuery({
     queryKey: queryKeys.inspections.summary(),
@@ -71,6 +83,25 @@ export default function AppLayout() {
                 >
                   API 연결 실패
                 </span>
+              )}
+              {me.data && (
+                <>
+                  <span className="whitespace-nowrap text-fg-sub">{me.data.name}</span>
+                  {me.data.roles.map((role) => (
+                    <Badge key={role}>{role}</Badge>
+                  ))}
+                  {/* 다른 사람 자료가 남지 않게 캐시까지 비운다 */}
+                  <button
+                    type="button"
+                    className="whitespace-nowrap text-accent hover:underline"
+                    onClick={() => {
+                      logout();
+                      qc.clear();
+                    }}
+                  >
+                    로그아웃
+                  </button>
+                </>
               )}
             </div>
           </div>

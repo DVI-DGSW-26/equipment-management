@@ -75,6 +75,32 @@ src/
 **다크 모드·애니메이션·PWA 없음.** 정보 밀도 우선, 금액 셀은 우측 정렬 + `tabular-nums`(`.num`),
 자산코드는 고정폭(`.code`).
 
+## 로그인 (DVI 통합 로그인 · Keycloak)
+
+아이디·비밀번호를 화면에서 받지 않는다. 로그인 버튼이 브라우저를 통째로 백엔드로 보내고
+(`https://api.dvi-ind.com/jagigo/oauth2/authorization/keycloak`), Keycloak 이 OTP 까지 처리한 뒤
+콜백으로 토큰을 돌려준다.
+
+```
+성공  https://honey-go.vercel.app/auth/callback#token=<JWT>
+실패  https://honey-go.vercel.app/auth/callback#error=<사유>
+```
+
+- **콜백 도메인이 운영 주소로 고정**이다. localhost·프리뷰 배포에서는 콜백을 못 받으므로
+  로그인 확인은 프로덕션에서 한다. 개발 중에는 로그인 화면을 세우지 않는다
+  (`isLoginRequired` — 확인하려면 `.env` 에 `VITE_FORCE_LOGIN=true`,
+  운영에서 받은 토큰을 쓰려면 `VITE_DEV_TOKEN=<JWT>`).
+- **토큰이 없으면 화면을 세우지 않고 곧바로 통합 로그인으로 보낸다.** 우리 로그인 화면은
+  되풀이를 멈춰야 할 때만 나온다 — 스스로 로그아웃했을 때, 그리고 방금 다녀왔는데 또 튕겼을 때
+  (권한 없는 계정 등). 그러지 않으면 무한 왕복이 된다.
+- 토큰은 `localStorage` 에 둔다 (`lib/session.ts`). 새로고침해도 유지된다.
+- 모든 요청에 `Authorization: Bearer` 가 붙는다 (`api/client.ts`). **401 이면 다시 로그인으로 보낸다** —
+  수명이 30분이라 만료는 일상이고, SSO 세션이 살아 있으면 화면 없이 새 토큰을 들고 돌아온다.
+  방금 다녀왔는데 또 401 이면(권한 없음 등) 되풀이를 멈추고 로그인 화면에서 선다.
+- `<img src>` 는 헤더를 붙일 수 없어 401 이 된다. 첨부 사진은 `components/AuthImage.tsx` 가
+  fetch 로 받아 objectURL 로 끼운다.
+- 헤더에 `GET /auth/me` 의 `name` 과 `roles` 를 띄우고, 로그아웃은 토큰 삭제 + 쿼리 캐시 비우기다.
+
 ## 화면
 
 | 경로 | 내용 | 주요 엔드포인트 |

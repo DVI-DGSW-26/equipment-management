@@ -10,7 +10,7 @@ import {
   type SaveCalibrationPayload,
 } from '@/api/calibrations';
 import { attachmentsApi, fileSizeText } from '@/api/attachments';
-import { apiUrl } from '@/api/client';
+import AuthImage from '@/components/AuthImage';
 import { isAgency } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
@@ -325,8 +325,8 @@ export default function InstrumentDetailPage() {
                       {/* 사진이면 어느 것인지 열어 보지 않아도 알 수 있게 */}
                       <td className="px-3 py-2">
                         {f.contentType?.startsWith('image/') ? (
-                          <img
-                            src={apiUrl(`/attachment/${f.id}/download`)}
+                          <AuthImage
+                            path={`/attachment/${f.id}/download`}
                             alt=""
                             className="h-12 w-16 rounded-sm border border-line object-cover"
                           />
