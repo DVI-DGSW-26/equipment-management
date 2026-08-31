@@ -1,3 +1,4 @@
+import { getToken, handleUnauthorized } from '@/lib/session';
 import { ApiError, type ApiErrorBody, type BaseResponse } from './types';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -33,7 +34,17 @@ const buildUrl = (path: string, query?: QueryParams): string => {
   return url.toString();
 };
 
+/** 로그인 토큰. 서버 인증이 켜지면 이게 없는 요청은 전부 401 이다 */
+const authHeaders = (extra?: Record<string, string>): Record<string, string> | undefined => {
+  const token = getToken();
+  const headers = { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  return Object.keys(headers).length > 0 ? headers : undefined;
+};
+
 const parseError = async (res: Response): Promise<never> => {
+  // 토큰 만료(수명 30분)면 조용히 다시 받아온다
+  if (res.status === 401) handleUnauthorized();
+
   let body: ApiErrorBody = { message: `요청 실패 (${res.status})` };
   try {
     const json = (await res.json()) as ApiErrorBody;
@@ -47,7 +58,9 @@ const parseError = async (res: Response): Promise<never> => {
 const doFetch = (method: HttpMethod, path: string, options: RequestOptions): Promise<Response> =>
   fetch(buildUrl(path, options.query), {
     method,
-    headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: authHeaders(
+      options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    ),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   });
@@ -103,7 +116,7 @@ function unwrap<T>(text: string, path: string): BaseResponse<T> {
 export async function requestUpload<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(buildUrl(path), { method: 'POST', body: form });
+  const res = await fetch(buildUrl(path), { method: 'POST', headers: authHeaders(), body: form });
   if (!res.ok) await parseError(res);
 
   const text = await res.text();
@@ -145,11 +158,6 @@ export async function requestFile(
 }
 
 /** 받은 파일을 브라우저 다운로드로 넘긴다 */
-/**
- * <img src> 처럼 브라우저가 직접 받아야 하는 경로용 주소.
- * fetch 를 거치지 않으므로 BASE_URL 만 붙여 준다.
- */
-export const apiUrl = (path: string): string => `${BASE_URL}${path}`;
 
 export const saveFile = ({ blob, filename }: DownloadResult): void => {
   const url = URL.createObjectURL(blob);
