@@ -1,7 +1,16 @@
-# DVISION 자산·기자재 관리 시스템 (프론트엔드)
+<p align="center">
+  <img src="public/logo.svg" alt="DVISION" width="220">
+</p>
 
-사내망 브라우저용 관리 도구. 사용자 10명 내외, 사무실 PC(1440px) 기준.
-백엔드는 **Jagigo API** 를 사용한다 (Swagger: `http://112.146.55.78:3378/jagigo/swagger-ui/index.html`).
+# 자산·기자재 관리 시스템
+
+DVISION 의 사내 자산과 기자재를 한 곳에서 관리하는 웹 서비스다. 고정자산 등록·감가상각,
+비품관리대장(실물자산), 계측기 교정 이력, 안전검사 기한 관리와 메일 알림을 다룬다.
+사내망 브라우저용이고 사용자 10명 내외, 사무실 PC(1440px) 기준으로 만들었다.
+
+**주 기술** — React 19 · TypeScript · Vite · TanStack Query · React Router · Tailwind CSS v4
+
+백엔드는 **Jagigo API** 를 쓴다 (Swagger: `https://api.dvi-ind.com/jagigo/swagger-ui/index.html`).
 
 ```bash
 npm install
@@ -10,11 +19,6 @@ npm run build      # 타입체크 + 프로덕션 빌드
 npm run typecheck
 npm run lint
 ```
-
-## 기술 스택
-
-React 19 + TypeScript / Vite / React Router / TanStack Query / Tailwind CSS v4 / date-fns /
-Pretendard(로컬 번들)
 
 ## 백엔드 연결
 
