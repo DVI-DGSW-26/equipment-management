@@ -20,6 +20,7 @@ import { won } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
+import InstrumentCard from './InstrumentCard';
 import {
   Badge,
   btnClass,
@@ -30,6 +31,7 @@ import {
   inputClass,
   QueryState,
   Section,
+  Tabs,
   thClass,
 } from '@/components/ui';
 
@@ -39,6 +41,12 @@ export default function InstrumentDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  /*
+   * 이력카드를 첫 탭으로 둔다. 카드를 보려고 목록 → 상세 → 이력카드로 두 번 더 들어가야
+   * 하는 게 불편하다는 회신이 있었다(2026-09-02). 상세에 들어오면 바로 보이게 한다.
+   * 수정·교정 이력 등록·삭제는 탭 밖 머리줄에 그대로 있어 한 번에 닿는다.
+   */
+  const [tab, setTab] = useState<'card' | 'manage'>('card');
   const [editing, setEditing] = useState(false);
   const [calibrationTarget, setCalibrationTarget] = useState<Calibration | 'new' | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -112,22 +120,25 @@ export default function InstrumentDetailPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* 카드 탭에서 인쇄하면 종이에는 카드만 나가야 한다 */}
+      <div className="no-print flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/instruments')}>
           ← 목록
         </button>
-        <h1 className="text-[24px] font-semibold">{d?.name ?? '계측기 이력카드'}</h1>
+        <h1 className="text-[24px] font-semibold">{d?.name ?? '계측기'}</h1>
         {d && <span className="code text-[19px] text-fg-sub">{d.mgmtNo}</span>}
         {overdue && <Badge tone="danger">차기 교정일 경과</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={btnClass}
-            disabled={!d}
-            onClick={() => navigate(`/instruments/${instrumentId}/card`)}
-          >
-            이력카드
-          </button>
+          {tab === 'card' && (
+            <button
+              type="button"
+              className={btnClass}
+              disabled={!d}
+              onClick={() => window.print()}
+            >
+              이력카드 인쇄
+            </button>
+          )}
           <button type="button" className={btnClass} disabled={!d} onClick={() => setEditing(true)}>
             수정
           </button>
@@ -156,7 +167,22 @@ export default function InstrumentDetailPage() {
       <QueryState isPending={detail.isPending} error={detail.error} />
 
       {d && (
-        <>
+        <div className="no-print">
+          <Tabs
+            tabs={[
+              { key: 'card' as const, label: '이력카드' },
+              { key: 'manage' as const, label: '관리 정보' },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
+      )}
+
+      {d && tab === 'card' && <InstrumentCard instrumentId={instrumentId} />}
+
+      {d && tab === 'manage' && (
+        <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <Section title="계측기">
               <Def label="관리번호">
@@ -364,7 +390,7 @@ export default function InstrumentDetailPage() {
               </table>
             )}
           </Section>
-        </>
+        </div>
       )}
 
       {d && editing && <InstrumentModal instrument={d} onClose={() => setEditing(false)} />}
