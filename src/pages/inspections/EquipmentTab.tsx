@@ -10,7 +10,9 @@ import EquipmentModal from './EquipmentModal';
 import { rowNo } from '@/lib/paging';
 import {
   Badge,
+  btnClass,
   btnPrimaryClass,
+  FilterCount,
   inputClass,
   QueryState,
   SearchBox,
@@ -27,6 +29,35 @@ import {
  */
 type DueFilter = 'all' | 'overdue' | 'within30' | 'within90';
 
+/** 등록된 값에서 뽑은 선택지 하나. 라벨을 첫 줄에 넣어 무엇을 고르는지 바로 보이게 한다 */
+function Pick({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <select
+      className={`${inputClass} w-36`}
+      value={value}
+      aria-label={label}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{label} 전체</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
   if (f === 'all') return true;
   const d = e.daysUntilExpiry;
@@ -37,47 +68,86 @@ const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
 };
 
 export default function EquipmentTab() {
-  const [team, setTeam] = useState('');
-  const [status, setStatus] = useState<EquipmentStatus | ''>('IN_USE');
-  const [due, setDue] = useState<DueFilter>('all');
   const [keyword, setKeyword] = useState('');
+  const [team, setTeam] = useState('');
+  const [agency, setAgency] = useState('');
+  const [place, setPlace] = useState('');
+  const [status, setStatus] = useState<EquipmentStatus | ''>('IN_USE');
+  const [history, setHistory] = useState<'' | 'done' | 'never'>('');
+  const [due, setDue] = useState<DueFilter>('all');
   const [selected, setSelected] = useState<SafetyEquipment | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // 담당반은 서버 필터를 그대로 쓴다. 대상이 13건뿐이라 기한 필터만 목록에서 거른다
-  const query = useMemo(
-    () => ({
-      team: team || undefined,
-      status: status || undefined,
-    }),
-    [team, status],
-  );
-
-  const summary = useQuery({
-    queryKey: queryKeys.inspections.summary(),
-    queryFn: () => inspectionsApi.summary(),
-  });
+  /*
+   * 대상 전체를 한 번에 받아 화면에서 거른다.
+   *
+   * 서버 필터(team·status)를 쓰면 고른 값에 맞는 행만 돌아온다. 그런데 드롭다운 선택지를
+   * 그 결과에서 뽑고 있어서, 담당반을 한 번 고르면 목록에 그 반만 남고 다른 반이 사라져
+   * 곧바로 바꿀 수가 없었다. 조건 없이 받아 두고 거르면 선택지가 늘 온전하다.
+   * 조건 없는 조회는 알림 화면의 담당반 목록과 같은 것이라 받아 둔 것을 함께 쓴다.
+   */
   const list = useQuery({
-    queryKey: queryKeys.inspections.list(query),
-    queryFn: () => inspectionsApi.list(query),
+    queryKey: queryKeys.inspections.list({}),
+    queryFn: () => inspectionsApi.list({}),
   });
 
   const all = useMemo(() => [...(list.data ?? [])].sort(byDueAsc), [list.data]);
-  /* 담당반·상태는 서버가, 기한과 키워드는 여기서 거른다 (대상이 13건뿐이다) */
-  const rows = useMemo(() => {
+
+  /** 선택지는 늘 전체 목록에서 뽑는다. 담당반 마스터 API 가 따로 없어 등록된 값을 쓴다 */
+  const options = useMemo(() => {
+    const uniq = (v: (string | null)[]) =>
+      [...new Set(v.filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'ko'));
+    return {
+      teams: uniq(all.map((e) => e.team)),
+      agencies: uniq(all.map((e) => e.inspectionAgency)),
+      places: uniq(all.map((e) => e.installLocation)),
+    };
+  }, [all]);
+
+  /* 기한 카드만 빼고 거른 것. 카드에 적힌 수와 눌렀을 때 나오는 줄 수가 같아야 한다 */
+  const beforeDue = useMemo(() => {
     const hit = searchIn(keyword);
     return all.filter(
       (e) =>
-        matchesDue(e, due) &&
-        hit(e.name, e.modelNo, e.installLocation, e.inspectionAgency, e.certificateNo, e.team),
+        hit(e.name, e.modelNo, e.installLocation, e.inspectionAgency, e.certificateNo, e.team) &&
+        (team === '' || e.team === team) &&
+        (agency === '' || e.inspectionAgency === agency) &&
+        (place === '' || e.installLocation === place) &&
+        (status === '' || e.status === status) &&
+        (history === '' || (history === 'never') === e.neverInspected),
     );
-  }, [all, due, keyword]);
+  }, [all, keyword, team, agency, place, status, history]);
 
-  /** 담당반 선택지는 실제 등록된 값에서 뽑는다. 마스터 API 가 따로 없다 */
-  const teams = useMemo(
-    () => [...new Set((list.data ?? []).map((e) => e.team).filter((t): t is string => !!t))].sort(),
-    [list.data],
-  );
+  const counts = useMemo(() => {
+    const c = { overdue: 0, within30: 0, within90: 0 };
+    beforeDue.forEach((e) => {
+      if (matchesDue(e, 'overdue')) c.overdue += 1;
+      if (matchesDue(e, 'within30')) c.within30 += 1;
+      if (matchesDue(e, 'within90')) c.within90 += 1;
+    });
+    return c;
+  }, [beforeDue]);
+
+  const rows = useMemo(() => beforeDue.filter((e) => matchesDue(e, due)), [beforeDue, due]);
+
+  const dirty =
+    keyword !== '' ||
+    team !== '' ||
+    agency !== '' ||
+    place !== '' ||
+    history !== '' ||
+    status !== 'IN_USE' ||
+    due !== 'all';
+
+  const reset = () => {
+    setKeyword('');
+    setTeam('');
+    setAgency('');
+    setPlace('');
+    setStatus('IN_USE');
+    setHistory('');
+    setDue('all');
+  };
 
   const card = (label: string, key: DueFilter, count: number, tone?: 'danger' | 'warn') => ({
     label,
@@ -93,14 +163,14 @@ export default function EquipmentTab() {
       <StatCards
         cards={[
           {
-            label: '사용중 대상',
-            value: `${summary.data?.totalActive ?? 0}건`,
+            label: '조회 대상',
+            value: `${beforeDue.length}건`,
             active: due === 'all',
             onClick: () => setDue('all'),
           },
-          card('기한 경과', 'overdue', summary.data?.overdueCount ?? 0, 'danger'),
-          card('30일 이내', 'within30', summary.data?.within30Count ?? 0, 'danger'),
-          card('90일 이내', 'within90', summary.data?.within90Count ?? 0, 'warn'),
+          card('기한 경과', 'overdue', counts.overdue, 'danger'),
+          card('30일 이내', 'within30', counts.within30, 'danger'),
+          card('90일 이내', 'within90', counts.within90, 'warn'),
         ]}
       />
 
@@ -119,35 +189,50 @@ export default function EquipmentTab() {
             <SearchBox
               value={keyword}
               onChange={setKeyword}
-              placeholder="설비명·모델·설치위치·검사기관"
-              width="w-64"
+              placeholder="설비명·모델·설치위치·검사기관·합격번호"
+              width="w-72"
             />
-            <select
-              className={`${inputClass} w-32`}
-              value={team}
-              onChange={(e) => setTeam(e.target.value)}
-            >
-              <option value="">담당반 전체</option>
-              {teams.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`${inputClass} w-32`}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
-            >
-              <option value="IN_USE">사용중만</option>
-              <option value="">매각·폐기 포함</option>
-            </select>
             <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
               대상 등록
             </button>
           </>
         }
       >
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+          <Pick label="담당반" value={team} onChange={setTeam} options={options.teams} />
+          <Pick label="검사기관" value={agency} onChange={setAgency} options={options.agencies} />
+          <Pick label="설치장소" value={place} onChange={setPlace} options={options.places} />
+          <select
+            className={`${inputClass} w-36`}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
+            aria-label="상태"
+          >
+            <option value="IN_USE">사용중만</option>
+            <option value="">매각·폐기 포함</option>
+            <option value="SOLD">매각만</option>
+            <option value="DISPOSED">폐기만</option>
+          </select>
+          <select
+            className={`${inputClass} w-36`}
+            value={history}
+            onChange={(e) => setHistory(e.target.value as typeof history)}
+            aria-label="검사 이력"
+          >
+            <option value="">검사 이력 전체</option>
+            <option value="done">검사 이력 있음</option>
+            <option value="never">최초 검사 전</option>
+          </select>
+          <FilterCount shown={rows.length} total={all.length} />
+          <button
+            type="button"
+            className={`${btnClass} ml-auto`}
+            disabled={!dirty}
+            onClick={reset}
+          >
+            초기화
+          </button>
+        </div>
         <QueryState
           isPending={list.isPending}
           error={list.error}
