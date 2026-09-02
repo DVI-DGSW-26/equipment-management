@@ -70,14 +70,20 @@ const LOAD_LIMIT = 500;
  * 내려받을 열. 화면 표와 같은 차례로 둔다 — 파일을 열었을 때 화면과 다르면 대조하기 어렵다.
  * "남은 기한" 은 화면과 같은 D-30 표기로, 날짜는 계산해서 쓸 수 있게 원본 그대로 넣는다.
  */
-const LIST_COLUMNS: ExcelColumn<Instrument>[] = [
+/** 내려받을 행 = 목록 행 + 올해 교정계획(목록 응답에 없어 이어 붙인 것) */
+type ListRow = Instrument & { plan?: AnnualCalibration };
+
+const LIST_COLUMNS: ExcelColumn<ListRow>[] = [
   { header: '관리번호', value: (i) => i.mgmtNo, width: 14 },
   { header: '계측기명', value: (i) => i.name, width: 24 },
   { header: 'S/NO', value: (i) => i.serialNo, width: 16 },
   { header: '규격', value: (i) => i.specText, width: 20 },
   { header: '정도', value: (i) => i.accuracy, width: 14 },
   { header: '교정주기(개월)', value: (i) => i.calibrationCycleMonths, numeric: true, width: 14 },
-  { header: '사용위치', value: (i) => i.locationName, width: 14 },
+  { header: '교정계획', value: (i) => i.plan?.planDate ?? null, width: 14 },
+  { header: '교정실시', value: (i) => i.plan?.performedDate ?? null, width: 14 },
+  { header: '결과', value: (i) => i.plan?.resultMark ?? null, width: 8 },
+  { header: '보관장소', value: (i) => i.locationName, width: 14 },
   { header: '사용자', value: (i) => i.userName, width: 12 },
   { header: '최근 교정일', value: (i) => i.lastCalibratedDate, width: 14 },
   { header: '차기 교정일', value: (i) => i.nextDueDate, width: 14 },
@@ -131,6 +137,21 @@ function ListTab() {
   const all = useMemo(() => list.data?.items ?? [], [list.data]);
   /** 서버에 더 있는데 못 받아 왔다 */
   const truncated = (list.data?.total ?? 0) > all.length;
+
+  /*
+   * 올해 교정계획·실시·결과. 목록 응답에는 없고 연간 계획 쪽에만 있어 이어 붙인다.
+   * 옆 탭(연간 교정검사 LIST)이 부르는 것과 같은 조회라 받아 둔 것을 함께 쓴다.
+   */
+  const planYear = currentYear();
+  const plans = useQuery({
+    queryKey: queryKeys.calibrations.annual(planYear),
+    queryFn: () => calibrationsApi.annual(planYear),
+    staleTime: 5 * 60_000,
+  });
+  const planOf = useMemo(
+    () => new Map((plans.data ?? []).map((p) => [p.instrumentId, p])),
+    [plans.data],
+  );
 
   /** 선택지는 실제로 목록에 있는 값에서 뽑는다 — 고르면 반드시 결과가 있다 */
   const options = useMemo(() => {
@@ -201,7 +222,8 @@ function ListTab() {
   const download = async () => {
     setExporting(true);
     try {
-      await downloadExcel(rows, LIST_COLUMNS, stampedFileName('계측기목록', toIsoDate(getToday())));
+      const data: ListRow[] = rows.map((i) => ({ ...i, plan: planOf.get(i.id) }));
+      await downloadExcel(data, LIST_COLUMNS, stampedFileName('계측기목록', toIsoDate(getToday())));
       toast.ok(`계측기 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);
@@ -356,7 +378,11 @@ function ListTab() {
                   <th className={thClass}>규격</th>
                   <th className={thClass}>정도</th>
                   <th className={`${thClass} text-right`}>교정주기</th>
-                  <th className={thClass}>사용위치</th>
+                  {/* 양식의 "교정계획 및 결과" 세 칸. 연간 계획에서 이어 붙인다 */}
+                  <th className={thClass}>{planYear} 계획</th>
+                  <th className={thClass}>실시</th>
+                  <th className={`${thClass} text-center`}>결과</th>
+                  <th className={thClass}>보관장소</th>
                   <th className={thClass}>사용자</th>
                   <th className={thClass}>최근 교정일</th>
                   <th className={thClass}>차기 교정일</th>
@@ -366,6 +392,7 @@ function ListTab() {
               <tbody>
                 {paged.items.map((i, idx) => {
                   const days = daysUntil(i.nextDueDate);
+                  const plan = planOf.get(i.id);
                   return (
                     <tr
                       key={i.id}
@@ -381,6 +408,9 @@ function ListTab() {
                       <td className="px-3 py-2">{i.specText ?? '-'}</td>
                       <td className="px-3 py-2">{i.accuracy ?? '-'}</td>
                       <td className="num px-3 py-2">{i.calibrationCycleMonths}개월</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{fmtDate(plan?.planDate)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{fmtDate(plan?.performedDate)}</td>
+                      <td className="px-3 py-2 text-center">{plan?.resultMark ?? '-'}</td>
                       <td className="px-3 py-2">{i.locationName ?? '-'}</td>
                       <td className="px-3 py-2">{i.userName ?? '-'}</td>
                       <td className="px-3 py-2">{fmtDate(i.lastCalibratedDate)}</td>
