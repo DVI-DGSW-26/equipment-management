@@ -93,8 +93,13 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
     <>
       <QueryState isPending={instrument.isPending} error={instrument.error} />
 
+      {/*
+        화면에서는 폭을 묶는다. 넓은 모니터에서 끝까지 늘어나면 칸이 휑하게 벌어져
+        종이와 딴판으로 보인다는 얘기가 있었다(2026-09-03).
+        인쇄는 종이 크기를 따라야 하므로 print 규칙에서 max-width 를 풀어 준다.
+      */}
       {d && (
-        <div className="card-sheet border border-fg bg-surface text-[17px] text-fg">
+        <div className="card-sheet mx-auto w-full max-w-[1000px] border border-fg bg-surface text-[17px] text-fg">
           <h2 className="card-heading border-b border-fg py-1.5 text-center text-[26px] font-bold tracking-[0.25em]">
             측정기 이력카드
           </h2>

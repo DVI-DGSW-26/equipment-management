@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   instrumentsApi,
   INSTRUMENT_DEPARTMENT_LABEL,
@@ -11,8 +11,12 @@ import { isSupplier } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations, usePartners } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
+import SearchSelect, { type SearchOption } from '@/components/SearchSelect';
 import { useToast } from '@/components/toastContext';
 import { btnClass, btnPrimaryClass, Field, inputClass } from '@/components/ui';
+
+/** 계측기명 후보를 뽑을 목록. 목록 화면과 같은 조건이라 캐시를 함께 쓴다 */
+const INSTRUMENT_ALL = { page: 0, size: 500 };
 
 /** 등록·수정 공용. instrument 가 있으면 수정 (관리번호는 채번 후 바꾸지 않는다) */
 export default function InstrumentModal({
@@ -46,6 +50,33 @@ export default function InstrumentModal({
 
   const locations = useInstrumentLocations();
   const partners = usePartners();
+
+  /*
+   * 계측기명 후보. 이미 등록된 이름에서 뽑는다 — 같은 물건을 "버니어캘리퍼스" 와
+   * "버니어 캘리퍼스" 로 갈라 적으면 목록에서 묶어 볼 수 없다.
+   * 목록 화면과 같은 조회라 받아 둔 것을 함께 쓴다.
+   */
+  const others = useQuery({
+    queryKey: queryKeys.instruments.list(INSTRUMENT_ALL),
+    queryFn: () => instrumentsApi.list(INSTRUMENT_ALL),
+    staleTime: 5 * 60_000,
+  });
+
+  const nameOptions = useMemo<SearchOption[]>(
+    () =>
+      [...new Set((others.data?.items ?? []).map((i) => i.name))]
+        .sort((a, b) => a.localeCompare(b, 'ko'))
+        .map((n) => ({ value: n, label: n })),
+    [others.data],
+  );
+
+  const supplierOptions = useMemo<SearchOption[]>(
+    () =>
+      (partners.data ?? [])
+        .filter(isSupplier)
+        .map((p) => ({ value: String(p.id), label: p.name })),
+    [partners.data],
+  );
 
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -112,11 +143,14 @@ export default function InstrumentModal({
             onChange={(e) => set('mgmtNo', e.target.value)}
           />
         </Field>
-        <Field label="계측기명" required>
-          <input
-            className={inputClass}
+        <Field label="계측기명" required hint="쓰던 이름에서 고르거나 새로 적습니다.">
+          <SearchSelect
             value={form.name}
-            onChange={(e) => set('name', e.target.value)}
+            onChange={(v) => set('name', v)}
+            options={nameOptions}
+            placeholder="계측기명"
+            loading={others.isLoading}
+            allowFree
           />
         </Field>
         <Field label="S/NO" hint="분실 시 비워 둡니다.">
@@ -215,19 +249,15 @@ export default function InstrumentModal({
             onChange={(e) => set('purchasePrice', e.target.value.replace(/[^\d]/g, ''))}
           />
         </Field>
-        <Field label="구매처">
-          <select
-            className={inputClass}
+        <Field label="구매처" hint="이름을 쳐서 찾습니다. 마스터의 거래처 목록에서 고릅니다.">
+          <SearchSelect
             value={form.supplierId}
-            onChange={(e) => set('supplierId', e.target.value)}
-          >
-            <option value="">선택</option>
-            {(partners.data ?? []).filter(isSupplier).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set('supplierId', v)}
+            options={supplierOptions}
+            placeholder="구매처 이름으로 찾기"
+            loading={partners.isLoading}
+            emptyText="거래처 마스터에 없습니다. 마스터 화면에서 먼저 등록하세요."
+          />
         </Field>
         <Field label="연결 고정자산 ID" hint="고정자산 등록 대상이 아니면 비웁니다.">
           <input

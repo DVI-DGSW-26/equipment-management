@@ -73,7 +73,11 @@ const EMPTY = {
 
 type FormState = typeof EMPTY;
 
-/** 목록에서 뽑은 값으로 만드는 라벨 붙은 고르기 칸 */
+/**
+ * 목록에서 뽑은 값으로 만드는 고르기 칸.
+ * 라벨을 칸 위에 얹지 않고 첫 항목 이름으로 알린다 — 한 줄에 늘어놓아야 해서
+ * 라벨 줄이 붙으면 높이가 두 배가 된다.
+ */
 function Pick({
   label,
   value,
@@ -86,17 +90,19 @@ function Pick({
   options: string[];
 }) {
   return (
-    <label className="block">
-      <span className="mb-0.5 block text-[18px] text-fg-sub">{label}</span>
-      <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">전체</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      className={`${inputClass} w-36`}
+      value={value}
+      aria-label={label}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{label} 전체</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -189,17 +195,15 @@ export default function PhysicalAssetListPage() {
         실물자산 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
       </h1>
 
+      {/* 조건을 한 줄로 눕힌다. 격자로 쌓으면 화면 절반이 조건칸이라 목록이 밀린다 */}
       <Section title="조회 조건">
-        <div className="grid grid-cols-1 gap-3 px-3 py-3 md:grid-cols-3 lg:grid-cols-4">
-          <label className="block lg:col-span-2">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">검색</span>
-            <SearchBox
-              value={form.keyword}
-              onChange={(v) => set('keyword', v)}
-              placeholder="품명·자산코드·모델명·규격·제조업체·매입처·비고"
-              width="w-full"
-            />
-          </label>
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <SearchBox
+            value={form.keyword}
+            onChange={(v) => set('keyword', v)}
+            placeholder="품명·자산코드·모델명·규격·제조업체"
+            width="w-72"
+          />
           <Pick
             label="자산구분"
             value={form.category}
@@ -224,47 +228,41 @@ export default function PhysicalAssetListPage() {
             onChange={(v) => set('maker', v)}
             options={options.makers}
           />
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">자산등록</span>
-            <select
-              className={inputClass}
-              value={form.registered}
-              onChange={(e) => set('registered', e.target.value as FormState['registered'])}
-            >
-              <option value="">전체</option>
-              <option value="true">자산등록 O</option>
-              <option value="false">소액 비품</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">상태</span>
-            <select
-              className={inputClass}
-              value={form.status}
-              onChange={(e) => set('status', e.target.value as AssetStatus | '')}
-            >
-              <option value="">전체</option>
-              {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ASSET_STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">스티커</span>
-            <select
-              className={inputClass}
-              value={form.sticker}
-              onChange={(e) => set('sticker', e.target.value as StickerFilter)}
-            >
-              <option value="">전체</option>
-              <option value="printable">출력 가능</option>
-              <option value="nocode">자산코드 미부여</option>
-              <option value="excluded">출력 제외</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 self-end pb-1.5 text-[19px]">
+          <select
+            className={`${inputClass} w-32`}
+            value={form.registered}
+            aria-label="자산등록"
+            onChange={(e) => set('registered', e.target.value as FormState['registered'])}
+          >
+            <option value="">자산등록 전체</option>
+            <option value="true">자산등록 O</option>
+            <option value="false">소액 비품</option>
+          </select>
+          <select
+            className={`${inputClass} w-28`}
+            value={form.status}
+            aria-label="상태"
+            onChange={(e) => set('status', e.target.value as AssetStatus | '')}
+          >
+            <option value="">상태 전체</option>
+            {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {ASSET_STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-36`}
+            value={form.sticker}
+            aria-label="스티커"
+            onChange={(e) => set('sticker', e.target.value as StickerFilter)}
+          >
+            <option value="">스티커 전체</option>
+            <option value="printable">출력 가능</option>
+            <option value="nocode">자산코드 미부여</option>
+            <option value="excluded">출력 제외</option>
+          </select>
+          <label className="flex items-center gap-2 text-[19px]">
             <input
               type="checkbox"
               checked={form.rentalOnly}
@@ -272,9 +270,6 @@ export default function PhysicalAssetListPage() {
             />
             렌탈만
           </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2 text-[18px] text-fg-muted">
-          <span>입력하는 대로 결과가 바뀝니다.</span>
           <FilterCount shown={filtered.length} total={all.length} />
           <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
             초기화

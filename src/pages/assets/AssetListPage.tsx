@@ -189,126 +189,122 @@ export default function AssetListPage() {
         ]}
       />
 
+      {/*
+        조건을 한 줄로 눕힌다. 라벨을 칸 위에 얹어 격자로 쌓으니 화면 절반이 조건칸이라
+        정작 목록이 아래로 밀렸다(2026-09-03). 무엇을 고르는 칸인지는 첫 항목 이름과
+        placeholder 로 알린다. 날짜·금액처럼 두 칸이 한 쌍인 것만 앞에 짧은 말을 붙인다.
+      */}
       <Section title="검색 조건">
-        <div className="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">자산명</span>
-            <input
-              className={inputClass}
-              value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              placeholder="부분일치"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">자산코드</span>
-            <input
-              className={inputClass}
-              value={form.assetCode}
-              onChange={(e) => set('assetCode', e.target.value)}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">계정과목</span>
-            <select
-              className={inputClass}
-              value={form.accountId}
-              onChange={(e) => set('accountId', e.target.value)}
-            >
-              <option value="">전체</option>
-              {(accounts.data ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">사용부서</span>
-            <select
-              className={inputClass}
-              value={form.usingDeptId}
-              onChange={(e) => set('usingDeptId', e.target.value)}
-            >
-              <option value="">전체</option>
-              {(departments.data ?? []).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">사용위치</span>
-            <select
-              className={inputClass}
-              value={form.locationId}
-              onChange={(e) => set('locationId', e.target.value)}
-            >
-              <option value="">전체</option>
-              {(locations.data ?? []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.code} {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <input
+            className={`${inputClass} w-40`}
+            placeholder="자산명"
+            aria-label="자산명"
+            value={form.name}
+            onChange={(e) => set('name', e.target.value)}
+          />
+          <input
+            className={`${inputClass} w-36`}
+            placeholder="자산코드"
+            aria-label="자산코드"
+            value={form.assetCode}
+            onChange={(e) => set('assetCode', e.target.value)}
+          />
+          <select
+            className={`${inputClass} w-40`}
+            value={form.accountId}
+            aria-label="계정과목"
+            onChange={(e) => set('accountId', e.target.value)}
+          >
+            <option value="">계정과목 전체</option>
+            {(accounts.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code} {a.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-32`}
+            value={form.usingDeptId}
+            aria-label="사용부서"
+            onChange={(e) => set('usingDeptId', e.target.value)}
+          >
+            <option value="">사용부서 전체</option>
+            {(departments.data ?? []).map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-36`}
+            value={form.locationId}
+            aria-label="사용위치"
+            onChange={(e) => set('locationId', e.target.value)}
+          >
+            <option value="">사용위치 전체</option>
+            {(locations.data ?? []).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.code} {l.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-28`}
+            value={form.status}
+            aria-label="상태"
+            onChange={(e) => set('status', e.target.value)}
+          >
+            <option value="">상태 전체</option>
+            {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {ASSET_STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
 
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">상태</span>
-            <select
-              className={inputClass}
-              value={form.status}
-              onChange={(e) => set('status', e.target.value)}
-            >
-              <option value="">전체</option>
-              {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ASSET_STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">취득일 (부터)</span>
+          <span className="flex items-center gap-1 text-[18px] text-fg-sub">
+            취득일
             <input
               type="date"
-              className={inputClass}
+              className={`${inputClass} w-36`}
+              aria-label="취득일 시작"
               value={form.acquiredFrom}
               onChange={(e) => set('acquiredFrom', e.target.value)}
             />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">취득일 (까지)</span>
+            ~
             <input
               type="date"
-              className={inputClass}
+              className={`${inputClass} w-36`}
+              aria-label="취득일 종료"
               value={form.acquiredTo}
               onChange={(e) => set('acquiredTo', e.target.value)}
             />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">취득가액 (이상)</span>
+          </span>
+
+          <span className="flex items-center gap-1 text-[18px] text-fg-sub">
+            취득가액
             <input
-              className={`${inputClass} num`}
+              className={`${inputClass} num w-32`}
               inputMode="numeric"
+              aria-label="취득가액 이상"
               value={form.costFrom}
               onChange={(e) => set('costFrom', e.target.value.replace(/[^\d]/g, ''))}
             />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">취득가액 (이하)</span>
+            ~
             <input
-              className={`${inputClass} num`}
+              className={`${inputClass} num w-32`}
               inputMode="numeric"
+              aria-label="취득가액 이하"
               value={form.costTo}
               onChange={(e) => set('costTo', e.target.value.replace(/[^\d]/g, ''))}
             />
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2 text-[18px] text-fg-muted">
-          <span>입력하는 대로 결과가 바뀝니다.</span>
-          {list.isFetching && <span className="text-accent">조회 중…</span>}
+          </span>
+
+          <span className="text-[18px] text-fg-muted">
+            입력하는 대로 바뀝니다.
+            {list.isFetching && <span className="ml-1 text-accent">조회 중…</span>}
+          </span>
           <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
             초기화
           </button>

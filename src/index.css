@@ -79,6 +79,11 @@
     print-color-adjust: exact;
   }
 
+  /* 화면에서만 폭을 묶어 둔다. 종이에서는 A4 를 꽉 채워야 한다 */
+  .card-sheet {
+    max-width: none;
+  }
+
   main {
     padding: 0 !important;
   }
