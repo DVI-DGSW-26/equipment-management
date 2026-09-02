@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { instrumentsApi } from '@/api/instruments';
 import { calibrationsApi } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
-import { useInstrumentLocations } from '@/hooks/useMasters';
-import { useDebounced } from '@/hooks/useDebounced';
-import { currentYear, fmtDate } from '@/lib/date';
+import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
+import { currentYear, daysUntil, fmtDate } from '@/lib/date';
+import { searchIn } from '@/lib/search';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
 import {
   Badge,
+  btnClass,
   btnPrimaryClass,
   FilterCount,
   inputClass,
@@ -18,10 +19,10 @@ import {
   QueryState,
   SearchBox,
   Section,
+  StatCards,
   Tabs,
   thClass,
 } from '@/components/ui';
-import { searchIn } from '@/lib/search';
 
 type TabKey = 'list' | 'annual';
 
@@ -46,144 +47,304 @@ export default function InstrumentListPage() {
 
 /* ---------- 계측기 목록 ---------- */
 
+/**
+ * 기한 필터. 임계값(경과 / 30일 / 90일)은 안전검사 화면과 같다 —
+ * 두 화면이 같은 일을 하는데 기준이 다르면 관리하는 사람이 헷갈린다.
+ */
+type DueFilter = 'all' | 'overdue' | 'within30' | 'within90';
+
+/**
+ * 목록을 한 번에 다 받아 온다.
+ *
+ * 서버가 걸러 주는 것은 keyword 와 locationId 뿐이다. 사용자·교정주기·기한까지
+ * 페이지를 나눠 받은 채로 거르면 지금 펼친 장 안에서만 걸러져, 뒷장에 있는 계측기를
+ * "없다" 고 보여 준다. 그래서 전부 받아 화면에서 거르고 쪽도 화면에서 나눈다.
+ * 이 수를 넘으면 결과가 전체가 아니라고 알린다.
+ */
+const LOAD_LIMIT = 500;
+
+const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolean => {
+  if (f === 'all') return true;
+  if (f === 'overdue') return overdue || (days != null && days < 0);
+  /* 경과분은 30·90일 칸에 겹쳐 세지 않는다. 경과 칸에서 이미 세고 있다 */
+  if (days == null || days < 0 || overdue) return false;
+  return f === 'within30' ? days <= 30 : days <= 90;
+};
+
 function ListTab() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const [locationId, setLocationId] = useState('');
+  const [location, setLocation] = useState('');
+  const [user, setUser] = useState('');
+  const [cycle, setCycle] = useState('');
+  const [due, setDue] = useState<DueFilter>('all');
+  const [sort, setSort] = useState<'due' | 'mgmtNo'>('due');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
   const [creating, setCreating] = useState(false);
 
-  const locations = useInstrumentLocations();
-
-  /** 조회 버튼 없이 입력하는 대로. 손이 멎은 뒤에 한 번만 보낸다 */
-  const settled = useDebounced(keyword);
-
-  const query = useMemo(
-    () => ({
-      keyword: settled.trim() || undefined,
-      locationId: locationId ? Number(locationId) : undefined,
-      page,
-      size,
-    }),
-    [settled, locationId, page, size],
-  );
-
+  const query = useMemo(() => ({ page: 0, size: LOAD_LIMIT }), []);
   const list = useQuery({
     queryKey: queryKeys.instruments.list(query),
     queryFn: () => instrumentsApi.list(query),
   });
 
-  const rows = list.data?.items ?? [];
-  const overdue = rows.filter((r) => r.overdue).length;
+  const all = useMemo(() => list.data?.items ?? [], [list.data]);
+  /** 서버에 더 있는데 못 받아 왔다 */
+  const truncated = (list.data?.total ?? 0) > all.length;
+
+  /** 선택지는 실제로 목록에 있는 값에서 뽑는다 — 고르면 반드시 결과가 있다 */
+  const options = useMemo(() => {
+    const uniq = (vals: (string | null)[]) =>
+      [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'ko'));
+    return {
+      locations: uniq(all.map((i) => i.locationName)),
+      users: uniq(all.map((i) => i.userName)),
+      cycles: [...new Set(all.map((i) => i.calibrationCycleMonths))].sort((a, b) => a - b),
+    };
+  }, [all]);
+
+  /* 기한 칸만 빼고 거른 것. 카드에 적힌 수와 카드를 눌렀을 때 나오는 줄 수가 같아야 한다 */
+  const beforeDue = useMemo(() => {
+    const hit = searchIn(keyword);
+    return all.filter(
+      (i) =>
+        hit(i.mgmtNo, i.name, i.serialNo, i.specText, i.accuracy, i.locationName, i.userName) &&
+        (location === '' || i.locationName === location) &&
+        (user === '' || i.userName === user) &&
+        (cycle === '' || String(i.calibrationCycleMonths) === cycle),
+    );
+  }, [all, keyword, location, user, cycle]);
+
+  const counts = useMemo(() => {
+    const c = { overdue: 0, within30: 0, within90: 0 };
+    beforeDue.forEach((i) => {
+      const d = daysUntil(i.nextDueDate);
+      if (matchesDue(d, i.overdue, 'overdue')) c.overdue += 1;
+      if (matchesDue(d, i.overdue, 'within30')) c.within30 += 1;
+      if (matchesDue(d, i.overdue, 'within90')) c.within90 += 1;
+    });
+    return c;
+  }, [beforeDue]);
+
+  const rows = useMemo(() => {
+    const kept = beforeDue.filter((i) => matchesDue(daysUntil(i.nextDueDate), i.overdue, due));
+    return kept.sort((a, b) =>
+      sort === 'due'
+        ? /* 기한 없는 건은 뒤로 */
+          (a.nextDueDate ?? '9999-12-31').localeCompare(b.nextDueDate ?? '9999-12-31')
+        : a.mgmtNo.localeCompare(b.mgmtNo, 'ko'),
+    );
+  }, [beforeDue, due, sort]);
+
+  /* 쪽 나누기도 화면에서 한다. 조건을 바꿔 쪽수가 줄면 빈 장에 머무르지 않게 되돌린다 */
+  const totalPages = Math.ceil(rows.length / size);
+  const current = Math.min(page, Math.max(0, totalPages - 1));
+  const shown = rows.slice(current * size, current * size + size);
+
+  const dirty =
+    keyword !== '' || location !== '' || user !== '' || cycle !== '' || due !== 'all';
+
+  const reset = () => {
+    setKeyword('');
+    setLocation('');
+    setUser('');
+    setCycle('');
+    setDue('all');
+    setPage(0);
+  };
+
+  /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
+  const pick = (set: (v: string) => void) => (v: string) => {
+    set(v);
+    setPage(0);
+  };
+
+  const dueCard = (label: string, key: DueFilter, count: number, tone: 'danger' | 'warn') => ({
+    label,
+    value: `${count.toLocaleString('ko-KR')}건`,
+    tone: count > 0 ? tone : undefined,
+    active: due === key,
+    onClick: () => {
+      setDue(due === key ? 'all' : key);
+      setPage(0);
+    },
+  });
 
   return (
-    <Section
-      title={
-        <>
-          계측기 목록{' '}
-          {overdue > 0 && (
-            <span className="ml-1">
-              <Badge tone="danger">차기 교정일 경과 {overdue}건</Badge>
-            </span>
-          )}
-        </>
-      }
-      right={
-        <>
-          <input
-            className={`${inputClass} w-48`}
-            placeholder="관리번호·계측기명·S/NO"
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
+    <div className="space-y-3">
+      {/* 이 화면의 일은 교정 기한 관리다. 급한 건수를 먼저 보이고, 눌러서 그것만 본다 */}
+      <StatCards
+        cards={[
+          {
+            label: '전체',
+            value: `${beforeDue.length.toLocaleString('ko-KR')}건`,
+            active: due === 'all',
+            onClick: () => {
+              setDue('all');
               setPage(0);
-            }}
-          />
+            },
+          },
+          dueCard('기한 경과', 'overdue', counts.overdue, 'danger'),
+          dueCard('30일 이내', 'within30', counts.within30, 'danger'),
+          dueCard('90일 이내', 'within90', counts.within90, 'warn'),
+        ]}
+      />
+
+      <Section
+        title="계측기 목록"
+        right={
+          <>
+            <SearchBox
+              value={keyword}
+              onChange={pick(setKeyword)}
+              placeholder="관리번호·계측기명·S/NO·규격·사용자"
+              width="w-72"
+            />
+            <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
+              계측기 등록
+            </button>
+          </>
+        }
+      >
+        {truncated && (
+          <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
+            계측기가 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}
+            {all.length.toLocaleString('ko-KR')}건만 받아 왔습니다. 아래 결과는 그 안에서만
+            거른 것입니다 — 서버 필터 추가가 필요합니다.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
           <select
-            className={`${inputClass} w-32`}
-            value={locationId}
-            onChange={(e) => {
-              setLocationId(e.target.value);
-              setPage(0);
-            }}
+            className={`${inputClass} w-36`}
+            value={location}
+            onChange={(e) => pick(setLocation)(e.target.value)}
+            aria-label="사용위치"
           >
-            <option value="">전체 위치</option>
-            {(locations.data ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
+            <option value="">사용위치 전체</option>
+            {options.locations.map((l) => (
+              <option key={l} value={l}>
+                {l}
               </option>
             ))}
           </select>
-          <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
-            계측기 등록
+          <select
+            className={`${inputClass} w-32`}
+            value={user}
+            onChange={(e) => pick(setUser)(e.target.value)}
+            aria-label="사용자"
+          >
+            <option value="">사용자 전체</option>
+            {options.users.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-32`}
+            value={cycle}
+            onChange={(e) => pick(setCycle)(e.target.value)}
+            aria-label="교정주기"
+          >
+            <option value="">교정주기 전체</option>
+            {options.cycles.map((c) => (
+              <option key={c} value={c}>
+                {c}개월
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${inputClass} w-36`}
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="정렬"
+          >
+            <option value="due">기한 임박순</option>
+            <option value="mgmtNo">관리번호순</option>
+          </select>
+          <FilterCount shown={rows.length} total={all.length} />
+          <button
+            type="button"
+            className={`${btnClass} ml-auto`}
+            disabled={!dirty}
+            onClick={reset}
+          >
+            초기화
           </button>
-        </>
-      }
-    >
-      <QueryState
-        isPending={list.isPending}
-        error={list.error}
-        isEmpty={rows.length === 0}
-        emptyText="조건에 맞는 계측기가 없습니다."
-      />
-      {rows.length > 0 && (
-        <>
-          <table className="w-max min-w-full text-[19px]">
-            <thead>
-              <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                <th className={thClass}>관리번호</th>
-                <th className={thClass}>계측기명</th>
-                <th className={thClass}>S/NO</th>
-                <th className={thClass}>규격</th>
-                <th className={thClass}>정도</th>
-                <th className={`${thClass} text-right`}>교정주기</th>
-                <th className={thClass}>사용위치</th>
-                <th className={thClass}>사용자</th>
-                <th className={thClass}>최근 교정일</th>
-                <th className={thClass}>차기 교정일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((i) => (
-                <tr
-                  key={i.id}
-                  onClick={() => navigate(`/instruments/${i.id}`)}
-                  className="cursor-pointer border-b border-line hover:bg-bg"
-                >
-                  <td className="code px-3 py-2">{i.mgmtNo}</td>
-                  <td className="px-3 py-2">{i.name}</td>
-                  <td className="px-3 py-2">{i.serialNo ?? '-'}</td>
-                  <td className="px-3 py-2">{i.specText ?? '-'}</td>
-                  <td className="px-3 py-2">{i.accuracy ?? '-'}</td>
-                  <td className="num px-3 py-2">{i.calibrationCycleMonths}개월</td>
-                  <td className="px-3 py-2">{i.locationName ?? '-'}</td>
-                  <td className="px-3 py-2">{i.userName ?? '-'}</td>
-                  <td className="px-3 py-2">{fmtDate(i.lastCalibratedDate)}</td>
-                  <td className={`px-3 py-2 ${i.overdue ? 'font-semibold text-danger' : ''}`}>
-                    {fmtDate(i.nextDueDate)}
-                    {i.overdue && ' 경과'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <Pagination
-            page={list.data?.page ?? 0}
-            totalPages={list.data?.totalPages ?? 0}
-            total={list.data?.total ?? 0}
-            size={size}
-            onChange={setPage}
-            onSizeChange={(s) => {
-              setSize(s);
-              setPage(0);
-            }}
-          />
-        </>
-      )}
+        </div>
 
-      {creating && <InstrumentModal onClose={() => setCreating(false)} />}
-    </Section>
+        <QueryState
+          isPending={list.isPending}
+          error={list.error}
+          isEmpty={rows.length === 0}
+          emptyText={dirty ? '조건에 맞는 계측기가 없습니다.' : '등록된 계측기가 없습니다.'}
+        />
+        {rows.length > 0 && (
+          <>
+            <table className="w-max min-w-full text-[19px]">
+              <thead>
+                <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                  <th className={thClass}>관리번호</th>
+                  <th className={thClass}>계측기명</th>
+                  <th className={thClass}>S/NO</th>
+                  <th className={thClass}>규격</th>
+                  <th className={thClass}>정도</th>
+                  <th className={`${thClass} text-right`}>교정주기</th>
+                  <th className={thClass}>사용위치</th>
+                  <th className={thClass}>사용자</th>
+                  <th className={thClass}>최근 교정일</th>
+                  <th className={thClass}>차기 교정일</th>
+                  <th className={`${thClass} text-right`}>남은 기한</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((i) => {
+                  const days = daysUntil(i.nextDueDate);
+                  return (
+                    <tr
+                      key={i.id}
+                      onClick={() => navigate(`/instruments/${i.id}`)}
+                      className="cursor-pointer border-b border-line hover:bg-bg"
+                    >
+                      <td className="code px-3 py-2">{i.mgmtNo}</td>
+                      <td className="px-3 py-2">{i.name}</td>
+                      <td className="px-3 py-2">{i.serialNo ?? '-'}</td>
+                      <td className="px-3 py-2">{i.specText ?? '-'}</td>
+                      <td className="px-3 py-2">{i.accuracy ?? '-'}</td>
+                      <td className="num px-3 py-2">{i.calibrationCycleMonths}개월</td>
+                      <td className="px-3 py-2">{i.locationName ?? '-'}</td>
+                      <td className="px-3 py-2">{i.userName ?? '-'}</td>
+                      <td className="px-3 py-2">{fmtDate(i.lastCalibratedDate)}</td>
+                      <td className={`px-3 py-2 ${i.overdue ? 'font-semibold text-danger' : ''}`}>
+                        {fmtDate(i.nextDueDate)}
+                      </td>
+                      <td className={`num px-3 py-2 ${DDAY_CLASS[levelOfDays(days)]}`}>
+                        {ddayLabel(days)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <Pagination
+              page={current}
+              totalPages={totalPages}
+              total={rows.length}
+              size={size}
+              onChange={setPage}
+              onSizeChange={(s) => {
+                setSize(s);
+                setPage(0);
+              }}
+            />
+          </>
+        )}
+
+        {creating && <InstrumentModal onClose={() => setCreating(false)} />}
+      </Section>
+    </div>
   );
 }
 

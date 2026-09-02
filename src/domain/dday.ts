@@ -9,6 +9,13 @@ export type DdayLevel = 'danger' | 'warn' | 'safe';
 export const levelOf = (severity: Severity | null | undefined): DdayLevel =>
   severity === 'RED' ? 'danger' : severity === 'ORANGE' ? 'warn' : 'safe';
 
+/**
+ * 서버가 severity 를 주지 않는 목록(계측기)용. 남은 일수로 직접 등급을 매긴다.
+ * 임계값은 levelOf 와 같은 30/90 규칙이라 두 화면의 색이 어긋나지 않는다.
+ */
+export const levelOfDays = (days: number | null | undefined): DdayLevel =>
+  days == null ? 'safe' : days <= 30 ? 'danger' : days <= 90 ? 'warn' : 'safe';
+
 /** 요구사항 4-4 — 30일 이하 빨강 / 90일 이하 주황 / 그 외 초록 */
 export const DDAY_CLASS: Record<DdayLevel, string> = {
   danger: 'text-danger font-semibold',
