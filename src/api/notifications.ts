@@ -6,6 +6,13 @@ export type EmailStatus = 'PENDING' | 'VERIFIED';
 export interface NotificationEmail {
   id: number;
   email: string;
+  /** 받는 사람 이름. 이 기능이 생기기 전에 등록된 주소는 null */
+  name: string | null;
+  /**
+   * 소속 부서. teams(담당반)와 별개다 —
+   * teams 는 "어떤 알림을 받을지" 고르는 조건이고, 이건 사람이 어디 소속인지 보여 주는 값이다.
+   */
+  department: string | null;
   status: EmailStatus;
   statusLabel: string;
   verifiedAt: IsoDateTime | null;
@@ -22,6 +29,12 @@ export interface EmailPreferences {
   alertTypes?: AlertType[];
   /** 비우면 전체 팀 수신 */
   teams?: string[];
+  /**
+   * 이름·부서 (각 50자).
+   * 수정에서 null 은 "그대로 두기", 빈 문자열은 "지우기" 다 — 둘이 다르다.
+   */
+  name?: string | null;
+  department?: string | null;
 }
 
 export interface VerificationCodeSent {
@@ -43,6 +56,15 @@ export interface NotificationLog {
   instrumentId: number | null;
   safetyEquipmentId: number | null;
   recipientEmail: string;
+  /**
+   * 보낼 당시 값이 이력에 그대로 박혀 온다. 등록부와 이어 붙일 필요가 없고,
+   * 등록부에서 지워진 주소도 누구였는지 남는다.
+   * 이 기능이 생기기 전 이력은 셋 다 null 이라 화면에서 빈칸으로 둔다.
+   */
+  recipientName: string | null;
+  recipientDepartment: string | null;
+  /** 빈 배열은 "전체 팀 수신". null 은 옛 이력이라 값이 없는 것 */
+  recipientTeams: string[] | null;
   success: boolean;
   sentAt: IsoDateTime;
 }

@@ -181,28 +181,6 @@ function useTeamOptions(): string[] {
 }
 
 /**
- * 발송 이력의 수신자에 담당반을 붙이기 위한 표.
- *
- * 이력(NotificationLog)에는 받는 주소만 남고 사람 정보가 없다. 수신자 등록부에 있는
- * teams 를 주소로 이어 붙여 보여 준다.
- *
- * 이어 붙인 값은 **지금** 등록부에 적힌 담당반이지 보낼 당시의 값이 아니다.
- * 이력은 30일만 보관하고 담당반이 자주 바뀌지 않아 실제로는 거의 같지만,
- * 등록부에서 지워진 주소는 붙일 것이 없어 빈칸이 된다.
- */
-function useRecipientTeams(): Map<string, string[]> {
-  const q = useQuery({
-    queryKey: queryKeys.notifications.emails(),
-    queryFn: () => notificationsApi.emails(),
-    staleTime: 10 * 60_000,
-  });
-  return useMemo(
-    () => new Map((q.data ?? []).map((e) => [e.email.toLowerCase(), e.teams])),
-    [q.data],
-  );
-}
-
-/**
  * 담당반을 지정하면 교정 알림을 한 통도 못 받는다.
  *
  * 계측기에는 담당반 항목이 없어 서버가 모든 계측기를 "담당반 없음" 으로 본다.
@@ -216,9 +194,13 @@ const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): bo
 function RecipientBlock({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [draft, setDraft] = useState('');
+  /** 빠른 등록칸. 이메일만 필수고 이름·부서는 나중에 채워도 된다 */
+  const [draft, setDraft] = useState({ email: '', name: '', department: '' });
   const [keyword, setKeyword] = useState('');
-  const [editingTeam, setEditingTeam] = useState<NotificationEmail | null>(null);
+  const [editing, setEditing] = useState<NotificationEmail | null>(null);
+
+  const setDraftField = (k: keyof typeof draft, v: string) =>
+    setDraft((prev) => ({ ...prev, [k]: v }));
 
   const q = useQuery({
     queryKey: queryKeys.notifications.emails(),
@@ -234,7 +216,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
   );
   const rows = useMemo(() => {
     const hit = searchIn(keyword);
-    return all.filter((e) => hit(e.email, e.statusLabel, ...e.teams));
+    return all.filter((e) => hit(e.email, e.name, e.department, e.statusLabel, ...e.teams));
   }, [all, keyword]);
   const other: AlertType = type === 'CALIBRATION' ? 'SAFETY' : 'CALIBRATION';
 
@@ -246,9 +228,14 @@ function RecipientBlock({ type }: { type: AlertType }) {
    */
   const add = useMutation({
     mutationFn: async (): Promise<{ email: string; already: boolean }> => {
-      const email = draft.trim();
+      const email = draft.email.trim();
+      /* 비운 칸은 아예 보내지 않는다. 빈 문자열은 "지우기" 라는 뜻이라 등록에는 맞지 않는다 */
+      const who = {
+        name: draft.name.trim() || undefined,
+        department: draft.department.trim() || undefined,
+      };
       try {
-        const created = await notificationsApi.addEmail(email, { alertTypes: [type] });
+        const created = await notificationsApi.addEmail(email, { alertTypes: [type], ...who });
         return { email: created.email, already: false };
       } catch (err) {
         if (!(err instanceof ApiError) || err.status !== 409) throw err;
@@ -256,11 +243,18 @@ function RecipientBlock({ type }: { type: AlertType }) {
           (e) => e.email.toLowerCase() === email.toLowerCase(),
         );
         if (!found) throw err;
-        if (found.alertTypes.includes(type)) return { email: found.email, already: true };
+        /* 이미 있는 주소면 이 유형을 더해 주고, 비어 있던 이름·부서만 채운다 */
+        const fill = {
+          name: found.name ? undefined : who.name,
+          department: found.department ? undefined : who.department,
+        };
+        if (found.alertTypes.includes(type) && !fill.name && !fill.department)
+          return { email: found.email, already: true };
         await notificationsApi.updatePreferences(found.id, {
-          alertTypes: [...found.alertTypes, type],
+          alertTypes: [...new Set([...found.alertTypes, type])],
+          ...fill,
         });
-        return { email: found.email, already: false };
+        return { email: found.email, already: found.alertTypes.includes(type) };
       }
     },
     onSuccess: ({ email, already }) => {
@@ -269,7 +263,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
           ? `${email} 은 이미 ${ALERT_TYPE_LABEL[type]} 알림을 받고 있습니다.`
           : `${email} 등록했습니다.`,
       );
-      setDraft('');
+      setDraft({ email: '', name: '', department: '' });
       invalidate();
     },
     onError: toast.fail,
@@ -311,21 +305,41 @@ function RecipientBlock({ type }: { type: AlertType }) {
           <SearchBox
             value={keyword}
             onChange={setKeyword}
-            placeholder="이메일·담당반 검색"
-            width="w-48"
+            placeholder="이름·부서·이메일·담당반 검색"
+            width="w-56"
           />
           <input
             type="email"
             className={`${inputClass} w-56`}
             placeholder="name@dvi-ind.com"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && draft.trim() && add.mutate()}
+            aria-label="이메일"
+            value={draft.email}
+            onChange={(e) => setDraftField('email', e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
+          />
+          <input
+            className={`${inputClass} w-24`}
+            placeholder="이름"
+            aria-label="이름"
+            maxLength={50}
+            value={draft.name}
+            onChange={(e) => setDraftField('name', e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
+          />
+          <input
+            className={`${inputClass} w-28`}
+            placeholder="부서"
+            aria-label="부서"
+            maxLength={50}
+            value={draft.department}
+            onChange={(e) => setDraftField('department', e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
           />
           <button
             type="button"
             className={btnPrimaryClass}
-            disabled={add.isPending || draft.trim() === ''}
+            disabled={add.isPending || draft.email.trim() === ''}
+            title="이름·부서는 비워 두고 나중에 채워도 됩니다."
             onClick={() => add.mutate()}
           >
             등록
@@ -348,6 +362,8 @@ function RecipientBlock({ type }: { type: AlertType }) {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={thClass}>이름</th>
+              <th className={thClass}>부서</th>
               <th className={thClass}>이메일</th>
               <th className={thClass}>{type === 'SAFETY' ? '담당반' : '수신 여부'}</th>
               <th className={thClass}>상태</th>
@@ -358,6 +374,12 @@ function RecipientBlock({ type }: { type: AlertType }) {
           <tbody>
             {rows.map((e) => (
               <tr key={e.id} className="border-b border-line">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {e.name ?? <span className="text-fg-muted">-</span>}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-fg-sub">
+                  {e.department ?? <span className="text-fg-muted">-</span>}
+                </td>
                 <td className="px-3 py-2">
                   <span className="flex flex-wrap items-center gap-2">
                     {e.email}
@@ -410,15 +432,13 @@ function RecipientBlock({ type }: { type: AlertType }) {
                 </td>
                 <td className="px-3 py-2 text-right">
                   <div className="flex justify-end gap-3">
-                    {type === 'SAFETY' && (
-                      <button
-                        type="button"
-                        className="whitespace-nowrap text-[18px] text-accent hover:underline"
-                        onClick={() => setEditingTeam(e)}
-                      >
-                        담당반
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                      onClick={() => setEditing(e)}
+                    >
+                      수정
+                    </button>
                     <button
                       type="button"
                       className="whitespace-nowrap text-[18px] text-danger hover:underline"
@@ -441,7 +461,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         </table>
       )}
 
-      {editingTeam && <TeamModal email={editingTeam} onClose={() => setEditingTeam(null)} />}
+      {editing && <RecipientModal email={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }
@@ -450,17 +470,24 @@ function RecipientBlock({ type }: { type: AlertType }) {
  * 담당반은 안전검사 대상에만 있는 값이라 여기서만 고친다.
  * 교정도 받는 주소면 담당반을 지정하는 순간 교정이 끊기므로 그 자리에서 경고한다.
  */
-function TeamModal({ email, onClose }: { email: NotificationEmail; onClose: () => void }) {
+function RecipientModal({ email, onClose }: { email: NotificationEmail; onClose: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [teams, setTeams] = useState<string[]>(email.teams);
+  const [name, setName] = useState(email.name ?? '');
+  const [department, setDepartment] = useState(email.department ?? '');
   const teamOptions = useTeamOptions();
 
   const save = useMutation({
     mutationFn: (): Promise<NotificationEmail> =>
-      notificationsApi.updatePreferences(email.id, { teams } satisfies EmailPreferences),
+      notificationsApi.updatePreferences(email.id, {
+        teams,
+        /* 비워서 저장하면 지운다는 뜻이다. 서버가 빈 문자열을 삭제로 받는다 */
+        name: name.trim(),
+        department: department.trim(),
+      } satisfies EmailPreferences),
     onSuccess: () => {
-      toast.ok('담당반을 저장했습니다.');
+      toast.ok('저장했습니다.');
       void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
       onClose();
     },
@@ -471,7 +498,7 @@ function TeamModal({ email, onClose }: { email: NotificationEmail; onClose: () =
 
   return (
     <Modal
-      title={`${email.email} 담당반`}
+      title={`${email.name ? `${email.name} · ` : ''}${email.email}`}
       width={560}
       onClose={onClose}
       footer={
@@ -491,8 +518,29 @@ function TeamModal({ email, onClose }: { email: NotificationEmail; onClose: () =
       }
     >
       <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Field label="이름" hint="비우고 저장하면 지워집니다.">
+            <input
+              className={inputClass}
+              maxLength={50}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field label="부서">
+            <input
+              className={inputClass}
+              maxLength={50}
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <h3 className="border-t border-line pt-3 text-[19px] font-semibold">담당반</h3>
         <p className="text-[18px] text-fg-sub">
-          고른 담당반의 설비 알림만 받습니다. 아무것도 고르지 않으면 담당반과 상관없이 전부 받습니다.
+          고른 담당반의 설비 알림만 받습니다. 아무것도 고르지 않으면 담당반과 상관없이 전부
+          받습니다. 위 “부서”와는 별개로, 이쪽은 무엇을 받을지 고르는 조건입니다.
         </p>
 
         {breaksCalibration && (
@@ -719,6 +767,12 @@ function UnsubscribeModal({ onClose }: { onClose: () => void }) {
 /** 계측기 목록 화면과 같은 조건으로 부른다 — 이미 받아 둔 것이 있으면 그대로 쓴다 */
 const INSTRUMENT_ALL = { page: 0, size: 500 };
 
+/**
+ * 이름·부서·담당반은 보낼 당시 값이 이력에 박혀 온다.
+ * 그 기능이 생기기 전에 남은 이력에는 값이 없어 빈칸으로 둔다.
+ */
+const OLD_LOG_NOTE = '이름·부서를 남기기 전에 발송된 이력입니다';
+
 interface Target {
   /** 목록에서 찾았을 때의 이름. 못 찾았으면 빈 문자열 */
   name: string;
@@ -781,7 +835,6 @@ function LogSection({ type }: { type: AlertType }) {
   const [size, setSize] = useState(50);
   const [team, setTeam] = useState('');
   const teamOptions = useTeamOptions();
-  const recipientTeams = useRecipientTeams();
   const targetOf = useTargets(type);
 
   // 유형·담당반 모두 서버가 걸러 준다. 담당반 필터는 안전검사에만 의미가 있다
@@ -842,7 +895,9 @@ function LogSection({ type }: { type: AlertType }) {
                   </th>
                 )}
                 <th className={thClass}>수신자</th>
-                <th className={thClass} title="수신자 등록부에 지금 적힌 담당반입니다">
+                <th className={thClass}>부서</th>
+                <th className={thClass}>이메일</th>
+                <th className={thClass} title="보낼 당시 이 주소에 지정돼 있던 담당반입니다">
                   수신자 담당반
                 </th>
                 <th className={thClass}>결과</th>
@@ -864,27 +919,25 @@ function LogSection({ type }: { type: AlertType }) {
                     {type === 'SAFETY' && (
                       <td className="px-3 py-2 text-fg-sub">{target.team ?? '-'}</td>
                     )}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {l.recipientName ?? <span className="text-fg-muted">-</span>}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-fg-sub">
+                      {l.recipientDepartment ?? <span className="text-fg-muted">-</span>}
+                    </td>
                     <td className="px-3 py-2">{l.recipientEmail}</td>
                     <td className="px-3 py-2 text-fg-sub">
-                      {(() => {
-                        const teams = recipientTeams.get(l.recipientEmail.toLowerCase());
-                        if (teams == null)
-                          return (
-                            <span
-                              className="text-fg-muted"
-                              title="수신자 등록부에서 지워진 주소입니다"
-                            >
-                              -
-                            </span>
-                          );
-                        return teams.length > 0 ? (
-                          teams.join(' · ')
-                        ) : (
-                          <span className="text-fg-muted" title="담당반과 무관하게 전부 받는 주소">
-                            전체 수신
-                          </span>
-                        );
-                      })()}
+                      {l.recipientTeams == null ? (
+                        <span className="text-fg-muted" title={OLD_LOG_NOTE}>
+                          -
+                        </span>
+                      ) : l.recipientTeams.length > 0 ? (
+                        l.recipientTeams.join(' · ')
+                      ) : (
+                        <span className="text-fg-muted" title="담당반과 무관하게 전부 받는 주소">
+                          전체 수신
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {l.success ? (
