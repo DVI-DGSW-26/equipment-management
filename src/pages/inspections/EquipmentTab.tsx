@@ -170,6 +170,8 @@ export default function EquipmentTab() {
                 <th className={thClass}>설치장소</th>
                 <th className={thClass}>용량</th>
                 <th className={thClass}>담당반</th>
+                {/* 어디서 검사하는지. 등록·상세에는 있었는데 목록에만 빠져 있었다 */}
+                <th className={thClass}>검사기관</th>
                 <th className={thClass}>최근 검사일</th>
                 <th className={thClass}>합격번호</th>
                 <th className={thClass}>상태</th>
@@ -197,6 +199,7 @@ export default function EquipmentTab() {
                   <td className="px-3 py-2">{e.installLocation ?? '-'}</td>
                   <td className="px-3 py-2">{e.capacity ?? '-'}</td>
                   <td className="px-3 py-2">{e.team ?? '-'}</td>
+                  <td className="px-3 py-2">{e.inspectionAgency ?? '-'}</td>
                   <td className="px-3 py-2">{fmtDate(e.lastInspectedAt)}</td>
                   <td className="px-3 py-2">{e.certificateNo ?? '-'}</td>
                   <td className="px-3 py-2">{e.statusLabel}</td>
