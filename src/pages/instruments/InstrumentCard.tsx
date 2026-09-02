@@ -99,7 +99,7 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
         인쇄는 종이 크기를 따라야 하므로 print 규칙에서 max-width 를 풀어 준다.
       */}
       {d && (
-        <div className="card-sheet mx-auto w-full max-w-[1000px] border border-fg bg-surface text-[17px] text-fg">
+        <div className="card-sheet mx-auto w-full max-w-[1360px] border border-fg bg-surface text-[17px] text-fg">
           <h2 className="card-heading border-b border-fg py-1.5 text-center text-[26px] font-bold tracking-[0.25em]">
             측정기 이력카드
           </h2>
