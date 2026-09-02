@@ -5,7 +5,8 @@ import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations } from '@/hooks/useMasters';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { btnPrimaryClass, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { btnPrimaryClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function InstrumentLocationTab() {
   const qc = useQueryClient();
@@ -90,13 +91,15 @@ export default function InstrumentLocationTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>사용위치</th>
               <th className={thClass} />
             </tr>
           </thead>
           <tbody>
-            {rows.map((l) => (
+            {rows.map((l, idx) => (
               <tr key={l.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="px-3 py-2">
                   {editing?.id === l.id ? (
                     <input

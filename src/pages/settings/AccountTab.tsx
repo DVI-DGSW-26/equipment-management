@@ -7,7 +7,8 @@ import { DEPRECIATION_METHOD_LABEL } from '@/api/assets';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function AccountTab() {
   const qc = useQueryClient();
@@ -56,6 +57,7 @@ export default function AccountTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>코드</th>
               <th className={thClass}>계정과목명</th>
               <th className={`${thClass} text-right`}>기본 내용연수</th>
@@ -64,8 +66,9 @@ export default function AccountTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((a) => (
+            {rows.map((a, idx) => (
               <tr key={a.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="code px-3 py-2">{a.code}</td>
                 <td className="px-3 py-2">{a.name}</td>
                 <td className="num px-3 py-2">{a.defaultUsefulLifeYears ?? '-'}</td>

@@ -12,7 +12,7 @@ import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
 import { fmtDate } from '@/lib/date';
-import { slicePage } from '@/lib/paging';
+import { rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { won } from '@/lib/won';
 import Modal from '@/components/Modal';
@@ -360,6 +360,7 @@ export default function PhysicalAssetListPage() {
                         스티커
                       </label>
                     </th>
+                    <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                     <th className={stickyThClass}>자산등록</th>
                     <th className={stickyThClass}>자산코드</th>
                     <th className={stickyThClass}>품명</th>
@@ -375,7 +376,7 @@ export default function PhysicalAssetListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {rows.map((r, i) => (
                     <tr key={r.id} className="border-b border-line hover:bg-bg">
                       <td className="px-3 py-2">
                         <input
@@ -386,6 +387,9 @@ export default function PhysicalAssetListPage() {
                           title={rowBlockedReason(r) ?? `${r.name} 선택`}
                           aria-label={`${r.name} 선택`}
                         />
+                      </td>
+                      <td className="num px-3 py-2 text-fg-muted">
+                        {rowNo(i, paged.page, size)}
                       </td>
                       <td className="px-3 py-2">
                         {r.registered ? (

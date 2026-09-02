@@ -8,7 +8,8 @@ import { rateText } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function RateTab() {
   const qc = useQueryClient();
@@ -50,6 +51,7 @@ export default function RateTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={`${thClass} text-right`}>내용연수</th>
               <th className={`${thClass} text-right`}>정액법</th>
               <th className={`${thClass} text-right`}>정률법</th>
@@ -58,8 +60,9 @@ export default function RateTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r, idx) => (
               <tr key={r.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="num px-3 py-2">{r.usefulLifeYears}년</td>
                 <td className="num px-3 py-2">{rateText(r.straightLineRate)}</td>
                 <td className="num px-3 py-2">{rateText(r.decliningBalanceRate)}</td>

@@ -17,6 +17,9 @@ export const btnDangerClass =
 
 export const thClass = 'px-3 py-2 font-medium';
 
+/** 연번 열은 좁게, 숫자는 오른쪽으로 세운다. 번호 계산은 lib/paging 의 rowNo */
+export const seqThClass = `${thClass} w-14 text-right`;
+
 /**
  * 넓은 표를 담는 상자.
  *

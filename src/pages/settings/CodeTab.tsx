@@ -12,7 +12,8 @@ import { useCodes } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
   const qc = useQueryClient();
@@ -53,6 +54,7 @@ export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>코드</th>
               <th className={thClass}>이름</th>
               {extraLabel && <th className={thClass}>{extraLabel}</th>}
@@ -62,8 +64,9 @@ export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((c) => (
+            {rows.map((c, idx) => (
               <tr key={c.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="code px-3 py-2">{c.code}</td>
                 <td className="px-3 py-2">{c.name}</td>
                 {extraLabel && <td className="px-3 py-2">{c.extra ?? '-'}</td>}

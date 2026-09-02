@@ -19,6 +19,7 @@ import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, won } from '@/lib/won
 import { fmtDate } from '@/lib/date';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
+import { rowNo } from '@/lib/paging';
 import {
   Badge,
   btnClass,
@@ -390,6 +391,7 @@ export default function AssetListPage() {
                         </label>
                       </th>
                     )}
+                    <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                     <th className={stickyThClass}>자산코드</th>
                     <th className={stickyThClass}>계정과목</th>
                     <th className={stickyThClass}>자산명</th>
@@ -403,7 +405,7 @@ export default function AssetListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((a) => (
+                  {rows.map((a, i) => (
                     <tr
                       key={a.id}
                       onClick={() => navigate(`/assets/${a.id}`)}
@@ -421,6 +423,7 @@ export default function AssetListPage() {
                           />
                         </td>
                       )}
+                      <td className="num px-3 py-2 text-fg-muted">{rowNo(i, page, size)}</td>
                       <td className="code px-3 py-2">
                         {a.assetCode ? (
                           codeText(a.assetCode)

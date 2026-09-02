@@ -11,7 +11,8 @@ import { usePartners } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function PartnerTab() {
   const qc = useQueryClient();
@@ -73,14 +74,16 @@ export default function PartnerTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>거래처명</th>
               <th className={thClass}>구분</th>
               <th className={thClass} />
             </tr>
           </thead>
           <tbody>
-            {rows.map((p) => (
+            {rows.map((p, idx) => (
               <tr key={p.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="px-3 py-2">{p.name}</td>
                 <td className="px-3 py-2">{p.partnerTypeLabel}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">

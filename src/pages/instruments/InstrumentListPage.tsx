@@ -7,7 +7,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
 import { currentYear, daysUntil, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
-import { slicePage } from '@/lib/paging';
+import { rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -21,6 +21,7 @@ import {
   QueryState,
   SearchBox,
   Section,
+  seqThClass,
   StatCards,
   Tabs,
   thClass,
@@ -348,6 +349,7 @@ function ListTab() {
             <table className="w-max min-w-full text-[19px]">
               <thead>
                 <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                  <th className={seqThClass}>No.</th>
                   <th className={thClass}>관리번호</th>
                   <th className={thClass}>계측기명</th>
                   <th className={thClass}>S/NO</th>
@@ -362,7 +364,7 @@ function ListTab() {
                 </tr>
               </thead>
               <tbody>
-                {paged.items.map((i) => {
+                {paged.items.map((i, idx) => {
                   const days = daysUntil(i.nextDueDate);
                   return (
                     <tr
@@ -370,6 +372,9 @@ function ListTab() {
                       onClick={() => navigate(`/instruments/${i.id}`)}
                       className="cursor-pointer border-b border-line hover:bg-bg"
                     >
+                      <td className="num px-3 py-2 text-fg-muted">
+                        {rowNo(idx, paged.page, size)}
+                      </td>
                       <td className="code px-3 py-2">{i.mgmtNo}</td>
                       <td className="px-3 py-2">{i.name}</td>
                       <td className="px-3 py-2">{i.serialNo ?? '-'}</td>
@@ -559,6 +564,7 @@ function AnnualTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>관리번호</th>
               <th className={thClass}>계측기명</th>
               <th className={thClass}>S/NO</th>
@@ -575,12 +581,13 @@ function AnnualTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r, i) => (
               <tr
                 key={r.calibrationId}
                 onClick={() => navigate(`/instruments/${r.instrumentId}`)}
                 className="cursor-pointer border-b border-line hover:bg-bg"
               >
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(i)}</td>
                 <td className="code px-3 py-2">{r.mgmtNo}</td>
                 <td className="px-3 py-2">{r.name}</td>
                 <td className="px-3 py-2">{r.serialNo ?? '-'}</td>

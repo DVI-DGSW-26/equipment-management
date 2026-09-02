@@ -6,7 +6,8 @@ import { useItems, useItemTypes } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { rowNo } from '@/lib/paging';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function ItemTab() {
   const qc = useQueryClient();
@@ -57,6 +58,7 @@ export default function ItemTab() {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>비품구분</th>
               <th className={thClass}>품목코드</th>
               <th className={thClass}>품목명</th>
@@ -65,8 +67,9 @@ export default function ItemTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((i) => (
+            {rows.map((i, idx) => (
               <tr key={i.id} className="border-b border-line hover:bg-bg">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="code px-3 py-2">{i.itemTypeCode}</td>
                 <td className="code px-3 py-2">{i.code}</td>
                 <td className="px-3 py-2">{i.name}</td>

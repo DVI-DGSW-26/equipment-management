@@ -7,6 +7,7 @@ import { fmtDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
 import DetailModal from './DetailModal';
 import EquipmentModal from './EquipmentModal';
+import { rowNo } from '@/lib/paging';
 import {
   Badge,
   btnPrimaryClass,
@@ -14,6 +15,7 @@ import {
   QueryState,
   SearchBox,
   Section,
+  seqThClass,
   StatCards,
   thClass,
 } from '@/components/ui';
@@ -160,6 +162,7 @@ export default function EquipmentTab() {
           <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                <th className={seqThClass}>No.</th>
                 <th className={thClass}>기한</th>
                 <th className={thClass}>D-day</th>
                 <th className={thClass}>대상품명</th>
@@ -173,12 +176,13 @@ export default function EquipmentTab() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((e) => (
+              {rows.map((e, i) => (
                 <tr
                   key={e.id}
                   onClick={() => setSelected(e)}
                   className="cursor-pointer border-b border-line hover:bg-bg"
                 >
+                  <td className="num px-3 py-2 text-fg-muted">{rowNo(i)}</td>
                   <td className="px-3 py-2">{fmtDate(e.nextInspectionDue)}</td>
                   <td className={`px-3 py-2 ${DDAY_CLASS[levelOf(e.severity)]}`}>
                     {ddayLabel(e.daysUntilExpiry)}

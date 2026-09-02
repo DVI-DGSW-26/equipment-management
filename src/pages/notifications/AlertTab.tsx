@@ -16,6 +16,7 @@ import { useDepartments } from '@/hooks/useMasters';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
+import { rowNo } from '@/lib/paging';
 import {
   Badge,
   btnClass,
@@ -26,6 +27,7 @@ import {
   QueryState,
   SearchBox,
   Section,
+  seqThClass,
   thClass,
 } from '@/components/ui';
 import { searchIn } from '@/lib/search';
@@ -404,6 +406,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
+              <th className={seqThClass}>No.</th>
               <th className={thClass}>이름</th>
               <th className={thClass}>부서</th>
               <th className={thClass}>이메일</th>
@@ -414,8 +417,9 @@ function RecipientBlock({ type }: { type: AlertType }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => (
+            {rows.map((e, idx) => (
               <tr key={e.id} className="border-b border-line">
+                <td className="num px-3 py-2 text-fg-muted">{rowNo(idx)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {e.name ?? <span className="text-fg-muted">-</span>}
                 </td>
@@ -924,6 +928,7 @@ function LogSection({ type }: { type: AlertType }) {
           <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                <th className={seqThClass}>No.</th>
                 <th className={thClass}>발송 일시</th>
                 <th className={thClass}>{type === 'SAFETY' ? '대상 설비' : '대상 계측기'}</th>
                 {type === 'SAFETY' && (
@@ -941,10 +946,11 @@ function LogSection({ type }: { type: AlertType }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((l) => {
+              {rows.map((l, idx) => {
                 const target = targetOf(l);
                 return (
                   <tr key={l.id} className="border-b border-line">
+                    <td className="num px-3 py-2 text-fg-muted">{rowNo(idx, page, size)}</td>
                     <td className="px-3 py-2">{fmtDateTime(l.sentAt)}</td>
                     <td className="px-3 py-2" title={target.fallback}>
                       {target.name || (

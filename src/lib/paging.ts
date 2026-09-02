@@ -1,6 +1,14 @@
 import type { Page } from '@/api/types';
 
 /**
+ * 목록 첫 열의 연번.
+ *
+ * 쪽을 넘겨도 이어진다 — 2쪽 첫 줄이 다시 1이면 "몇 번째" 를 세는 뜻이 없다.
+ * 쪽을 나누지 않는 표는 index 만 넘기면 된다.
+ */
+export const rowNo = (index: number, page = 0, size = 0): number => page * size + index + 1;
+
+/**
  * 화면에서 쪽을 나눈다.
  *
  * 서버가 일부 조건만 걸러 주는 목록(계측기·실물자산)은 전부 받아 화면에서 거른다.

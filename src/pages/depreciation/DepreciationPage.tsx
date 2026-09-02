@@ -13,6 +13,7 @@ import { currentYear, fmtDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
 import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
+import { rowNo } from '@/lib/paging';
 import {
   Badge,
   btnPrimaryClass,
@@ -276,6 +277,7 @@ function ScheduleTab({
           <table className="w-max min-w-full text-[18px]">
             <thead>
               <tr className="text-left text-fg-sub">
+                <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                 <th className={stickyThClass}>계정과목</th>
                 <th className={stickyThClass}>자산코드</th>
                 <th className={stickyThClass}>자산명</th>
@@ -292,8 +294,9 @@ function ScheduleTab({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r, i) => (
                 <tr key={r.assetId} className="border-b border-line hover:bg-bg">
+                  <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                   <td className="px-3 py-1.5">{r.accountName}</td>
                   <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                   <td className="px-3 py-1.5">{r.assetName}</td>
@@ -310,12 +313,12 @@ function ScheduleTab({
                 </tr>
               ))}
               {filtering ? (
-                <FilteredTotalsNote colSpan={17} />
+                <FilteredTotalsNote colSpan={18} />
               ) : (
                 <>
                   {d.subtotals.map((s) => (
                     <tr key={s.accountCode} className="border-b border-line bg-bg/60 font-medium">
-                      <td className="px-3 py-1.5" colSpan={4}>
+                      <td className="px-3 py-1.5" colSpan={5}>
                         소계 · {s.accountName}
                       </td>
                       {s.monthlyAmounts.map((v, i) => (
@@ -327,7 +330,7 @@ function ScheduleTab({
                     </tr>
                   ))}
                   <tr className="bg-bg font-semibold">
-                    <td className="px-3 py-2" colSpan={17}>
+                    <td className="px-3 py-2" colSpan={18}>
                       총계 <span className="num float-right">{won(d.grandTotal)}</span>
                     </td>
                   </tr>
@@ -498,6 +501,7 @@ function YearlyTab({
             <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
+                  <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                   <th className={stickyThClass}>자산코드</th>
                   <th className={stickyThClass}>자산명</th>
                   <th className={stickyThClass}>계정과목</th>
@@ -512,8 +516,9 @@ function YearlyTab({
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => (
+                {shown.map((r, i) => (
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
+                    <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                     <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
                     <td className="px-3 py-1.5">{r.accountName}</td>
@@ -595,6 +600,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
             <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
+                  <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                   <th className={stickyThClass}>계정과목</th>
                   <th className={stickyThClass}>자산코드</th>
                   <th className={stickyThClass}>자산명</th>
@@ -622,8 +628,9 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.map((r, i) => (
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
+                    <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                     <td className="px-3 py-1.5">{r.accountName}</td>
                     <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
@@ -643,14 +650,14 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                   </tr>
                 ))}
                 {filtering ? (
-                  <FilteredTotalsNote colSpan={16} />
+                  <FilteredTotalsNote colSpan={17} />
                 ) : (
                   d.subtotals.map((s) => (
                     <tr
                       key={s.accountCode ?? 'sub'}
                       className="border-b border-line bg-bg/60 font-medium"
                     >
-                      <td className="px-3 py-1.5" colSpan={4}>
+                      <td className="px-3 py-1.5" colSpan={5}>
                         소계 · {s.accountName} ({s.assetCount}건)
                       </td>
                       <td className="num px-3 py-1.5">{s.quantity?.toLocaleString('ko-KR')}</td>
@@ -877,6 +884,7 @@ function ForecastTab() {
             <table className="w-max min-w-full text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
+                  <th className={`${stickyThClass} w-14 text-right`}>No.</th>
                   <th className={stickyThClass}>
                     {groupBy === 'asset' ? '자산' : groupBy === 'dept' ? '부서' : '구분'}
                   </th>
@@ -898,8 +906,9 @@ function ForecastTab() {
                 </tr>
               </thead>
               <tbody>
-                {shownRows.map((r) => (
+                {shownRows.map((r, i) => (
                   <tr key={r.key} className="border-b border-line hover:bg-bg">
+                    <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                     <td className="px-3 py-1.5">
                       <span className={groupBy === 'asset' ? 'code' : ''}>{r.key}</span>{' '}
                       <span className="text-fg-sub">{r.label}</span>
@@ -926,13 +935,17 @@ function ForecastTab() {
                 ))}
                 {keyword.trim() !== '' ? (
                   <FilteredTotalsNote
+                    /* 연번 + 구분(+상각방법) + 값 칸들 + 합계 */
                     colSpan={
-                      (groupBy === 'asset' ? 2 : 1) + (byMonth ? MONTHS.length : d.years.length) + 1
+                      1 +
+                      (groupBy === 'asset' ? 2 : 1) +
+                      (byMonth ? MONTHS.length : d.years.length) +
+                      1
                     }
                   />
                 ) : (
                   <tr className="bg-bg font-semibold">
-                    <td className="px-3 py-2" colSpan={groupBy === 'asset' ? 2 : 1}>
+                    <td className="px-3 py-2" colSpan={groupBy === 'asset' ? 3 : 2}>
                       총계
                     </td>
                     {byMonth
