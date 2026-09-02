@@ -180,6 +180,28 @@ function useTeamOptions(): string[] {
 }
 
 /**
+ * 발송 이력의 수신자에 담당반을 붙이기 위한 표.
+ *
+ * 이력(NotificationLog)에는 받는 주소만 남고 사람 정보가 없다. 수신자 등록부에 있는
+ * teams 를 주소로 이어 붙여 보여 준다.
+ *
+ * 이어 붙인 값은 **지금** 등록부에 적힌 담당반이지 보낼 당시의 값이 아니다.
+ * 이력은 30일만 보관하고 담당반이 자주 바뀌지 않아 실제로는 거의 같지만,
+ * 등록부에서 지워진 주소는 붙일 것이 없어 빈칸이 된다.
+ */
+function useRecipientTeams(): Map<string, string[]> {
+  const q = useQuery({
+    queryKey: queryKeys.notifications.emails(),
+    queryFn: () => notificationsApi.emails(),
+    staleTime: 10 * 60_000,
+  });
+  return useMemo(
+    () => new Map((q.data ?? []).map((e) => [e.email.toLowerCase(), e.teams])),
+    [q.data],
+  );
+}
+
+/**
  * 담당반을 지정하면 교정 알림을 한 통도 못 받는다.
  *
  * 계측기에는 담당반 항목이 없어 서버가 모든 계측기를 "담당반 없음" 으로 본다.
@@ -698,6 +720,7 @@ function LogSection({ type }: { type: AlertType }) {
   const [size, setSize] = useState(50);
   const [team, setTeam] = useState('');
   const teamOptions = useTeamOptions();
+  const recipientTeams = useRecipientTeams();
 
   // 유형·담당반 모두 서버가 걸러 준다. 담당반 필터는 안전검사에만 의미가 있다
   const query = useMemo(
@@ -752,6 +775,9 @@ function LogSection({ type }: { type: AlertType }) {
                 <th className={thClass}>발송 일시</th>
                 <th className={thClass}>대상</th>
                 <th className={thClass}>수신자</th>
+                <th className={thClass} title="수신자 등록부에 지금 적힌 담당반입니다">
+                  담당반
+                </th>
                 <th className={thClass}>결과</th>
               </tr>
             </thead>
@@ -767,6 +793,24 @@ function LogSection({ type }: { type: AlertType }) {
                         : '-'}
                   </td>
                   <td className="px-3 py-2">{l.recipientEmail}</td>
+                  <td className="px-3 py-2 text-fg-sub">
+                    {(() => {
+                      const teams = recipientTeams.get(l.recipientEmail.toLowerCase());
+                      if (teams == null)
+                        return (
+                          <span className="text-fg-muted" title="수신자 등록부에서 지워진 주소입니다">
+                            -
+                          </span>
+                        );
+                      return teams.length > 0 ? (
+                        teams.join(' · ')
+                      ) : (
+                        <span className="text-fg-muted" title="담당반과 무관하게 전부 받는 주소">
+                          전체 수신
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-3 py-2">
                     {l.success ? <Badge tone="accent">성공</Badge> : <Badge tone="danger">실패</Badge>}
                   </td>
