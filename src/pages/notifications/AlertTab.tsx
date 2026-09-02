@@ -12,6 +12,7 @@ import { inspectionsApi } from '@/api/inspections';
 import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
 import { ApiError } from '@/api/types';
+import { useDepartments } from '@/hooks/useMasters';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
@@ -167,6 +168,43 @@ function ScheduleRow({ type }: { type: AlertType }) {
 
 /* ---------- 수신자 ---------- */
 
+/**
+ * 부서 고르기. 부서 마스터(마스터 화면의 "부서")에 등록된 값에서 고른다 —
+ * 손으로 적으면 "압출"·"압출반"·"EX압출" 이 섞여 부서로 묶어 볼 수 없다.
+ *
+ * 마스터에 없는 값이 이미 저장돼 있으면 그 값도 목록에 얹는다.
+ * 그러지 않으면 고치려고 열었다가 저장만 눌러도 남의 부서가 조용히 지워진다.
+ */
+function DepartmentPicker({
+  value,
+  onChange,
+  className = 'w-36',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const departments = useDepartments();
+  const names = (departments.data ?? []).map((d) => d.name);
+  const options = value && !names.includes(value) ? [value, ...names] : names;
+
+  return (
+    <select
+      className={`${inputClass} ${className}`}
+      value={value}
+      aria-label="부서"
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">부서 미지정</option>
+      {options.map((n) => (
+        <option key={n} value={n}>
+          {n}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /** 담당반 선택지는 안전검사 대상에 실제로 등록된 값에서 뽑는다. 담당반 마스터 API 는 아직 없다 */
 function useTeamOptions(): string[] {
   const q = useQuery({
@@ -296,55 +334,59 @@ function RecipientBlock({ type }: { type: AlertType }) {
 
   return (
     <>
+      {/*
+        찾는 칸과 넣는 칸을 줄로 갈라 놓는다.
+        한 줄에 붙여 두니 맨 앞 검색칸이 등록 항목처럼 읽혔다.
+      */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
         <span className="text-[18px] text-fg-sub">
           수신자 <b className="text-fg">{rows.length}명</b>
           {rows.length !== all.length && ` / 전체 ${all.length}명`}
         </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="ml-auto">
           <SearchBox
             value={keyword}
             onChange={setKeyword}
-            placeholder="이름·부서·이메일·담당반 검색"
+            placeholder="이름·이메일로 찾기"
             width="w-56"
           />
-          <input
-            type="email"
-            className={`${inputClass} w-56`}
-            placeholder="name@dvi-ind.com"
-            aria-label="이메일"
-            value={draft.email}
-            onChange={(e) => setDraftField('email', e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
-          />
-          <input
-            className={`${inputClass} w-24`}
-            placeholder="이름"
-            aria-label="이름"
-            maxLength={50}
-            value={draft.name}
-            onChange={(e) => setDraftField('name', e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
-          />
-          <input
-            className={`${inputClass} w-28`}
-            placeholder="부서"
-            aria-label="부서"
-            maxLength={50}
-            value={draft.department}
-            onChange={(e) => setDraftField('department', e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
-          />
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={add.isPending || draft.email.trim() === ''}
-            title="이름·부서는 비워 두고 나중에 채워도 됩니다."
-            onClick={() => add.mutate()}
-          >
-            등록
-          </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg/40 px-3 py-2">
+        <span className="text-[18px] text-fg-sub">수신자 추가</span>
+        <input
+          type="email"
+          className={`${inputClass} w-56`}
+          placeholder="name@dvi-ind.com"
+          aria-label="이메일"
+          value={draft.email}
+          onChange={(e) => setDraftField('email', e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
+        />
+        <input
+          className={`${inputClass} w-28`}
+          placeholder="이름"
+          aria-label="이름"
+          maxLength={50}
+          value={draft.name}
+          onChange={(e) => setDraftField('name', e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
+        />
+        <DepartmentPicker
+          value={draft.department}
+          onChange={(v) => setDraftField('department', v)}
+        />
+        <button
+          type="button"
+          className={btnPrimaryClass}
+          disabled={add.isPending || draft.email.trim() === ''}
+          title="이름·부서는 비워 두고 나중에 채워도 됩니다."
+          onClick={() => add.mutate()}
+        >
+          등록
+        </button>
+        <span className="text-[18px] text-fg-muted">이메일만 넣어도 됩니다.</span>
       </div>
 
       <QueryState
@@ -527,13 +569,8 @@ function RecipientModal({ email, onClose }: { email: NotificationEmail; onClose:
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
-          <Field label="부서">
-            <input
-              className={inputClass}
-              maxLength={50}
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-            />
+          <Field label="부서" hint="마스터 화면의 부서 목록에서 고릅니다.">
+            <DepartmentPicker value={department} onChange={setDepartment} className="w-full" />
           </Field>
         </div>
 
