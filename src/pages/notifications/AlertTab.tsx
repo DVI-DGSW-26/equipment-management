@@ -9,6 +9,7 @@ import {
   type NotificationEmail,
 } from '@/api/notifications';
 import { inspectionsApi } from '@/api/inspections';
+import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
 import { ApiError } from '@/api/types';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
@@ -715,12 +716,73 @@ function UnsubscribeModal({ onClose }: { onClose: () => void }) {
 
 /* ---------- 발송 이력 ---------- */
 
+/** 계측기 목록 화면과 같은 조건으로 부른다 — 이미 받아 둔 것이 있으면 그대로 쓴다 */
+const INSTRUMENT_ALL = { page: 0, size: 500 };
+
+interface Target {
+  /** 목록에서 찾았을 때의 이름. 못 찾았으면 빈 문자열 */
+  name: string;
+  /** 안전검사 대상만 담당반을 가진다. 계측기에는 담당반 항목이 없다 */
+  team: string | null;
+  /** 못 찾았을 때 대신 보여 줄 번호 */
+  fallback: string;
+}
+
+/**
+ * 이력에는 대상이 번호로만 남는다("안전검사 대상 #12").
+ * 대상 목록을 받아 이름과 담당반을 이어 붙인다. 유형에 따라 한쪽만 부른다 —
+ * 교정 이력을 보는데 안전검사 목록까지 받을 이유가 없다.
+ */
+function useTargets(type: AlertType) {
+  const equipment = useQuery({
+    queryKey: queryKeys.inspections.list({}),
+    queryFn: () => inspectionsApi.list({}),
+    staleTime: 10 * 60_000,
+    enabled: type === 'SAFETY',
+  });
+  const instruments = useQuery({
+    queryKey: queryKeys.instruments.list(INSTRUMENT_ALL),
+    queryFn: () => instrumentsApi.list(INSTRUMENT_ALL),
+    staleTime: 10 * 60_000,
+    enabled: type === 'CALIBRATION',
+  });
+
+  return useMemo(() => {
+    const byEquipment = new Map(
+      (equipment.data ?? []).map((e) => [e.id, { name: e.name, team: e.team }]),
+    );
+    const byInstrument = new Map(
+      (instruments.data?.items ?? []).map((i) => [i.id, `${i.mgmtNo} ${i.name}`]),
+    );
+
+    return (log: { instrumentId: number | null; safetyEquipmentId: number | null }): Target => {
+      if (log.safetyEquipmentId != null) {
+        const hit = byEquipment.get(log.safetyEquipmentId);
+        return {
+          name: hit?.name ?? '',
+          team: hit?.team ?? null,
+          fallback: `안전검사 대상 #${log.safetyEquipmentId}`,
+        };
+      }
+      if (log.instrumentId != null) {
+        return {
+          name: byInstrument.get(log.instrumentId) ?? '',
+          team: null,
+          fallback: `계측기 #${log.instrumentId}`,
+        };
+      }
+      return { name: '', team: null, fallback: '-' };
+    };
+  }, [equipment.data, instruments.data]);
+}
+
 function LogSection({ type }: { type: AlertType }) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
   const [team, setTeam] = useState('');
   const teamOptions = useTeamOptions();
   const recipientTeams = useRecipientTeams();
+  const targetOf = useTargets(type);
 
   // 유형·담당반 모두 서버가 걸러 준다. 담당반 필터는 안전검사에만 의미가 있다
   const query = useMemo(
@@ -773,49 +835,67 @@ function LogSection({ type }: { type: AlertType }) {
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>발송 일시</th>
-                <th className={thClass}>대상</th>
+                <th className={thClass}>{type === 'SAFETY' ? '대상 설비' : '대상 계측기'}</th>
+                {type === 'SAFETY' && (
+                  <th className={thClass} title="대상 설비에 지정된 담당반입니다">
+                    대상 담당반
+                  </th>
+                )}
                 <th className={thClass}>수신자</th>
                 <th className={thClass} title="수신자 등록부에 지금 적힌 담당반입니다">
-                  담당반
+                  수신자 담당반
                 </th>
                 <th className={thClass}>결과</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((l) => (
-                <tr key={l.id} className="border-b border-line">
-                  <td className="px-3 py-2">{fmtDateTime(l.sentAt)}</td>
-                  <td className="px-3 py-2 text-fg-sub">
-                    {l.instrumentId
-                      ? `계측기 #${l.instrumentId}`
-                      : l.safetyEquipmentId
-                        ? `안전검사 대상 #${l.safetyEquipmentId}`
-                        : '-'}
-                  </td>
-                  <td className="px-3 py-2">{l.recipientEmail}</td>
-                  <td className="px-3 py-2 text-fg-sub">
-                    {(() => {
-                      const teams = recipientTeams.get(l.recipientEmail.toLowerCase());
-                      if (teams == null)
-                        return (
-                          <span className="text-fg-muted" title="수신자 등록부에서 지워진 주소입니다">
-                            -
+              {rows.map((l) => {
+                const target = targetOf(l);
+                return (
+                  <tr key={l.id} className="border-b border-line">
+                    <td className="px-3 py-2">{fmtDateTime(l.sentAt)}</td>
+                    <td className="px-3 py-2" title={target.fallback}>
+                      {target.name || (
+                        <span className="text-fg-muted" title="목록에서 지워진 대상입니다">
+                          {target.fallback}
+                        </span>
+                      )}
+                    </td>
+                    {type === 'SAFETY' && (
+                      <td className="px-3 py-2 text-fg-sub">{target.team ?? '-'}</td>
+                    )}
+                    <td className="px-3 py-2">{l.recipientEmail}</td>
+                    <td className="px-3 py-2 text-fg-sub">
+                      {(() => {
+                        const teams = recipientTeams.get(l.recipientEmail.toLowerCase());
+                        if (teams == null)
+                          return (
+                            <span
+                              className="text-fg-muted"
+                              title="수신자 등록부에서 지워진 주소입니다"
+                            >
+                              -
+                            </span>
+                          );
+                        return teams.length > 0 ? (
+                          teams.join(' · ')
+                        ) : (
+                          <span className="text-fg-muted" title="담당반과 무관하게 전부 받는 주소">
+                            전체 수신
                           </span>
                         );
-                      return teams.length > 0 ? (
-                        teams.join(' · ')
+                      })()}
+                    </td>
+                    <td className="px-3 py-2">
+                      {l.success ? (
+                        <Badge tone="accent">성공</Badge>
                       ) : (
-                        <span className="text-fg-muted" title="담당반과 무관하게 전부 받는 주소">
-                          전체 수신
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-3 py-2">
-                    {l.success ? <Badge tone="accent">성공</Badge> : <Badge tone="danger">실패</Badge>}
-                  </td>
-                </tr>
-              ))}
+                        <Badge tone="danger">실패</Badge>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <Pagination
