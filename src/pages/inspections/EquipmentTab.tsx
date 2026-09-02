@@ -72,6 +72,7 @@ export default function EquipmentTab() {
   const [team, setTeam] = useState('');
   const [agency, setAgency] = useState('');
   const [place, setPlace] = useState('');
+  const [cycle, setCycle] = useState('');
   const [status, setStatus] = useState<EquipmentStatus | ''>('IN_USE');
   const [history, setHistory] = useState<'' | 'done' | 'never'>('');
   const [due, setDue] = useState<DueFilter>('all');
@@ -101,6 +102,7 @@ export default function EquipmentTab() {
       teams: uniq(all.map((e) => e.team)),
       agencies: uniq(all.map((e) => e.inspectionAgency)),
       places: uniq(all.map((e) => e.installLocation)),
+      cycles: [...new Set(all.map((e) => e.inspectionCycleMonths))].sort((a, b) => a - b),
     };
   }, [all]);
 
@@ -113,10 +115,11 @@ export default function EquipmentTab() {
         (team === '' || e.team === team) &&
         (agency === '' || e.inspectionAgency === agency) &&
         (place === '' || e.installLocation === place) &&
+        (cycle === '' || String(e.inspectionCycleMonths) === cycle) &&
         (status === '' || e.status === status) &&
         (history === '' || (history === 'never') === e.neverInspected),
     );
-  }, [all, keyword, team, agency, place, status, history]);
+  }, [all, keyword, team, agency, place, cycle, status, history]);
 
   const counts = useMemo(() => {
     const c = { overdue: 0, within30: 0, within90: 0 };
@@ -135,6 +138,7 @@ export default function EquipmentTab() {
     team !== '' ||
     agency !== '' ||
     place !== '' ||
+    cycle !== '' ||
     history !== '' ||
     status !== 'IN_USE' ||
     due !== 'all';
@@ -144,6 +148,7 @@ export default function EquipmentTab() {
     setTeam('');
     setAgency('');
     setPlace('');
+    setCycle('');
     setStatus('IN_USE');
     setHistory('');
     setDue('all');
@@ -223,6 +228,19 @@ export default function EquipmentTab() {
             <option value="done">검사 이력 있음</option>
             <option value="never">최초 검사 전</option>
           </select>
+          <select
+            className={`${inputClass} w-32`}
+            value={cycle}
+            onChange={(e) => setCycle(e.target.value)}
+            aria-label="검사 주기"
+          >
+            <option value="">주기 전체</option>
+            {options.cycles.map((c) => (
+              <option key={c} value={c}>
+                {c}개월
+              </option>
+            ))}
+          </select>
           <FilterCount shown={rows.length} total={all.length} />
           <button
             type="button"
@@ -233,6 +251,12 @@ export default function EquipmentTab() {
             초기화
           </button>
         </div>
+
+        {/* 기한이 무엇을 기준으로 잡히는지 적어 둔다. 합격증 유효기간과 헷갈리기 쉽다 */}
+        <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
+          다음 검사 기한은 <b className="text-fg-sub">최근 검사일 + 검사 주기</b>입니다. 최초
+          검사는 설치일로부터 3년 이내입니다 (산업안전보건법).
+        </p>
         <QueryState
           isPending={list.isPending}
           error={list.error}
@@ -257,6 +281,7 @@ export default function EquipmentTab() {
                 <th className={thClass}>담당반</th>
                 {/* 어디서 검사하는지. 등록·상세에는 있었는데 목록에만 빠져 있었다 */}
                 <th className={thClass}>검사기관</th>
+                <th className={`${thClass} text-right`}>주기(개월)</th>
                 <th className={thClass}>최근 검사일</th>
                 <th className={thClass}>합격번호</th>
                 <th className={thClass}>상태</th>
@@ -285,6 +310,7 @@ export default function EquipmentTab() {
                   <td className="px-3 py-2">{e.capacity ?? '-'}</td>
                   <td className="px-3 py-2">{e.team ?? '-'}</td>
                   <td className="px-3 py-2">{e.inspectionAgency ?? '-'}</td>
+                  <td className="num px-3 py-2">{e.inspectionCycleMonths}</td>
                   <td className="px-3 py-2">{fmtDate(e.lastInspectedAt)}</td>
                   <td className="px-3 py-2">{e.certificateNo ?? '-'}</td>
                   <td className="px-3 py-2">{e.statusLabel}</td>

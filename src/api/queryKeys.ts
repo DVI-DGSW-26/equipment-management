@@ -11,6 +11,11 @@ export const queryKeys = {
   auth: {
     me: ['auth', 'me'] as const,
   },
+  users: {
+    all: ['users'] as const,
+    /** 사내 명단. 조건 없이 부르면 전체 */
+    directory: (keyword?: string) => ['users', 'directory', keyword ?? null] as const,
+  },
   assets: {
     all: ['assets'] as const,
     list: (q: AssetListQuery) => ['assets', 'list', q] as const,

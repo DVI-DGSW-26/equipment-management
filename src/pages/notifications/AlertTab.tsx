@@ -11,6 +11,7 @@ import {
 import { inspectionsApi } from '@/api/inspections';
 import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
+import { usersApi, type DirectoryUser } from '@/api/users';
 import { ApiError } from '@/api/types';
 import { useDepartments } from '@/hooks/useMasters';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
@@ -207,6 +208,106 @@ function DepartmentPicker({
   );
 }
 
+/**
+ * 사내 명단에서 사람을 골라 이메일·이름을 채운다.
+ *
+ * 손으로 치면 이메일 오타가 나도 티가 안 난다 — 이력에는 "보냄" 으로 남는데 실제로는
+ * 아무도 못 받는다. 명단에서 고르면 그 길이 막힌다.
+ *
+ * 통합로그인에 계정이 없는 사람과 외부 주소는 명단에 없으니, 고르는 칸은 거들 뿐이고
+ * 옆의 직접 입력 칸이 본래 경로다. 명단을 못 불러오면(연동 전 503, 장애 502)
+ * 이 칸만 조용히 접고 직접 입력만 남긴다.
+ */
+function DirectoryPicker({ onPick }: { onPick: (user: DirectoryUser) => void }) {
+  const [keyword, setKeyword] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const q = useQuery({
+    queryKey: queryKeys.users.directory(),
+    queryFn: () => usersApi.directory(),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+
+  const people = useMemo(
+    () => [...(q.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [q.data],
+  );
+
+  const k = keyword.trim().toLowerCase();
+  const matched = useMemo(() => {
+    if (k === '') return people;
+    const hit = searchIn(k);
+    const found = people.filter((u) => hit(u.name, u.email, u.username, u.department));
+    /* 이름 첫머리가 걸린 사람을 위로. sort 가 안정적이라 그 안의 가나다 순은 그대로다 */
+    const first = (u: DirectoryUser) => Number(u.name.toLowerCase().startsWith(k));
+    return found.sort((a, b) => first(b) - first(a));
+  }, [people, k]);
+
+  /* 명단을 못 받았으면 이 칸을 아예 두지 않는다. 눌러도 아무것도 안 뜨는 칸이 더 나쁘다 */
+  if (q.isError) {
+    return (
+      <span className="text-[18px] text-fg-muted" title="통합로그인 연동 전이거나 인증서버 장애">
+        사내 명단을 불러오지 못해 직접 입력만 됩니다.
+      </span>
+    );
+  }
+
+  const pick = (u: DirectoryUser) => {
+    setKeyword('');
+    setOpen(false);
+    onPick(u);
+  };
+
+  return (
+    <span className="relative inline-block w-52">
+      <input
+        className={`${inputClass} w-full`}
+        placeholder="사내 명단에서 찾기"
+        aria-label="사내 명단에서 찾기"
+        value={keyword}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setKeyword(e.target.value);
+          setOpen(true);
+        }}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+          if (e.key === 'Enter' && open && matched.length > 0) {
+            e.preventDefault();
+            pick(matched[0]);
+          }
+        }}
+      />
+      {open && (
+        <ul className="absolute z-20 mt-0.5 max-h-64 w-80 overflow-auto rounded-sm border border-line bg-surface shadow-lg">
+          {q.isLoading && <li className="px-3 py-2 text-[17px] text-fg-muted">불러오는 중…</li>}
+          {!q.isLoading && matched.length === 0 && (
+            <li className="px-3 py-2 text-[17px] text-warn">명단에 없습니다. 직접 입력하세요.</li>
+          )}
+          {matched.map((u) => (
+            <li key={u.email}>
+              <button
+                type="button"
+                className="block w-full px-3 py-1.5 text-left text-[18px] hover:bg-bg"
+                /* blur 보다 먼저 잡아야 목록이 닫히기 전에 선택이 먹는다 */
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(u);
+                }}
+              >
+                {u.name} <span className="text-fg-sub">{u.email}</span>
+                {u.department && <span className="ml-1 text-fg-muted">· {u.department}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
+  );
+}
+
 /** 담당반 선택지는 안전검사 대상에 실제로 등록된 값에서 뽑는다. 담당반 마스터 API 는 아직 없다 */
 function useTeamOptions(): string[] {
   const q = useQuery({
@@ -241,6 +342,25 @@ function RecipientBlock({ type }: { type: AlertType }) {
 
   const setDraftField = (k: keyof typeof draft, v: string) =>
     setDraft((prev) => ({ ...prev, [k]: v }));
+
+  const departments = useDepartments();
+
+  /**
+   * 명단에서 고른 사람으로 등록칸을 채운다.
+   *
+   * 부서는 통합로그인 값이 그룹 경로("engineering/backend")라 우리 부서 마스터와 형식이
+   * 다르다. 그대로 넣으면 마스터에 없는 값이 섞이므로, 이름이 딱 맞을 때만 고르고
+   * 아니면 이미 골라 둔 값을 그대로 둔다.
+   */
+  const pickPerson = (u: DirectoryUser) => {
+    const master = (departments.data ?? []).map((d) => d.name);
+    const matched = u.department && master.includes(u.department) ? u.department : '';
+    setDraft((prev) => ({
+      email: u.email,
+      name: u.name,
+      department: matched || prev.department,
+    }));
+  };
 
   const q = useQuery({
     queryKey: queryKeys.notifications.emails(),
@@ -357,6 +477,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
 
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg/40 px-3 py-2">
         <span className="text-[18px] text-fg-sub">수신자 추가</span>
+        <DirectoryPicker onPick={pickPerson} />
         <input
           type="email"
           className={`${inputClass} w-56`}

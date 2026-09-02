@@ -157,12 +157,21 @@ export default function DetailModal({
           <Def label="담당반">{equipment.team ?? '-'}</Def>
           <Def label="검사기관">{equipment.inspectionAgency ?? '-'}</Def>
           <Def label="최초 설치일">{fmtDate(equipment.installedAt)}</Def>
+          <Def label="검사 주기">{equipment.inspectionCycleMonths}개월</Def>
+          {/* 합격증에 찍힌 유효기간. 아래 "다음 검사 기한" 과 다를 수 있다 */}
           <Def label="검사 유효기간">
             {equipment.validFrom || equipment.validUntil
               ? `${fmtDate(equipment.validFrom)} ~ ${fmtDate(equipment.validUntil)}`
               : '-'}
           </Def>
-          <Def label="다음 검사 기한">{fmtDate(equipment.nextInspectionDue)}</Def>
+          <Def label="다음 검사 기한">
+            {fmtDate(equipment.nextInspectionDue)}
+            <span className="mt-0.5 block text-[17px] text-fg-muted">
+              {equipment.neverInspected
+                ? '검사 이력이 없어 설치일 + 3년으로 잡힙니다.'
+                : `최근 검사일 + ${equipment.inspectionCycleMonths}개월`}
+            </span>
+          </Def>
           <Def label="비고">{equipment.remark ?? '-'}</Def>
         </div>
 

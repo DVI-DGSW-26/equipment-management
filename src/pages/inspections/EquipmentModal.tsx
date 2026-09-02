@@ -32,6 +32,7 @@ export default function EquipmentModal({
     installLocation: equipment?.installLocation ?? '',
     capacity: equipment?.capacity ?? '',
     installedAt: equipment?.installedAt ?? '',
+    inspectionCycleMonths: equipment?.inspectionCycleMonths,
     inspectionAgency: equipment?.inspectionAgency ?? '',
     team: equipment?.team ?? '',
     status: equipment?.status ?? 'IN_USE',
@@ -128,12 +129,24 @@ export default function EquipmentModal({
             onChange={(e) => set('capacity', e.target.value)}
           />
         </Field>
-        <Field label="최초 설치일" hint="첫 검사 기한 = 설치 + 3년">
+        <Field label="최초 설치일" hint="첫 검사 기한 = 설치 + 3년 (산업안전보건법)">
           <input
             type="date"
             className={inputClass}
             value={form.installedAt ?? ''}
             onChange={(e) => set('installedAt', e.target.value)}
+          />
+        </Field>
+        <Field label="검사 주기(개월)" hint="이후 검사 기한 = 최근 검사일 + 주기. 비우면 24개월">
+          <input
+            className={`${inputClass} num`}
+            inputMode="numeric"
+            placeholder="24"
+            value={form.inspectionCycleMonths ?? ''}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^\d]/g, '');
+              set('inspectionCycleMonths', v === '' ? undefined : Number(v));
+            }}
           />
         </Field>
         <Field label="검사기관">

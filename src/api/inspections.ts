@@ -18,8 +18,10 @@ export interface SafetyEquipment {
   modelNo: string | null;
   installLocation: string | null;
   capacity: string | null;
-  /** 최초 설치일. 첫 검사 기한 = 설치 + 3년 */
+  /** 최초 설치일. 첫 검사 기한 = 설치 + 3년 (산안법: 설치 후 3년 이내 최초 검사) */
   installedAt: IsoDate | null;
+  /** 검사 주기(개월). 지정하지 않은 대상은 서버가 24를 준다 — 늘 값이 있다 */
+  inspectionCycleMonths: number;
   inspectionAgency: string | null;
   team: string | null;
   status: EquipmentStatus;
@@ -30,7 +32,12 @@ export interface SafetyEquipment {
   validFrom: IsoDate | null;
   validUntil: IsoDate | null;
   certificateNo: string | null;
-  /** 검사 이력이 있으면 유효 만료일, 없으면 설치 + 3년 */
+  /**
+   * 다음 검사 기한 = 최근 검사일 + 검사 주기.
+   * 검사 이력이 없으면 설치일 + 3년(법정 최초 검사 기한)이다.
+   * 합격증 유효 만료일(validUntil)과는 다르다 — 발급이 늦거나 유효 시작일을 이전 만료
+   * 다음 날로 잡으면 둘이 벌어진다. 기한 관리는 실제 검사일 기준으로 한다.
+   */
   nextInspectionDue: IsoDate | null;
   neverInspected: boolean;
   /** 기한까지 남은 일수. 지났으면 음수 */
@@ -69,13 +76,15 @@ export interface SaveEquipmentPayload {
   installLocation?: string;
   capacity?: string;
   installedAt?: IsoDate;
+  /** 검사 주기(개월) 1~120. 비우면 서버 기본값 24 */
+  inspectionCycleMonths?: number;
   inspectionAgency?: string;
   team?: string;
   status?: EquipmentStatus;
   remark?: string;
 }
 
-/** 검사 완료 입력. 만료일을 비우면 서버가 시작일 + 2년 - 1일로 계산한다 */
+/** 검사 완료 입력. 만료일을 비우면 서버가 시작일 + 검사 주기 - 1일로 계산한다 */
 export interface SaveInspectionPayload {
   inspectedAt: IsoDate;
   validFrom?: IsoDate;
