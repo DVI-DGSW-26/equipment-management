@@ -23,10 +23,16 @@ import { btnClass, btnPrimaryClass, QueryState } from '@/components/ui';
 /** 양식이 17행짜리 표라, 이력이 적어도 빈 줄로 그 높이를 채운다 */
 const MIN_ROWS = 17;
 
-const cycleText = (months: number | null | undefined): string => {
-  if (months == null) return '-';
-  return months % 12 === 0 ? `${months / 12}년` : `${months}개월`;
-};
+/**
+ * 교정주기는 개월로만 적는다.
+ *
+ * 12의 배수를 "1년·2년" 으로 바꿔 적었는데, 그러면 같은 값이 화면마다 다르게 보인다 —
+ * 목록·상세·엑셀은 전부 개월이고 이력카드만 년이었다. 종이와 화면을 대조할 때
+ * 12개월과 1년이 같은 것인지 매번 되짚어야 한다. 개월로 통일한다
+ * (계측기 담당 요청 2026-09-02).
+ */
+const cycleText = (months: number | null | undefined): string =>
+  months == null ? '-' : `${months}개월`;
 
 const repairText = (v: boolean | null): string => (v == null ? '' : v ? '유' : '무');
 

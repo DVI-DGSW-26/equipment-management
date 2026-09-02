@@ -564,7 +564,8 @@ function AnnualTab() {
               <th className={thClass}>S/NO</th>
               <th className={thClass}>규격</th>
               <th className={thClass}>정도</th>
-              <th className={`${thClass} text-right`}>주기</th>
+              {/* 칸이 좁아 셀마다 "개월" 을 붙이지 않고 머리에 단위를 적는다 */}
+              <th className={`${thClass} text-right`}>주기(개월)</th>
               <th className={thClass}>계획</th>
               <th className={thClass}>실시</th>
               <th className={thClass}>결과</th>
