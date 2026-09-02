@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { instrumentsApi } from '@/api/instruments';
-import { calibrationsApi } from '@/api/calibrations';
+import { instrumentsApi, type Instrument } from '@/api/instruments';
+import { calibrationsApi, type AnnualCalibration } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
-import { currentYear, daysUntil, fmtDate } from '@/lib/date';
+import { currentYear, daysUntil, fmtDate, getToday, toIsoDate } from '@/lib/date';
+import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { useToast } from '@/components/toastContext';
@@ -64,6 +65,40 @@ type DueFilter = 'all' | 'overdue' | 'within30' | 'within90';
  */
 const LOAD_LIMIT = 500;
 
+/**
+ * 내려받을 열. 화면 표와 같은 차례로 둔다 — 파일을 열었을 때 화면과 다르면 대조하기 어렵다.
+ * "남은 기한" 은 화면과 같은 D-30 표기로, 날짜는 계산해서 쓸 수 있게 원본 그대로 넣는다.
+ */
+const LIST_COLUMNS: ExcelColumn<Instrument>[] = [
+  { header: '관리번호', value: (i) => i.mgmtNo, width: 14 },
+  { header: '계측기명', value: (i) => i.name, width: 24 },
+  { header: 'S/NO', value: (i) => i.serialNo, width: 16 },
+  { header: '규격', value: (i) => i.specText, width: 20 },
+  { header: '정도', value: (i) => i.accuracy, width: 14 },
+  { header: '교정주기(개월)', value: (i) => i.calibrationCycleMonths, numeric: true, width: 14 },
+  { header: '사용위치', value: (i) => i.locationName, width: 14 },
+  { header: '사용자', value: (i) => i.userName, width: 12 },
+  { header: '최근 교정일', value: (i) => i.lastCalibratedDate, width: 14 },
+  { header: '차기 교정일', value: (i) => i.nextDueDate, width: 14 },
+  { header: '남은 기한', value: (i) => ddayLabel(daysUntil(i.nextDueDate)), width: 12 },
+  { header: '기한 경과', value: (i) => (i.overdue ? 'O' : ''), width: 10 },
+];
+
+const ANNUAL_COLUMNS: ExcelColumn<AnnualCalibration>[] = [
+  { header: '관리번호', value: (r) => r.mgmtNo, width: 14 },
+  { header: '계측기명', value: (r) => r.name, width: 24 },
+  { header: 'S/NO', value: (r) => r.serialNo, width: 16 },
+  { header: '규격', value: (r) => r.specText, width: 20 },
+  { header: '정도', value: (r) => r.accuracy, width: 14 },
+  { header: '주기(개월)', value: (r) => r.calibrationCycleMonths, numeric: true, width: 12 },
+  { header: '계획일', value: (r) => r.planDate, width: 14 },
+  { header: '실시일', value: (r) => r.performedDate, width: 14 },
+  { header: '결과', value: (r) => r.resultMark, width: 8 },
+  { header: '사용위치', value: (r) => r.locationName, width: 14 },
+  { header: '사용자', value: (r) => r.userName, width: 12 },
+  { header: '비고', value: (r) => r.remark, width: 24 },
+];
+
 const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolean => {
   if (f === 'all') return true;
   if (f === 'overdue') return overdue || (days != null && days < 0);
@@ -74,6 +109,8 @@ const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolea
 
 function ListTab() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('');
   const [user, setUser] = useState('');
@@ -159,6 +196,19 @@ function ListTab() {
     setPage(0);
   };
 
+  /* 지금 화면에 걸러 놓은 것 전부를 내려받는다 — 펼친 장만이 아니다 */
+  const download = async () => {
+    setExporting(true);
+    try {
+      await downloadExcel(rows, LIST_COLUMNS, stampedFileName('계측기목록', toIsoDate(getToday())));
+      toast.ok(`계측기 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const dueCard = (label: string, key: DueFilter, count: number, tone: 'danger' | 'warn') => ({
     label,
     value: `${count.toLocaleString('ko-KR')}건`,
@@ -200,6 +250,19 @@ function ListTab() {
               placeholder="관리번호·계측기명·S/NO·규격·사용자"
               width="w-72"
             />
+            <button
+              type="button"
+              className={btnClass}
+              disabled={rows.length === 0 || exporting}
+              title={
+                rows.length === 0
+                  ? '내려받을 계측기가 없습니다.'
+                  : `걸러 놓은 ${rows.length.toLocaleString('ko-KR')}건을 지금 정렬 그대로 내려받습니다.`
+              }
+              onClick={() => void download()}
+            >
+              {exporting ? '만드는 중…' : '엑셀 다운로드'}
+            </button>
             <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
               계측기 등록
             </button>
@@ -356,6 +419,7 @@ function AnnualTab() {
   const [planYear, setPlanYear] = useState(currentYear());
   const [keyword, setKeyword] = useState('');
   const [state, setState] = useState<'' | 'done' | 'todo'>('');
+  const [exporting, setExporting] = useState(false);
 
   const q = useQuery({
     queryKey: queryKeys.calibrations.annual(planYear),
@@ -382,6 +446,18 @@ function AnnualTab() {
       hit(r.mgmtNo, r.name, r.serialNo, r.locationName, r.userName) &&
       (state === '' || (state === 'done') === Boolean(r.performedDate)),
   );
+
+  const download = async () => {
+    setExporting(true);
+    try {
+      await downloadExcel(rows, ANNUAL_COLUMNS, stampedFileName(`${planYear}년_교정검사LIST`, toIsoDate(getToday())));
+      toast.ok(`${planYear}년 계획 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <Section
@@ -412,6 +488,19 @@ function AnnualTab() {
             <option value="todo">미실시</option>
           </select>
           <FilterCount shown={rows.length} total={all.length} />
+          <button
+            type="button"
+            className={btnClass}
+            disabled={rows.length === 0 || exporting}
+            title={
+              rows.length === 0
+                ? '내려받을 계획이 없습니다.'
+                : `걸러 놓은 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`
+            }
+            onClick={() => void download()}
+          >
+            {exporting ? '만드는 중…' : '엑셀 다운로드'}
+          </button>
           <select
             className={`${inputClass} w-28`}
             value={planYear}
