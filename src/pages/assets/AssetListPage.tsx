@@ -162,6 +162,21 @@ export default function AssetListPage() {
 
   return (
     <div className="space-y-3">
+      {/*
+        등록은 이 화면에서 제일 자주 누르는 단추다. 목록 머리에 두면 검색 조건 아래까지
+        내려가 있어 눈에 늦게 들어온다. 다른 화면과 같이 제목 줄 오른쪽으로 올린다.
+      */}
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-[24px] font-semibold">고정자산</h1>
+        <button
+          type="button"
+          className={`${btnPrimaryClass} ml-auto`}
+          onClick={() => navigate('/assets/new')}
+        >
+          자산 등록
+        </button>
+      </div>
+
       <StatCards
         cards={[
           {
@@ -344,13 +359,6 @@ export default function AssetListPage() {
                 스티커 출력
               </button>
             )}
-            <button
-              type="button"
-              className={btnPrimaryClass}
-              onClick={() => navigate('/assets/new')}
-            >
-              자산 등록
-            </button>
           </>
         }
       >
