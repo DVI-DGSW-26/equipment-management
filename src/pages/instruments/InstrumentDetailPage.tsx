@@ -42,11 +42,11 @@ export default function InstrumentDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   /*
-   * 이력카드를 첫 탭으로 둔다. 카드를 보려고 목록 → 상세 → 이력카드로 두 번 더 들어가야
-   * 하는 게 불편하다는 회신이 있었다(2026-09-02). 상세에 들어오면 바로 보이게 한다.
-   * 수정·교정 이력 등록·삭제는 탭 밖 머리줄에 그대로 있어 한 번에 닿는다.
+   * 들어오면 관리 정보부터 보인다. 이력카드는 바로 옆 탭이라 한 번만 누르면 된다 —
+   * 전에는 다른 화면으로 넘어가야 했다(목록 → 상세 → 이력카드).
+   * 수정·교정 이력 등록·삭제는 탭 밖 머리줄에 있어 어느 탭에서든 한 번에 닿는다.
    */
-  const [tab, setTab] = useState<'card' | 'manage'>('card');
+  const [tab, setTab] = useState<'manage' | 'card'>('manage');
   const [editing, setEditing] = useState(false);
   const [calibrationTarget, setCalibrationTarget] = useState<Calibration | 'new' | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -170,8 +170,8 @@ export default function InstrumentDetailPage() {
         <div className="no-print">
           <Tabs
             tabs={[
-              { key: 'card' as const, label: '이력카드' },
               { key: 'manage' as const, label: '관리 정보' },
+              { key: 'card' as const, label: '이력카드' },
             ]}
             value={tab}
             onChange={setTab}

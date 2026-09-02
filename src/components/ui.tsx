@@ -342,23 +342,33 @@ export function Tabs<T extends string>({
   value: T;
   onChange: (key: T) => void;
 }) {
+  /*
+   * 고른 탭이 눈에 잘 안 띈다는 얘기가 있었다(2026-09-02). 흰 카드 위 흰 탭이라
+   * 테두리 선 하나로만 갈렸다. 고른 쪽에 액센트 색 윗줄과 글자색·굵기를 주고,
+   * 안 고른 쪽은 바탕을 한 톤 눌러 탭처럼 보이게 한다.
+   * 윗줄 두께 때문에 높이가 달라지지 않도록 안 고른 쪽도 같은 두께를 투명으로 둔다.
+   */
   return (
     <div className="flex items-center gap-1 border-b border-line">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => onChange(t.key)}
-          className={[
-            'shrink-0 whitespace-nowrap px-3 py-2 text-[19px] rounded-t-sm border border-b-0',
-            value === t.key
-              ? 'border-line bg-surface font-medium'
-              : 'border-transparent text-fg-sub hover:bg-surface/60',
-          ].join(' ')}
-        >
-          {t.label}
-        </button>
-      ))}
+      {tabs.map((t) => {
+        const active = value === t.key;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            aria-current={active ? 'page' : undefined}
+            className={[
+              'shrink-0 whitespace-nowrap rounded-t-sm border border-t-2 border-b-0 px-4 py-2 text-[19px]',
+              active
+                ? 'border-line border-t-accent bg-surface font-semibold text-accent'
+                : 'border-transparent bg-bg/70 text-fg-sub hover:bg-surface/80 hover:text-fg',
+            ].join(' ')}
+          >
+            {t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
