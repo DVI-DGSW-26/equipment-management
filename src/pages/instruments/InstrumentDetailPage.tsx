@@ -562,7 +562,8 @@ function CalibrationModal({
             onChange={(e) => set('confirmedBy', e.target.value)}
           />
         </Field>
-        <Field label="수리여부" hint="이력카드에 그대로 찍힌다">
+        {/* 종이 양식에는 수리여부 칸이 없다. 관리 정보 탭의 교정 이력에서만 본다 */}
+        <Field label="수리여부" hint="관리 정보의 교정 이력에 남습니다. 이력카드에는 찍히지 않습니다.">
           <select
             className={inputClass}
             value={repaired == null ? '' : repaired ? 'Y' : 'N'}

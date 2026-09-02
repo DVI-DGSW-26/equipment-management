@@ -108,6 +108,13 @@
     font-size: 11pt;
   }
 
+  /* 양식 맨 위 "측정기 이력카드". 화면 크기 그대로 두면 종이에서 한 장을 넘긴다 */
+  .card-heading {
+    padding-top: 1mm;
+    padding-bottom: 1mm;
+    font-size: 15pt;
+  }
+
   .card-sheet table {
     font-size: 9pt;
   }

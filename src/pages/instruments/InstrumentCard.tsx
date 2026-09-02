@@ -1,23 +1,28 @@
 import { useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
-import { instrumentsApi } from '@/api/instruments';
+import { instrumentsApi, type InstrumentDepartment } from '@/api/instruments';
 import { calibrationsApi, type Calibration } from '@/api/calibrations';
 import { attachmentsApi } from '@/api/attachments';
 import { queryKeys } from '@/api/queryKeys';
 import type { IsoDate } from '@/api/types';
+import { won } from '@/lib/won';
 import AuthImage from '@/components/AuthImage';
 import { QueryState } from '@/components/ui';
 
 /**
- * 계측기 이력카드 본문. 현업이 쓰던 엑셀 양식(A4 가로)을 그대로 옮긴 것이라
- * 화면 구성도 그 양식을 따른다.
+ * 계측기 이력카드. 현업이 쓰던 엑셀 양식(A4 가로)을 그대로 옮긴다.
  *
- *   윗줄  기본 정보 10칸 (2행)
- *   아래  왼쪽 사진 / 오른쪽 검교정 이력표
+ *   제목   측정기 이력카드
+ *   머리   기본 정보 4행
+ *   본문   왼쪽 구매 정보 + SKETCH 사진 / 오른쪽 검교정 현황(HISTORY)
  *
- * 상세 화면 첫 탭과 인쇄 전용 화면이 이 하나를 같이 쓴다 — 종이에 나가는 양식이라
- * 두 벌로 두면 언젠가 서로 달라진다. 부르는 조회는 상세 화면과 같은 키라
+ * 종이 서식과 칸 이름·차례가 어긋나면 대조할 때 헷갈리므로 양식을 기준으로 맞춘다
+ * (원본 서식 대조 2026-09-03). 한 군데만 일부러 다르다 — 교정주기를 "2년" 이 아니라
+ * "24개월" 로 적는다. 화면·엑셀이 전부 개월이라 여기만 년으로 두면 같은 값이
+ * 달라 보인다(계측기 담당 요청 2026-09-02).
+ *
+ * 상세 화면 탭과 인쇄 전용 화면이 이 하나를 같이 쓴다. 부르는 조회는 상세와 같은 키라
  * 탭을 옮겨도 다시 받아 오지 않는다.
  */
 
@@ -25,17 +30,19 @@ import { QueryState } from '@/components/ui';
 const MIN_ROWS = 17;
 
 /**
- * 교정주기는 개월로만 적는다.
- *
- * 12의 배수를 "1년·2년" 으로 바꿔 적었는데, 그러면 같은 값이 화면마다 다르게 보인다 —
- * 목록·상세·엑셀은 전부 개월이고 이력카드만 년이었다. 종이와 화면을 대조할 때
- * 12개월과 1년이 같은 것인지 매번 되짚어야 한다. 개월로 통일한다
- * (계측기 담당 요청 2026-09-02).
+ * 사용부서 칸. 종이 서식이 네 갈래에 V 를 치는 꼴이라 그대로 옮긴다.
+ * 이름은 서식에 적힌 말을 쓴다 — 시스템 라벨은 RND 를 "연구소" 라 부르지만
+ * 종이에는 "개발" 로 찍혀 있다.
  */
-const cycleText = (months: number | null | undefined): string =>
-  months == null ? '-' : `${months}개월`;
+const DEPT_BOXES: { key: InstrumentDepartment; label: string }[] = [
+  { key: 'PRODUCTION', label: '생산' },
+  { key: 'RND', label: '개발' },
+  { key: 'QC', label: 'QC' },
+  { key: 'ETC', label: '기타' },
+];
 
-const repairText = (v: boolean | null): string => (v == null ? '' : v ? '유' : '무');
+const cycleText = (months: number | null | undefined): string =>
+  months == null ? '' : `${months}개월`;
 
 /** 양식의 날짜 표기. 2017-02-02 → 17.02.02 */
 const cardDate = (v: IsoDate | null | undefined): string => {
@@ -46,6 +53,9 @@ const cardDate = (v: IsoDate | null | undefined): string => {
     return v;
   }
 };
+
+/** 양식의 금액 표기. 값이 없는 줄은 비워 둔다 — "-" 를 찍으면 손으로 적을 자리가 없다 */
+const cardWon = (v: number | null | undefined): string => (v == null ? '' : `₩${won(v)}`);
 
 export default function InstrumentCard({ instrumentId }: { instrumentId: number }) {
   const instrument = useQuery({
@@ -85,63 +95,89 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
 
       {d && (
         <div className="card-sheet border border-fg bg-surface text-[17px] text-fg">
-          {/* 기본 정보 — 엑셀 양식의 2행 */}
-          <div className="card-head grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
+          <h2 className="card-heading border-b border-fg py-1.5 text-center text-[26px] font-bold tracking-[0.25em]">
+            측정기 이력카드
+          </h2>
+
+          {/* 머리 — 양식의 기본 정보 3행 */}
+          <div className="card-head grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
             <CardLabel>관리 NO</CardLabel>
             <CardValue mono>{d.mgmtNo}</CardValue>
             <CardLabel>계측기명</CardLabel>
             <CardValue>{d.name}</CardValue>
-            <CardLabel>제조사</CardLabel>
-            <CardValue>{d.maker}</CardValue>
             <CardLabel>규격</CardLabel>
             <CardValue>{d.specText}</CardValue>
             <CardLabel>정확도</CardLabel>
             <CardValue>{d.accuracy}</CardValue>
 
+            <CardLabel>구매일</CardLabel>
+            <CardValue>{cardDate(d.purchaseDate)}</CardValue>
+            <CardLabel>제작사</CardLabel>
+            <CardValue>{d.maker}</CardValue>
             <CardLabel>S/NO</CardLabel>
             <CardValue mono>{d.serialNo}</CardValue>
             <CardLabel>보관장소</CardLabel>
             <CardValue>{d.locationName}</CardValue>
+
             <CardLabel>사용부서</CardLabel>
-            <CardValue>{d.departmentDisplay}</CardValue>
+            <div className="col-span-3 border-r border-b border-fg px-2 py-1.5">
+              {DEPT_BOXES.map(({ key, label }, i) => (
+                <span key={key}>
+                  {i > 0 && ', '}
+                  {label} ({d.department === key ? <b>V</b> : <span>&nbsp;&nbsp;</span>}
+                  {key === 'ETC' && d.department === 'ETC' && d.departmentEtc
+                    ? ` ${d.departmentEtc}`
+                    : ''}
+                  )
+                </span>
+              ))}
+            </div>
             <CardLabel>교정주기</CardLabel>
             <CardValue>{cycleText(d.calibrationCycleMonths)}</CardValue>
-            <CardLabel>관리책임자</CardLabel>
-            <CardValue>{d.userName}</CardValue>
+            <div className="col-span-2 border-b border-fg px-2 py-1.5 text-center">기타 (&nbsp;)</div>
           </div>
 
-          {/* 아래 — 왼쪽 사진 / 오른쪽 이력표 */}
+          {/* 본문 — 왼쪽 구매 정보와 사진 / 오른쪽 검교정 현황 */}
           <div className="card-body grid grid-cols-1 border-t border-fg lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <div className="card-photo relative flex min-h-72 items-center justify-center border-b border-fg p-3 lg:border-r lg:border-b-0">
-              <span className="absolute top-0 left-0 border-r border-b border-fg px-3 py-1 text-[17px]">
-                SKETCH
-              </span>
-              {photo ? (
-                <AuthImage
-                  path={`/attachment/${photo.id}/download`}
-                  alt={`${d.name} 사진`}
-                  className="max-h-[420px] max-w-full object-contain"
-                />
-              ) : (
-                <span className="no-print text-[18px] text-fg-muted">
-                  등록된 사진이 없습니다. 관리 정보 탭의 첨부에서 사진을 올리면 여기 나옵니다.
+            <div className="flex min-w-0 flex-col border-b border-fg lg:border-r lg:border-b-0">
+              <div className="grid grid-cols-[auto_1fr_auto_1fr] border-b border-fg">
+                <CardLabel>구매처</CardLabel>
+                <CardValue>{d.supplierName}</CardValue>
+                <CardLabel>구매가격</CardLabel>
+                <div className="px-2 py-1.5 text-center">{cardWon(d.purchasePrice)}</div>
+              </div>
+
+              <div className="card-photo relative flex min-h-72 flex-1 items-center justify-center p-3">
+                <span className="absolute top-0 left-0 border-r border-b border-fg px-3 py-1 text-[17px]">
+                  SKETCH
                 </span>
-              )}
+                {photo ? (
+                  <AuthImage
+                    path={`/attachment/${photo.id}/download`}
+                    alt={`${d.name} 사진`}
+                    className="max-h-[420px] max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="no-print text-[18px] text-fg-muted">
+                    등록된 사진이 없습니다. 관리 정보 탭의 첨부에서 사진을 올리면 여기 나옵니다.
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="min-w-0">
-              <h2 className="card-title border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold">
-                검교정 현황 (HISTORY) 및 이력사항
+              <h2 className="card-title border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold tracking-[0.15em]">
+                검교정 현황 (HISTORY)
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-[16px]">
                   <thead>
                     <tr className="border-b border-fg text-center">
-                      <th className="border-r border-line px-2 py-1 font-medium">검교정 기관</th>
+                      <th className="border-r border-line px-2 py-1 font-medium">의뢰처</th>
                       <th className="border-r border-line px-2 py-1 font-medium">교정일</th>
                       <th className="border-r border-line px-2 py-1 font-medium">차기교정일</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">수리여부</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">주요조치사항</th>
+                      <th className="border-r border-line px-2 py-1 font-medium">교정비용</th>
+                      <th className="border-r border-line px-2 py-1 font-medium">이상발생 조치</th>
                       <th className="px-2 py-1 font-medium">비고</th>
                     </tr>
                   </thead>
@@ -157,8 +193,8 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
                         <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
                           {cardDate(c.nextDueDate)}
                         </td>
-                        <td className="border-r border-line px-2 py-1 text-center">
-                          {repairText(c.repaired)}
+                        <td className="num border-r border-line px-2 py-1 whitespace-nowrap">
+                          {cardWon(c.cost)}
                         </td>
                         <td className="border-r border-line px-2 py-1">{c.actionNote ?? ''}</td>
                         <td className="px-2 py-1">{c.remark ?? ''}</td>
