@@ -19,8 +19,8 @@ import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { codeText, NO_CODE_REASON, SEQUENCE_MISSING_REASON } from '@/domain/assetCode';
 import { allowedMethods } from '@/domain/depreciationMethod';
 import { LOCKED_NOTICE } from '@/domain/editability';
-import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
-import { bookValue, PRE_SETTLEMENT_NOTE, rateText, won, wonUnit } from '@/lib/won';
+import { currentYear, fmtDate } from '@/lib/date';
+import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, rateText, won, wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import {
@@ -33,8 +33,24 @@ import {
   inputClass,
   QueryState,
   Section,
+  Tabs,
   thClass,
 } from '@/components/ui';
+import AssetAdditionsSection from './AssetAdditionsSection';
+import AssetHistorySection from './AssetHistorySection';
+import AssetTaxRecordSection from './AssetTaxRecordSection';
+
+/**
+ * 탭 구성은 회계 프로그램 고정자산등록화면을 그대로 따른다 —
+ * 주요등록사항 / 추가등록사항 / 자산변동사항 (회계팀 회신 2026-09-01).
+ */
+type DetailTab = 'main' | 'extra' | 'changes';
+
+const DETAIL_TABS = [
+  { key: 'main' as const, label: '주요등록사항' },
+  { key: 'extra' as const, label: '추가등록사항' },
+  { key: 'changes' as const, label: '자산변동사항' },
+];
 
 export default function AssetDetailPage() {
   const { id } = useParams();
@@ -43,15 +59,11 @@ export default function AssetDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const [mode, setMode] = useState<'none' | 'edit' | 'correct'>('none');
+  const [tab, setTab] = useState<DetailTab>('main');
 
   const detail = useQuery({
     queryKey: queryKeys.assets.detail(assetId),
     queryFn: () => assetsApi.detail(assetId),
-    enabled: Number.isFinite(assetId),
-  });
-  const history = useQuery({
-    queryKey: queryKeys.assets.history(assetId),
-    queryFn: () => assetsApi.history(assetId),
     enabled: Number.isFinite(assetId),
   });
 
@@ -95,12 +107,7 @@ export default function AssetDetailPage() {
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            className={btnClass}
-            disabled={!a}
-            onClick={() => setMode('edit')}
-          >
+          <button type="button" className={btnClass} disabled={!a} onClick={() => setMode('edit')}>
             수정
           </button>
           <button
@@ -108,6 +115,7 @@ export default function AssetDetailPage() {
             className={btnPrimaryClass}
             disabled={!a}
             onClick={() => setMode('correct')}
+            title="취득가액·취득일자·내용연수 등 잠금 항목을 고칩니다. 저장하면 감가상각이 다시 계산됩니다."
           >
             회계 정정
           </button>
@@ -128,122 +136,122 @@ export default function AssetDetailPage() {
 
       {a && (
         <>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <Section title="기본 정보">
-              <Def label="자산코드">
-                <span className="code">{codeText(a.assetCode)}</span>
-              </Def>
-              <Def label="자산명">{a.name}</Def>
-              <Def label="계정과목">
-                {a.accountCode} {a.accountName}
-              </Def>
-              <Def label="자산구분">
-                {a.categoryCode ? `${a.categoryCode} ${a.categoryName ?? ''}` : '-'}
-              </Def>
-              <Def label="비품구분 / 품목">
-                {a.itemTypeCode || a.itemCode ? `${a.itemTypeCode ?? '-'} / ${a.itemCode ?? '-'}` : '-'}
-              </Def>
-              <Def label="취득일자">{fmtDate(a.acquisitionDate)}</Def>
-              <Def label="수량">{a.quantity?.toLocaleString('ko-KR')}</Def>
-              <Def label="상태">{a.statusLabel}</Def>
-              <Def label="양도/폐기일">{fmtDate(a.disposalDate)}</Def>
-            </Section>
+          <Tabs tabs={DETAIL_TABS} value={tab} onChange={setTab} />
 
-            <Section title="회계 정보">
-              <Def label="취득가액">
-                <span className="num block">{wonUnit(a.acquisitionCost)}</span>
-              </Def>
-              <Def label="상각방법 / 내용연수">
-                {a.depreciationMethodLabel ?? '-'} / {a.usefulLifeYears ?? '-'}년
-              </Def>
-              <Def label="상각률">
-                {a.depreciationRate == null ? (
-                  <span className="text-fg-muted">마스터 값 적용</span>
-                ) : (
-                  rateText(a.depreciationRate)
-                )}
-              </Def>
-              <Def label="경비구분">
-                {a.expenseType
-                  ? (EXPENSE_TYPE_LABEL[a.expenseType as ExpenseType] ?? a.expenseType)
-                  : '-'}
-              </Def>
-              <Def label="전기말상각누계액">
-                <span className="num block">{won(a.priorAccumulated)}</span>
-              </Def>
-              <Def label="당기상각비">
-                <span className="num block">{won(a.currentYearDepreciation)}</span>
-              </Def>
-              <Def label="당기말상각누계액">
-                <span className="num block">{won(a.accumulatedDepreciation)}</span>
-              </Def>
-              <Def label="당기말장부가액">
-                <span
-                  className="num block font-semibold"
-                  title={a.bookValue < 0 ? PRE_SETTLEMENT_NOTE : undefined}
-                >
-                  {bookValue(a.bookValue)}
-                </span>
-              </Def>
-              <Def label="개시 기준연도 / 개시 누계액">
-                {a.openingFiscalYear ?? '-'} / {won(a.openingAccumulatedDepreciation)}
-              </Def>
-            </Section>
+          {tab === 'main' && (
+            <>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <Section title="기본 정보">
+                  <Def label="자산코드">
+                    <span className="code">{codeText(a.assetCode)}</span>
+                  </Def>
+                  <Def label="자산명">{a.name}</Def>
+                  <Def label="계정과목">
+                    {a.accountCode} {a.accountName}
+                  </Def>
+                  <Def label="자산구분">
+                    {a.categoryCode ? `${a.categoryCode} ${a.categoryName ?? ''}` : '-'}
+                  </Def>
+                  <Def label="비품구분 / 품목">
+                    {a.itemTypeCode || a.itemCode
+                      ? `${a.itemTypeCode ?? '-'} / ${a.itemCode ?? '-'}`
+                      : '-'}
+                  </Def>
+                  <Def label="취득일자">{fmtDate(a.acquisitionDate)}</Def>
+                  <Def label="수량">{a.quantity?.toLocaleString('ko-KR')}</Def>
+                  <Def label="상태">{a.statusLabel}</Def>
+                  <Def label="양도/폐기일">{fmtDate(a.disposalDate)}</Def>
+                  <Def label="양도폐기금액">
+                    <span className="num-left block">{won(a.disposalAmount)}</span>
+                  </Def>
+                  <Def label="부분매각및폐기">
+                    <span className="num-left block">{won(a.partialDisposalAmount)}</span>
+                  </Def>
+                </Section>
 
-            <Section title="관리 정보">
-              <Def label="사용부서">{a.usingDeptName ?? a.usingDeptCode ?? '-'}</Def>
-              <Def label="관리부서">{a.managingDeptName ?? a.managingDeptCode ?? '-'}</Def>
-              <Def label="사용위치">
-                {a.locationCode ? `${a.locationCode} ${a.locationName ?? ''}` : '-'}
-              </Def>
-              <Def label="담당자">{a.assignee ?? '-'}</Def>
-              <Def label="매입처">{a.supplier ?? '-'}</Def>
-              <Def label="모델명">{a.modelName ?? '-'}</Def>
-              <Def label="규격">{a.spec ?? '-'}</Def>
-              <Def label="설비코드 / 계측기 관리번호">
-                {a.equipmentCode ?? '-'} / {a.instrumentMgmtNo ?? '-'}
-              </Def>
-              <Def label="출력 제외">{a.excludedFromPrint ? '예' : '아니오'}</Def>
-              <Def label="비고">{a.remark ?? '-'}</Def>
-            </Section>
-          </div>
+                <Section title="회계 정보">
+                  <Def label="취득가액">
+                    <span className="num-left block">{wonUnit(a.acquisitionCost)}</span>
+                  </Def>
+                  <Def label="신규취득및증가">
+                    <span className="num-left block">{won(a.additionTotal)}</span>
+                  </Def>
+                  <Def label="상각기초가액">
+                    <span className="num-left block font-semibold" title="취득가액 + 자본적지출 증가 누계">
+                      {wonUnit(depreciationBase(a.acquisitionCost, a.additionTotal))}
+                    </span>
+                  </Def>
+                  <Def label="상각방법 / 내용연수">
+                    {a.depreciationMethodLabel ?? '-'} / {a.usefulLifeYears ?? '-'}년
+                  </Def>
+                  <Def label="상각률">
+                    {a.depreciationRate == null ? (
+                      <span className="text-fg-muted">마스터 값 적용</span>
+                    ) : (
+                      rateText(a.depreciationRate)
+                    )}
+                  </Def>
+                  <Def label="경비구분">
+                    {a.expenseType
+                      ? (EXPENSE_TYPE_LABEL[a.expenseType as ExpenseType] ?? a.expenseType)
+                      : '-'}
+                  </Def>
+                  <Def label="전기말상각누계액">
+                    <span className="num-left block">{won(a.priorAccumulated)}</span>
+                  </Def>
+                  <Def label="당기상각비">
+                    <span className="num-left block">{won(a.currentYearDepreciation)}</span>
+                  </Def>
+                  <Def label="당기말상각누계액">
+                    <span className="num-left block">{won(a.accumulatedDepreciation)}</span>
+                  </Def>
+                  <Def label="당기말장부가액">
+                    <span
+                      className="num-left block font-semibold"
+                      title={a.bookValue < 0 ? PRE_SETTLEMENT_NOTE : undefined}
+                    >
+                      {bookValue(a.bookValue)}
+                    </span>
+                  </Def>
+                  <Def label="개시 기준연도 / 개시 누계액">
+                    {a.openingFiscalYear ?? '-'} / {won(a.openingAccumulatedDepreciation)}
+                  </Def>
+                </Section>
 
-          <DepreciationHistory assetId={a.id} />
+                <Section title="관리 정보">
+                  <Def label="사용부서">{a.usingDeptName ?? a.usingDeptCode ?? '-'}</Def>
+                  <Def label="관리부서">{a.managingDeptName ?? a.managingDeptCode ?? '-'}</Def>
+                  <Def label="사용위치">
+                    {a.locationCode ? `${a.locationCode} ${a.locationName ?? ''}` : '-'}
+                  </Def>
+                  <Def label="담당자">{a.assignee ?? '-'}</Def>
+                  <Def label="매입처">{a.supplier ?? '-'}</Def>
+                  <Def label="모델명">{a.modelName ?? '-'}</Def>
+                  <Def label="규격">{a.spec ?? '-'}</Def>
+                  <Def label="설비코드 / 계측기 관리번호">
+                    {a.equipmentCode ?? '-'} / {a.instrumentMgmtNo ?? '-'}
+                  </Def>
+                  <Def label="출력 제외">{a.excludedFromPrint ? '예' : '아니오'}</Def>
+                  <Def label="비고">{a.remark ?? '-'}</Def>
+                </Section>
+              </div>
 
-          <Section title="변경 이력">
-            <QueryState
-              isPending={history.isPending}
-              error={history.error}
-              isEmpty={(history.data ?? []).length === 0}
-              emptyText="변경 이력이 없습니다."
-            />
-            {(history.data ?? []).length > 0 && (
-              <table className="w-max min-w-full text-[19px]">
-                <thead>
-                  <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                    <th className={thClass}>일시</th>
-                    <th className={thClass}>구분</th>
-                    <th className={thClass}>항목</th>
-                    <th className={thClass}>변경 전</th>
-                    <th className={thClass}>변경 후</th>
-                    <th className={thClass}>변경자</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(history.data ?? []).map((h) => (
-                    <tr key={h.id} className="border-b border-line">
-                      <td className="px-3 py-2">{fmtDateTime(h.changedAt)}</td>
-                      <td className="px-3 py-2">{h.changeTypeLabel}</td>
-                      <td className="px-3 py-2">{h.fieldName}</td>
-                      <td className="px-3 py-2 text-fg-sub">{h.beforeValue ?? '-'}</td>
-                      <td className="px-3 py-2">{h.afterValue ?? '-'}</td>
-                      <td className="px-3 py-2 text-fg-sub">{h.changedBy ?? '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
+              <DepreciationHistory assetId={a.id} />
+            </>
+          )}
+
+          {tab === 'extra' && <AssetTaxRecordSection asset={a} onDone={invalidate} />}
+
+          {tab === 'changes' && (
+            <div className="space-y-3">
+              <AssetAdditionsSection
+                assetId={a.id}
+                additionTotal={a.additionTotal}
+                onChanged={invalidate}
+              />
+              <AssetHistorySection assetId={a.id} />
+            </div>
+          )}
         </>
       )}
 
@@ -319,6 +327,9 @@ function DepreciationHistory({ assetId }: { assetId: number }) {
 
 /* ---------- 일반 수정: 회계에 영향 없는 항목만 ---------- */
 
+/** 빈 칸은 null 로 보내 값을 지운다 */
+const toAmount = (raw: string): number | null => (raw.trim() === '' ? null : Number(raw));
+
 function EditModal({
   asset,
   onClose,
@@ -345,6 +356,13 @@ function EditModal({
     disposalDate: asset.disposalDate ?? '',
     remark: asset.remark ?? '',
   });
+  /* 금액은 입력 중에는 문자열로 다루고 보낼 때만 숫자로 바꾼다 */
+  const [disposalAmount, setDisposalAmount] = useState(
+    asset.disposalAmount == null ? '' : String(asset.disposalAmount),
+  );
+  const [partialDisposalAmount, setPartialDisposalAmount] = useState(
+    asset.partialDisposalAmount == null ? '' : String(asset.partialDisposalAmount),
+  );
 
   const departments = useDepartments();
   const locations = useLocations();
@@ -357,6 +375,8 @@ function EditModal({
       assetsApi.update(asset.id, {
         ...form,
         disposalDate: form.disposalDate ? form.disposalDate : null,
+        disposalAmount: toAmount(disposalAmount),
+        partialDisposalAmount: toAmount(partialDisposalAmount),
       }),
     onSuccess: () => {
       toast.ok('저장했습니다.');
@@ -387,6 +407,10 @@ function EditModal({
         </>
       }
     >
+      <p className="mb-3 text-[18px] text-fg-muted">
+        취득가액·취득일자·내용연수처럼 감가상각에 영향을 주는 항목은 “회계 정정”에서 사유와 함께
+        고칩니다.
+      </p>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="자산명">
           <input
@@ -495,15 +519,36 @@ function EditModal({
             onChange={(e) => set('instrumentMgmtNo', e.target.value)}
           />
         </Field>
-        <Field label="양도/폐기일">
-          <input
-            type="date"
-            className={inputClass}
-            value={form.disposalDate ?? ''}
-            onChange={(e) => set('disposalDate', e.target.value)}
-          />
-        </Field>
-        <div className="col-span-2">
+
+        {/* 양도·폐기는 날짜 바로 아래에서 금액까지 함께 적는다 (회계팀 회신 2026-09-01) */}
+        <div className="col-span-full grid grid-cols-1 gap-3 rounded-sm border border-line bg-bg/40 p-3 md:grid-cols-3">
+          <Field label="양도/폐기일">
+            <input
+              type="date"
+              className={inputClass}
+              value={form.disposalDate ?? ''}
+              onChange={(e) => set('disposalDate', e.target.value)}
+            />
+          </Field>
+          <Field label="양도폐기금액" hint="감가상각 계산에 쓰이지 않는 기록 항목">
+            <input
+              className={`${inputClass} num`}
+              inputMode="numeric"
+              value={disposalAmount}
+              onChange={(e) => setDisposalAmount(e.target.value.replace(/[^\d.]/g, ''))}
+            />
+          </Field>
+          <Field label="부분매각및폐기" hint="감가상각 계산에 쓰이지 않는 기록 항목">
+            <input
+              className={`${inputClass} num`}
+              inputMode="numeric"
+              value={partialDisposalAmount}
+              onChange={(e) => setPartialDisposalAmount(e.target.value.replace(/[^\d.]/g, ''))}
+            />
+          </Field>
+        </div>
+
+        <div className="col-span-full">
           <Field label="비고">
             <input
               className={inputClass}
@@ -512,7 +557,7 @@ function EditModal({
             />
           </Field>
         </div>
-        <label className="col-span-2 flex w-fit items-center gap-2 text-[19px]">
+        <label className="col-span-full flex w-fit items-center gap-2 text-[19px]">
           <input
             type="checkbox"
             checked={form.excludedFromPrint ?? false}
@@ -577,7 +622,7 @@ function CorrectModal({
       return assetsApi.correct(asset.id, body);
     },
     onSuccess: () => {
-      toast.ok('정정했습니다. 감가상각을 다시 계산하세요.');
+      toast.ok('정정했습니다. 감가상각을 다시 계산했습니다.');
       onDone();
       onClose();
     },
@@ -609,6 +654,10 @@ function CorrectModal({
     >
       <p className="mb-3 rounded-sm border border-warn/40 bg-warn/10 px-3 py-2 text-[18px] text-warn">
         {LOCKED_NOTICE}
+      </p>
+      <p className="mb-3 text-[18px] text-fg-muted">
+        기존 자산에 수리비가 들어 가액이 늘어난 경우는 정정이 아니라 “자산변동사항 → 자본적지출”에
+        등록하세요.
       </p>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="취득일자">
@@ -687,7 +736,7 @@ function CorrectModal({
             }
           />
         </Field>
-        <div className="col-span-2">
+        <div className="col-span-full">
           <Field label="정정 사유" required>
             <input
               className={inputClass}

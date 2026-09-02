@@ -17,6 +17,7 @@ export const queryKeys = {
     summary: (q: AssetFilter) => ['assets', 'summary', q] as const,
     detail: (id: number) => ['assets', 'detail', id] as const,
     history: (id: number) => ['assets', 'history', id] as const,
+    additions: (id: number) => ['assets', 'additions', id] as const,
     codePreview: (q: object) => ['assets', 'code-preview', q] as const,
   },
   physicalAssets: {

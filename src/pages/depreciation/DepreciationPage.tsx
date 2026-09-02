@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { depreciationApi, type ForecastGroupBy, type YearlyRow } from '@/api/depreciation';
+import {
+  depreciationApi,
+  type ForecastGranularity,
+  type ForecastGroupBy,
+  type YearlyRow,
+} from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
 import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate } from '@/lib/date';
@@ -117,6 +122,11 @@ export default function DepreciationPage() {
           fiscalYear={fiscalYear}
           onCalculate={runCalculate}
           calculating={calculate.isPending}
+          /* 연도를 누르면 그 해 월별 명세로 넘어간다 (회계팀 회신 2026-09-01) */
+          onOpenMonthly={(y) => {
+            setFiscalYear(y);
+            setTab('schedule');
+          }}
         />
       )}
       {tab === 'ledger' && <LedgerTab fiscalYear={fiscalYear} />}
@@ -265,10 +275,13 @@ function YearlyTab({
   fiscalYear,
   onCalculate,
   calculating,
+  onOpenMonthly,
 }: {
   fiscalYear: number;
   onCalculate: () => void;
   calculating: boolean;
+  /** 그 해 월별 명세(감가상각비명세 탭)로 넘긴다 */
+  onOpenMonthly: (year: number) => void;
 }) {
   const [fromYear, setFromYear] = useState(fiscalYear - 2);
   const [toYear, setToYear] = useState(fiscalYear);
@@ -334,12 +347,21 @@ function YearlyTab({
         </div>
       </Section>
 
-      <Section title="연도별 상각비 합계">
+      <Section
+        title="연도별 상각비 합계"
+        right={<span className="text-[18px] text-fg-muted">연도를 누르면 월별 명세로 갑니다.</span>}
+      >
         <div className="space-y-1 px-3 py-3">
           {years.map((y) => {
             const v = totals[String(y)] ?? 0;
             return (
-              <div key={y} className="flex items-center gap-2 text-[18px]">
+              <button
+                key={y}
+                type="button"
+                onClick={() => onOpenMonthly(y)}
+                title={`${y}년 월별 명세 보기`}
+                className="flex w-full items-center gap-2 rounded-sm px-1 text-left text-[18px] hover:bg-bg"
+              >
                 <span className="w-20 shrink-0 whitespace-nowrap text-fg-sub">{y}년</span>
                 <span className="h-3 flex-1 bg-bg">
                   <span
@@ -348,7 +370,8 @@ function YearlyTab({
                   />
                 </span>
                 <span className="num w-32">{won(v)}</span>
-              </div>
+                <span className="w-16 shrink-0 text-right text-fg-muted">월별 →</span>
+              </button>
             );
           })}
           {maxTotal === 0 && (
@@ -429,7 +452,12 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         <StatCards
           cards={[
             { label: '자산 건수', value: `${g.assetCount.toLocaleString('ko-KR')}건` },
-            { label: '기초가액', value: won(g.beginningValue) },
+            { label: '기초가액', value: won(g.beginningValue), hint: '전년말까지의 기준가액' },
+            {
+              label: '신규취득및증가',
+              value: won(g.additionAmount),
+              hint: '당기 자본적지출',
+            },
             { label: '당기 상각비', value: won(g.currentDepreciation) },
             { label: '당기말장부가액', value: bookValue(g.endingBookValue) },
           ]}
@@ -453,7 +481,16 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                   <th className={stickyThClass}>자산명</th>
                   <th className={stickyThClass}>취득일</th>
                   <th className={`${stickyThClass} text-right`}>수량</th>
-                  <th className={`${stickyThClass} text-right`}>기초가액</th>
+                  {/* 기초가액은 전년말까지의 기준가액이고, 당기 증가분은 옆 열로 갈라 놓는다 */}
+                  <th className={`${stickyThClass} text-right`} title="전년말까지의 기준가액">
+                    기초가액
+                  </th>
+                  <th
+                    className={`${stickyThClass} text-right`}
+                    title="당기 자본적지출 — 발생 연도부터 상각 기준가액에 더해진다"
+                  >
+                    신규취득및증가
+                  </th>
                   <th className={`${stickyThClass} text-right`}>전기말누계</th>
                   <th className={`${stickyThClass} text-right`}>전기말장부</th>
                   <th className={`${stickyThClass} text-right`}>내용연수</th>
@@ -474,6 +511,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.acquisitionDate)}</td>
                     <td className="num px-3 py-1.5">{r.quantity?.toLocaleString('ko-KR')}</td>
                     <td className="num px-3 py-1.5">{won(r.beginningValue)}</td>
+                    <td className="num px-3 py-1.5">{won(r.additionAmount)}</td>
                     <td className="num px-3 py-1.5">{won(r.priorAccumulated)}</td>
                     <td className="num px-3 py-1.5">{bookValue(r.priorBookValue)}</td>
                     <td className="num px-3 py-1.5">{r.usefulLifeYears ?? '-'}</td>
@@ -492,6 +530,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     </td>
                     <td className="num px-3 py-1.5">{s.quantity?.toLocaleString('ko-KR')}</td>
                     <td className="num px-3 py-1.5">{won(s.beginningValue)}</td>
+                    <td className="num px-3 py-1.5">{won(s.additionAmount)}</td>
                     <td className="num px-3 py-1.5">{won(s.priorAccumulated)}</td>
                     <td className="num px-3 py-1.5">{bookValue(s.priorBookValue)}</td>
                     <td colSpan={3} />
@@ -512,16 +551,21 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
 
 /* ---------- 향후 N개년 예상 ---------- */
 
+
 function ForecastTab() {
   const [years, setYears] = useState(5);
   const [groupBy, setGroupBy] = useState<ForecastGroupBy>('account');
+  const [granularity, setGranularity] = useState<ForecastGranularity>('year');
   // fromYear 를 비우면 서버가 내년부터 잡는다. 당기를 포함해 보여준다
   const [includeCurrent, setIncludeCurrent] = useState(true);
+  /** 월 단위로 볼 때 표에 펼칠 연도. 12개월 × N개년을 한 표에 늘어놓으면 읽을 수 없다 */
+  const [monthYear, setMonthYear] = useState<number | null>(null);
+
   const query = {
     fromYear: includeCurrent ? currentYear() : undefined,
     years,
     groupBy,
-    granularity: 'year' as const,
+    granularity,
   };
 
   const q = useQuery({
@@ -530,6 +574,17 @@ function ForecastTab() {
   });
   const d = q.data;
   const maxTotal = Math.max(0, ...(d?.yearlyTotals ?? []));
+
+  /* 조건을 바꿔 고른 연도가 사라지면 첫 연도로 되돌린다 */
+  const shownYear =
+    d && d.years.length > 0
+      ? monthYear != null && d.years.includes(monthYear)
+        ? monthYear
+        : d.years[0]
+      : null;
+  const yearIndex = d && shownYear != null ? d.years.indexOf(shownYear) : -1;
+  /* 서버가 월별 값을 실제로 실어 보냈을 때만 월 표로 바꾼다 */
+  const byMonth = granularity === 'month' && yearIndex >= 0 && d?.monthlyTotals != null;
 
   return (
     <div className="space-y-3">
@@ -549,6 +604,33 @@ function ForecastTab() {
               ))}
             </select>
           </label>
+          <label className="block">
+            <span className="mb-0.5 block text-[18px] text-fg-sub">단위</span>
+            <select
+              className={`${inputClass} w-28`}
+              value={granularity}
+              onChange={(e) => setGranularity(e.target.value as ForecastGranularity)}
+            >
+              <option value="year">연 단위</option>
+              <option value="month">월 단위</option>
+            </select>
+          </label>
+          {granularity === 'month' && (
+            <label className="block">
+              <span className="mb-0.5 block text-[18px] text-fg-sub">표시 연도</span>
+              <select
+                className={`${inputClass} w-28`}
+                value={shownYear ?? ''}
+                onChange={(e) => setMonthYear(Number(e.target.value))}
+              >
+                {(d?.years ?? []).map((y) => (
+                  <option key={y} value={y}>
+                    {y}년
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="mb-0.5 block text-[18px] text-fg-sub">그룹</span>
             <select
@@ -577,28 +659,62 @@ function ForecastTab() {
       </Section>
 
       {d && (
-        <Section title="연도별 예상 합계">
+        <Section
+          title="연도별 예상 합계"
+          right={
+            granularity === 'month' ? (
+              <span className="text-[18px] text-fg-muted">
+                연도를 누르면 그 해 월별로 펼칩니다.
+              </span>
+            ) : undefined
+          }
+        >
           <div className="space-y-1 px-3 py-3">
-            {d.years.map((y, i) => (
-              <div key={y} className="flex items-center gap-2 text-[18px]">
-                <span className="w-20 shrink-0 whitespace-nowrap text-fg-sub">{y}년</span>
-                <span className="h-3 flex-1 bg-bg">
+            {d.years.map((y, i) => {
+              const bar = (
+                <>
                   <span
-                    className="block h-3 bg-accent"
-                    style={{ width: `${wonRatio(d.yearlyTotals[i] ?? 0, maxTotal) * 100}%` }}
-                  />
-                </span>
-                <span className="num w-32">{won(d.yearlyTotals[i])}</span>
-                <span className="w-16 text-right text-fg-muted">
-                  {wonShort(d.yearlyTotals[i])}
-                </span>
-              </div>
-            ))}
+                    className={`w-20 shrink-0 whitespace-nowrap ${
+                      y === shownYear && granularity === 'month'
+                        ? 'font-semibold text-fg'
+                        : 'text-fg-sub'
+                    }`}
+                  >
+                    {y}년
+                  </span>
+                  <span className="h-3 flex-1 bg-bg">
+                    <span
+                      className="block h-3 bg-accent"
+                      style={{ width: `${wonRatio(d.yearlyTotals[i] ?? 0, maxTotal) * 100}%` }}
+                    />
+                  </span>
+                  <span className="num w-32">{won(d.yearlyTotals[i])}</span>
+                  <span className="w-16 text-right text-fg-muted">
+                    {wonShort(d.yearlyTotals[i])}
+                  </span>
+                </>
+              );
+
+              return granularity === 'month' ? (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => setMonthYear(y)}
+                  className="flex w-full items-center gap-2 rounded-sm px-1 text-left text-[18px] hover:bg-bg"
+                >
+                  {bar}
+                </button>
+              ) : (
+                <div key={y} className="flex items-center gap-2 px-1 text-[18px]">
+                  {bar}
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}
 
-      <Section title="상세">
+      <Section title={byMonth ? `${shownYear}년 월별 예상` : '상세'}>
         <QueryState
           isPending={q.isPending}
           error={q.error}
@@ -614,12 +730,20 @@ function ForecastTab() {
                     {groupBy === 'asset' ? '자산' : groupBy === 'dept' ? '부서' : '구분'}
                   </th>
                   {groupBy === 'asset' && <th className={stickyThClass}>상각방법</th>}
-                  {d.years.map((y) => (
-                    <th key={y} className={`${stickyThClass} text-right`}>
-                      {y}
-                    </th>
-                  ))}
-                  <th className={`${stickyThClass} text-right`}>기간 합계</th>
+                  {byMonth
+                    ? MONTHS.map((m) => (
+                        <th key={m} className={`${stickyThClass} text-right`}>
+                          {m}월
+                        </th>
+                      ))
+                    : d.years.map((y) => (
+                        <th key={y} className={`${stickyThClass} text-right`}>
+                          {y}
+                        </th>
+                      ))}
+                  <th className={`${stickyThClass} text-right`}>
+                    {byMonth ? `${shownYear} 합계` : '기간 합계'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -632,24 +756,41 @@ function ForecastTab() {
                     {groupBy === 'asset' && (
                       <td className="px-3 py-1.5">{r.depreciationMethodLabel ?? '-'}</td>
                     )}
-                    {r.yearlyAmounts.map((v, i) => (
-                      <td key={i} className="num px-3 py-1.5">
-                        {won(v)}
-                      </td>
-                    ))}
-                    <td className="num px-3 py-1.5 font-medium">{won(r.total)}</td>
+                    {/* 칸 수가 열 머리와 어긋나지 않도록 월 표는 늘 12칸을 찍는다 */}
+                    {byMonth
+                      ? MONTHS.map((m, i) => (
+                          <td key={m} className="num px-3 py-1.5">
+                            {won(r.monthlyAmounts?.[yearIndex]?.[i])}
+                          </td>
+                        ))
+                      : r.yearlyAmounts.map((v, i) => (
+                          <td key={i} className="num px-3 py-1.5">
+                            {won(v)}
+                          </td>
+                        ))}
+                    <td className="num px-3 py-1.5 font-medium">
+                      {won(byMonth ? r.yearlyAmounts[yearIndex] : r.total)}
+                    </td>
                   </tr>
                 ))}
                 <tr className="bg-bg font-semibold">
                   <td className="px-3 py-2" colSpan={groupBy === 'asset' ? 2 : 1}>
                     총계
                   </td>
-                  {d.yearlyTotals.map((v, i) => (
-                    <td key={i} className="num px-3 py-2">
-                      {won(v)}
-                    </td>
-                  ))}
-                  <td className="num px-3 py-2">{won(d.grandTotal)}</td>
+                  {byMonth
+                    ? MONTHS.map((m, i) => (
+                        <td key={m} className="num px-3 py-2">
+                          {won(d.monthlyTotals?.[yearIndex]?.[i])}
+                        </td>
+                      ))
+                    : d.yearlyTotals.map((v, i) => (
+                        <td key={i} className="num px-3 py-2">
+                          {won(v)}
+                        </td>
+                      ))}
+                  <td className="num px-3 py-2">
+                    {won(byMonth ? d.yearlyTotals[yearIndex] : d.grandTotal)}
+                  </td>
                 </tr>
               </tbody>
             </table>

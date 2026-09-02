@@ -15,7 +15,7 @@ import { useDebounced } from '@/hooks/useDebounced';
 import { appConfig } from '@/config/appConfig';
 import { codeText, isPrintable } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
-import { bookValue, PRE_SETTLEMENT_NOTE, won } from '@/lib/won';
+import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, won } from '@/lib/won';
 import { fmtDate } from '@/lib/date';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
@@ -457,7 +457,18 @@ export default function AssetListPage() {
                         )}
                       </td>
                       <td className="px-3 py-2">{fmtDate(a.acquisitionDate)}</td>
-                      <td className="num px-3 py-2">{won(a.acquisitionCost)}</td>
+                      <td className="num px-3 py-2">
+                        {won(a.acquisitionCost)}
+                        {/* 자본적지출이 있는 자산만 상각기초가액을 덧붙인다 — 없으면 취득가액과 같다 */}
+                        {a.additionTotal > 0 && (
+                          <span
+                            className="block text-[16px] text-fg-muted"
+                            title="취득가액 + 자본적지출 증가 누계"
+                          >
+                            기초 {won(depreciationBase(a.acquisitionCost, a.additionTotal))}
+                          </span>
+                        )}
+                      </td>
                       <td className="num px-3 py-2">{won(a.accumulatedDepreciation)}</td>
                       <td className="num px-3 py-2" title={a.bookValue < 0 ? PRE_SETTLEMENT_NOTE : undefined}>
                         {bookValue(a.bookValue)}

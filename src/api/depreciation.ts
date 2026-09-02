@@ -72,7 +72,10 @@ export interface LedgerRow {
   acquisitionDate: IsoDate;
   expenseTypeCode: string | null;
   quantity: number;
+  /** 기초가액 — 전년말까지의 기준가액. 당기 증가분은 additionAmount 로 따로 온다 */
   beginningValue: Won;
+  /** 신규취득및증가 — 당기 자본적지출 */
+  additionAmount: Won;
   priorAccumulated: Won;
   priorBookValue: Won;
   usefulLifeYears: number | null;
@@ -90,6 +93,7 @@ export interface LedgerSubtotal {
   assetCount: number;
   quantity: number;
   beginningValue: Won;
+  additionAmount: Won;
   priorAccumulated: Won;
   priorBookValue: Won;
   annualRangeAmount: Won;

@@ -51,6 +51,18 @@ export const wonRatio = (value: Won, max: Won): number => {
   return Math.min(1, value / max);
 };
 
+/**
+ * 상각기초가액 = 취득가액 + 자본적지출 증가 누계.
+ *
+ * "화면에서 금액 산술을 하지 않는다" 규칙의 유일한 예외다. 서버가 합계 필드를 따로 주지 않고
+ * acquisitionCost + additionTotal 로 표기하라고 정했다(백엔드 회신 2026-09-01).
+ * 덧셈이 화면마다 흩어지지 않도록 여기 한 곳에서만 한다.
+ */
+export const depreciationBase = (
+  acquisitionCost: Won | null | undefined,
+  additionTotal: Won | null | undefined,
+): Won => (acquisitionCost ?? 0) + (additionTotal ?? 0);
+
 /** 상각률 0.451 → "0.451" (표시 전용) */
 export const rateText = (rate: number | null | undefined): string =>
   rate == null || !Number.isFinite(rate) ? '-' : rate.toFixed(3);

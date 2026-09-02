@@ -149,6 +149,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+@utility num-left {
+  /*
+   * 정의 목록(Def)의 금액.
+   * 표에서는 자릿수를 세로로 맞추려고 .num 으로 오른쪽에 붙이지만, 한 줄에 값 하나만
+   * 놓는 정의 목록에서는 맞출 상대가 없어 라벨·다른 항목과 시작점만 어긋난다.
+   * 우측 정렬은 빼고 자릿수 고정폭만 쓴다.
+   */
+  font-variant-numeric: tabular-nums;
+}
+
 @layer utilities {
   /*
    * 입력칸에서는 왼쪽부터 쓰게 한다.
