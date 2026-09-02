@@ -142,23 +142,32 @@ const STAT_COLS: Record<number, string> = {
   5: 'md:grid-cols-5',
 };
 
+/**
+ * 요약 카드.
+ *
+ * 라벨을 위에 얹고 값을 큼직하게 두었더니 카드 줄만으로 화면 위쪽을 다 먹어,
+ * 정작 목록이 한참 아래로 내려갔다(2026-09-03). 라벨과 값을 한 줄에 눕혀 높이를 반으로
+ * 줄인다. 값은 오른쪽으로 몰아 카드끼리 자릿수가 세로로 맞는다.
+ */
 export function StatCards({ cards }: { cards: StatCard[] }) {
   return (
-    <div className={`grid grid-cols-2 gap-3 ${STAT_COLS[cards.length] ?? 'md:grid-cols-4'}`}>
+    <div className={`grid grid-cols-2 gap-2 ${STAT_COLS[cards.length] ?? 'md:grid-cols-4'}`}>
       {cards.map((c) => {
         const body = (
           <>
-            <div className="text-[18px] text-fg-sub">{c.label}</div>
-            <div className={`num mt-1 text-[30px] font-semibold ${TONE[c.tone ?? 'default']}`}>
-              {c.value}
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[18px] text-fg-sub">{c.label}</span>
+              <span className={`num text-[22px] font-semibold ${TONE[c.tone ?? 'default']}`}>
+                {c.value}
+              </span>
             </div>
-            {c.hint && <div className="mt-0.5 text-[17px] text-fg-muted">{c.hint}</div>}
+            {c.hint && <div className="text-right text-[16px] text-fg-muted">{c.hint}</div>}
           </>
         );
 
         if (!c.onClick)
           return (
-            <div key={c.label} className="rounded-sm border border-line bg-surface px-4 py-3">
+            <div key={c.label} className="rounded-sm border border-line bg-surface px-3 py-1.5">
               {body}
             </div>
           );
@@ -170,7 +179,7 @@ export function StatCards({ cards }: { cards: StatCard[] }) {
             onClick={c.onClick}
             aria-pressed={c.active}
             className={[
-              'rounded-sm border px-4 py-3 text-left',
+              'rounded-sm border px-3 py-1.5 text-left',
               c.active
                 ? 'border-accent bg-accent/5 ring-1 ring-accent'
                 : 'border-line bg-surface hover:border-fg-muted',

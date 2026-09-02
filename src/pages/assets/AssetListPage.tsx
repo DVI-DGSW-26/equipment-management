@@ -194,8 +194,7 @@ export default function AssetListPage() {
         정작 목록이 아래로 밀렸다(2026-09-03). 무엇을 고르는 칸인지는 첫 항목 이름과
         placeholder 로 알린다. 날짜·금액처럼 두 칸이 한 쌍인 것만 앞에 짧은 말을 붙인다.
       */}
-      <Section title="검색 조건">
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
           <input
             className={`${inputClass} w-40`}
             placeholder="자산명"
@@ -308,8 +307,7 @@ export default function AssetListPage() {
           <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
             초기화
           </button>
-        </div>
-      </Section>
+      </div>
 
       <Section
         title={

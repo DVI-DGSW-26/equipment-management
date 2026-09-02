@@ -195,9 +195,11 @@ export default function PhysicalAssetListPage() {
         실물자산 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
       </h1>
 
-      {/* 조건을 한 줄로 눕힌다. 격자로 쌓으면 화면 절반이 조건칸이라 목록이 밀린다 */}
-      <Section title="조회 조건">
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+      {/*
+        조건을 한 줄로 눕힌다. 격자로 쌓으면 화면 절반이 조건칸이라 목록이 밀린다.
+        "조회 조건" 제목줄도 걷어냈다 — 무엇을 하는 줄인지는 칸만 봐도 안다.
+      */}
+      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
           <SearchBox
             value={form.keyword}
             onChange={(v) => set('keyword', v)}
@@ -271,11 +273,10 @@ export default function PhysicalAssetListPage() {
             렌탈만
           </label>
           <FilterCount shown={filtered.length} total={all.length} />
-          <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
-            초기화
-          </button>
-        </div>
-      </Section>
+        <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
+          초기화
+        </button>
+      </div>
 
       <Section
         title={

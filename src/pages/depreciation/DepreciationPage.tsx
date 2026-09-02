@@ -106,13 +106,15 @@ export default function DepreciationPage() {
 
       {/*
         요구사항 3-1 — 국고보조금 무형자산은 총 취득가액 기준으로 계산하고 상계는
-        결산 시 회계팀이 별도 처리한다. 시스템 값과 결산 후 장부값이 달라지므로
-        어느 탭에서 보든 이 기준을 알 수 있게 상시 표시한다.
+        결산 시 회계팀이 별도 처리한다. 어느 탭에서 보든 이 기준을 알아야 하므로 늘 띄우되,
+        세 줄을 먹어 표가 밀리던 것을 한 줄로 줄이고 자세한 사유는 마우스를 올렸을 때 보인다.
       */}
-      <p className="rounded-sm border border-warn/40 bg-warn/10 px-3 py-2 text-[18px] text-warn">
-        무형자산 11건(소프트웨어 10 · 특허권 1)은 <b>결산 전 기준</b>입니다. 국고보조금분을
-        상계하지 않은 총 취득가액으로 계산하며, 상계는 결산 시 회계팀이 별도 처리합니다. 해당
-        자산은 목록·상세에 “결산 전 기준” 표시가 붙습니다.
+      <p
+        className="rounded-sm border border-warn/40 bg-warn/10 px-3 py-1.5 text-[18px] text-warn"
+        title="국고보조금분을 상계하지 않은 총 취득가액으로 계산하며, 상계는 결산 시 회계팀이 별도 처리합니다. 해당 자산은 목록·상세에 “결산 전 기준” 표시가 붙습니다."
+      >
+        무형자산 11건(소프트웨어 10 · 특허권 1)은 <b>결산 전 기준</b>입니다 — 국고보조금 상계
+        전 금액입니다.
       </p>
 
       {tab === 'schedule' && (
@@ -415,31 +417,28 @@ function YearlyTab({
 
   return (
     <div className="space-y-3">
-      <Section title="조회 기간">
-        <div className="flex flex-wrap items-end gap-3 px-3 py-3">
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">시작 연도</span>
-            <input
-              type="number"
-              className={`${inputClass} num w-28`}
-              value={fromYear}
-              onChange={(e) => setFromYear(Number(e.target.value))}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">종료 연도</span>
-            <input
-              type="number"
-              className={`${inputClass} num w-28`}
-              value={toYear}
-              onChange={(e) => setToYear(Number(e.target.value))}
-            />
-          </label>
-          {fromYear > toYear && (
-            <span className="pb-1 text-[18px] text-danger">시작 연도가 종료 연도보다 큽니다.</span>
-          )}
-        </div>
-      </Section>
+      {/* 조건은 한 줄로. 라벨을 칸 위에 얹으면 높이가 두 배가 되고 표가 그만큼 밀린다 */}
+      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
+        <span className="text-[18px] text-fg-sub">조회 기간</span>
+        <input
+          type="number"
+          className={`${inputClass} num w-24`}
+          aria-label="시작 연도"
+          value={fromYear}
+          onChange={(e) => setFromYear(Number(e.target.value))}
+        />
+        <span className="text-[18px] text-fg-muted">~</span>
+        <input
+          type="number"
+          className={`${inputClass} num w-24`}
+          aria-label="종료 연도"
+          value={toYear}
+          onChange={(e) => setToYear(Number(e.target.value))}
+        />
+        {fromYear > toYear && (
+          <span className="text-[18px] text-danger">시작 연도가 종료 연도보다 큽니다.</span>
+        )}
+      </div>
 
       <Section
         title="연도별 상각비 합계"
@@ -726,75 +725,64 @@ function ForecastTab() {
 
   return (
     <div className="space-y-3">
-      <Section title="조회 조건">
-        <div className="flex flex-wrap items-end gap-3 px-3 py-3">
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">기간</span>
-            <select
-              className={`${inputClass} w-28`}
-              value={years}
-              onChange={(e) => setYears(Number(e.target.value))}
-            >
-              {[3, 5, 10].map((y) => (
-                <option key={y} value={y}>
-                  {y}개년
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">단위</span>
-            <select
-              className={`${inputClass} w-28`}
-              value={granularity}
-              onChange={(e) => setGranularity(e.target.value as ForecastGranularity)}
-            >
-              <option value="year">연 단위</option>
-              <option value="month">월 단위</option>
-            </select>
-          </label>
-          {granularity === 'month' && (
-            <label className="block">
-              <span className="mb-0.5 block text-[18px] text-fg-sub">표시 연도</span>
-              <select
-                className={`${inputClass} w-28`}
-                value={shownYear ?? ''}
-                onChange={(e) => setMonthYear(Number(e.target.value))}
-              >
-                {(d?.years ?? []).map((y) => (
-                  <option key={y} value={y}>
-                    {y}년
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="block">
-            <span className="mb-0.5 block text-[18px] text-fg-sub">그룹</span>
-            <select
-              className={`${inputClass} w-32`}
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value as ForecastGroupBy)}
-            >
-              <option value="account">계정과목별</option>
-              <option value="dept">부서별 (압출·가공·ST)</option>
-              <option value="asset">자산별</option>
-              <option value="total">전체 합계</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 pb-1 text-[18px]">
-            <input
-              type="checkbox"
-              checked={includeCurrent}
-              onChange={(e) => setIncludeCurrent(e.target.checked)}
-            />
-            당기({currentYear()}년) 포함
-          </label>
-          <span className="pb-1 text-[18px] text-fg-muted">
-            저장하지 않고 계산만 하는 추정치입니다.
-          </span>
-        </div>
-      </Section>
+      {/* 조건은 한 줄로. 라벨을 칸 위에 얹으면 높이가 두 배가 되고 표가 그만큼 밀린다 */}
+      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
+        <select
+          className={`${inputClass} w-28`}
+          value={years}
+          aria-label="기간"
+          onChange={(e) => setYears(Number(e.target.value))}
+        >
+          {[3, 5, 10].map((y) => (
+            <option key={y} value={y}>
+              {y}개년
+            </option>
+          ))}
+        </select>
+        <select
+          className={`${inputClass} w-28`}
+          value={granularity}
+          aria-label="단위"
+          onChange={(e) => setGranularity(e.target.value as ForecastGranularity)}
+        >
+          <option value="year">연 단위</option>
+          <option value="month">월 단위</option>
+        </select>
+        {granularity === 'month' && (
+          <select
+            className={`${inputClass} w-28`}
+            value={shownYear ?? ''}
+            aria-label="표시 연도"
+            onChange={(e) => setMonthYear(Number(e.target.value))}
+          >
+            {(d?.years ?? []).map((y) => (
+              <option key={y} value={y}>
+                {y}년
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          className={`${inputClass} w-44`}
+          value={groupBy}
+          aria-label="묶는 기준"
+          onChange={(e) => setGroupBy(e.target.value as ForecastGroupBy)}
+        >
+          <option value="account">계정과목별</option>
+          <option value="dept">부서별 (압출·가공·ST)</option>
+          <option value="asset">자산별</option>
+          <option value="total">전체 합계</option>
+        </select>
+        <label className="flex items-center gap-2 text-[18px]">
+          <input
+            type="checkbox"
+            checked={includeCurrent}
+            onChange={(e) => setIncludeCurrent(e.target.checked)}
+          />
+          당기({currentYear()}년) 포함
+        </label>
+        <span className="text-[18px] text-fg-muted">저장하지 않고 계산만 하는 추정치입니다.</span>
+      </div>
 
       {d && (
         <Section
