@@ -6,6 +6,7 @@ import { calibrationsApi } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
 import { currentYear, daysUntil, fmtDate } from '@/lib/date';
+import { slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -137,10 +138,8 @@ function ListTab() {
     );
   }, [beforeDue, due, sort]);
 
-  /* 쪽 나누기도 화면에서 한다. 조건을 바꿔 쪽수가 줄면 빈 장에 머무르지 않게 되돌린다 */
-  const totalPages = Math.ceil(rows.length / size);
-  const current = Math.min(page, Math.max(0, totalPages - 1));
-  const shown = rows.slice(current * size, current * size + size);
+  /* 쪽 나누기도 화면에서 한다 */
+  const paged = slicePage(rows, page, size);
 
   const dirty =
     keyword !== '' || location !== '' || user !== '' || cycle !== '' || due !== 'all';
@@ -300,7 +299,7 @@ function ListTab() {
                 </tr>
               </thead>
               <tbody>
-                {shown.map((i) => {
+                {paged.items.map((i) => {
                   const days = daysUntil(i.nextDueDate);
                   return (
                     <tr
@@ -329,9 +328,9 @@ function ListTab() {
               </tbody>
             </table>
             <Pagination
-              page={current}
-              totalPages={totalPages}
-              total={rows.length}
+              page={paged.page}
+              totalPages={paged.totalPages}
+              total={paged.total}
               size={size}
               onChange={setPage}
               onSizeChange={(s) => {

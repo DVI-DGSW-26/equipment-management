@@ -11,8 +11,9 @@ import { useCategories, useDepartments, useItemTypes, useItems, useLocations } f
 import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
-import { useDebounced } from '@/hooks/useDebounced';
 import { fmtDate } from '@/lib/date';
+import { slicePage } from '@/lib/paging';
+import { searchIn } from '@/lib/search';
 import { won } from '@/lib/won';
 import Modal from '@/components/Modal';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
@@ -23,48 +24,145 @@ import {
   btnDangerClass,
   btnPrimaryClass,
   Field,
+  FilterCount,
   inputClass,
   Pagination,
   QueryState,
+  SearchBox,
   Section,
   TableScroll,
   stickyThClass,
 } from '@/components/ui';
 
+/**
+ * 목록을 한 번에 다 받아 온다.
+ *
+ * 서버가 걸러 주는 것은 품명·자산코드·상태·자산등록 넷뿐이다. 표에 함께 보이는
+ * 자산구분·위치·부서·제조업체까지 페이지를 나눠 받은 채로 거르면 지금 펼친 장
+ * 안에서만 걸러져, 뒷장에 있는 비품을 "없다" 고 보여 준다.
+ * 전부 받아 화면에서 거르고 쪽도 화면에서 나눈다. 이 수를 넘으면 결과가 전체가
+ * 아니라고 알린다.
+ */
+const LOAD_LIMIT = 1000;
+
+/**
+ * 스티커를 찍을 수 있는지로 거른다.
+ * 못 찍는 이유(코드 미부여·출력 제외)를 골라 그 자리에서 손볼 수 있게 한다 —
+ * 지금까지는 "이 페이지에는 찍을 게 없습니다" 라는 안내만 있어 어디 있는지 찾을 수 없었다.
+ */
+type StickerFilter = '' | 'printable' | 'nocode' | 'excluded';
+
+const matchesSticker = (r: PhysicalAsset, f: StickerFilter): boolean => {
+  if (f === '') return true;
+  if (f === 'nocode') return !r.assetCode;
+  if (f === 'excluded') return r.excludedFromPrint;
+  return !!r.assetCode && !r.excludedFromPrint;
+};
+
+const EMPTY = {
+  keyword: '',
+  category: '',
+  location: '',
+  dept: '',
+  maker: '',
+  status: '' as AssetStatus | '',
+  registered: '' as '' | 'true' | 'false',
+  sticker: '' as StickerFilter,
+  rentalOnly: false,
+};
+
+type FormState = typeof EMPTY;
+
+/** 목록에서 뽑은 값으로 만드는 라벨 붙은 고르기 칸 */
+function Pick({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="mb-0.5 block text-[18px] text-fg-sub">{label}</span>
+      <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">전체</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default function PhysicalAssetListPage() {
   const toast = useToast();
-  const [name, setName] = useState('');
-  const [assetCode, setAssetCode] = useState('');
-  const [status, setStatus] = useState<AssetStatus | ''>('');
-  const [registered, setRegistered] = useState<'' | 'true' | 'false'>('');
+  const [form, setForm] = useState<FormState>(EMPTY);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
   const [editing, setEditing] = useState<PhysicalAsset | 'new' | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
-  // 글자마다 서버를 부르지 않도록 손이 멎은 뒤에 한 번만 보낸다
-  const settledName = useDebounced(name);
-  const settledCode = useDebounced(assetCode);
+  /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [k]: v }));
+    setPage(0);
+  };
 
-  const query = useMemo(
-    () => ({
-      name: settledName.trim() || undefined,
-      assetCode: settledCode.trim() || undefined,
-      status: status || undefined,
-      registered: registered === '' ? undefined : registered === 'true',
-      page,
-      size,
-    }),
-    [settledName, settledCode, status, registered, page, size],
-  );
-
+  const query = useMemo(() => ({ page: 0, size: LOAD_LIMIT }), []);
   const list = useQuery({
     queryKey: queryKeys.physicalAssets.list(query),
     queryFn: () => physicalAssetsApi.list(query),
   });
 
-  const rows = list.data?.items ?? [];
+  const all = useMemo(() => list.data?.items ?? [], [list.data]);
+  /** 서버에 더 있는데 못 받아 왔다 */
+  const truncated = (list.data?.total ?? 0) > all.length;
+
+  /** 선택지는 실제로 목록에 있는 값에서 뽑는다 — 고르면 반드시 결과가 있다 */
+  const options = useMemo(() => {
+    const uniq = (vals: (string | null)[]) =>
+      [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'ko'));
+    return {
+      categories: uniq(all.map((r) => r.categoryName)),
+      locations: uniq(all.map((r) => r.locationName)),
+      depts: uniq(all.map((r) => r.deptName)),
+      makers: uniq(all.map((r) => r.maker)),
+    };
+  }, [all]);
+
+  const filtered = useMemo(() => {
+    const hit = searchIn(form.keyword);
+    return all.filter(
+      (r) =>
+        hit(r.name, r.assetCode, r.modelName, r.spec, r.maker, r.supplier, r.remark) &&
+        (form.category === '' || r.categoryName === form.category) &&
+        (form.location === '' || r.locationName === form.location) &&
+        (form.dept === '' || r.deptName === form.dept) &&
+        (form.maker === '' || r.maker === form.maker) &&
+        (form.status === '' || r.status === form.status) &&
+        (form.registered === '' || r.registered === (form.registered === 'true')) &&
+        (!form.rentalOnly || r.rental) &&
+        matchesSticker(r, form.sticker),
+    );
+  }, [all, form]);
+
+  /* 쪽 나누기도 화면에서 한다 */
+  const paged = slicePage(filtered, page, size);
+  const rows = paged.items;
   const sel = useStickerSelection(rows);
+
+  const dirty = (Object.keys(EMPTY) as (keyof FormState)[]).some((k) => form[k] !== EMPTY[k]);
+  const reset = () => {
+    setForm(EMPTY);
+    setPage(0);
+    sel.clear();
+  };
 
   /** 체크박스가 잠긴 이유. null 이면 선택 가능 */
   const rowBlockedReason = (r: PhysicalAsset): string | null =>
@@ -91,6 +189,99 @@ export default function PhysicalAssetListPage() {
         실물자산 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
       </h1>
 
+      <Section title="조회 조건">
+        <div className="grid grid-cols-1 gap-3 px-3 py-3 md:grid-cols-3 lg:grid-cols-4">
+          <label className="block lg:col-span-2">
+            <span className="mb-0.5 block text-[18px] text-fg-sub">검색</span>
+            <SearchBox
+              value={form.keyword}
+              onChange={(v) => set('keyword', v)}
+              placeholder="품명·자산코드·모델명·규격·제조업체·매입처·비고"
+              width="w-full"
+            />
+          </label>
+          <Pick
+            label="자산구분"
+            value={form.category}
+            onChange={(v) => set('category', v)}
+            options={options.categories}
+          />
+          <Pick
+            label="위치"
+            value={form.location}
+            onChange={(v) => set('location', v)}
+            options={options.locations}
+          />
+          <Pick
+            label="부서"
+            value={form.dept}
+            onChange={(v) => set('dept', v)}
+            options={options.depts}
+          />
+          <Pick
+            label="제조업체"
+            value={form.maker}
+            onChange={(v) => set('maker', v)}
+            options={options.makers}
+          />
+          <label className="block">
+            <span className="mb-0.5 block text-[18px] text-fg-sub">자산등록</span>
+            <select
+              className={inputClass}
+              value={form.registered}
+              onChange={(e) => set('registered', e.target.value as FormState['registered'])}
+            >
+              <option value="">전체</option>
+              <option value="true">자산등록 O</option>
+              <option value="false">소액 비품</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-0.5 block text-[18px] text-fg-sub">상태</span>
+            <select
+              className={inputClass}
+              value={form.status}
+              onChange={(e) => set('status', e.target.value as AssetStatus | '')}
+            >
+              <option value="">전체</option>
+              {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {ASSET_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-0.5 block text-[18px] text-fg-sub">스티커</span>
+            <select
+              className={inputClass}
+              value={form.sticker}
+              onChange={(e) => set('sticker', e.target.value as StickerFilter)}
+            >
+              <option value="">전체</option>
+              <option value="printable">출력 가능</option>
+              <option value="nocode">자산코드 미부여</option>
+              <option value="excluded">출력 제외</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 self-end pb-1.5 text-[19px]">
+            <input
+              type="checkbox"
+              checked={form.rentalOnly}
+              onChange={(e) => set('rentalOnly', e.target.checked)}
+            />
+            렌탈만
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2 text-[18px] text-fg-muted">
+          <span>입력하는 대로 결과가 바뀝니다.</span>
+          <FilterCount shown={filtered.length} total={all.length} />
+          <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
+            초기화
+          </button>
+        </div>
+      </Section>
+
       <Section
         title={
           <>
@@ -103,51 +294,6 @@ export default function PhysicalAssetListPage() {
         }
         right={
           <>
-            <input
-              className={`${inputClass} w-36`}
-              placeholder="품명"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setPage(0);
-              }}
-            />
-            <input
-              className={`${inputClass} w-40`}
-              placeholder="자산코드"
-              value={assetCode}
-              onChange={(e) => {
-                setAssetCode(e.target.value);
-                setPage(0);
-              }}
-            />
-            <select
-              className={`${inputClass} w-28`}
-              value={registered}
-              onChange={(e) => {
-                setRegistered(e.target.value as '' | 'true' | 'false');
-                setPage(0);
-              }}
-            >
-              <option value="">전체</option>
-              <option value="true">자산등록 O</option>
-              <option value="false">소액 비품</option>
-            </select>
-            <select
-              className={`${inputClass} w-24`}
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as AssetStatus | '');
-                setPage(0);
-              }}
-            >
-              <option value="">전체 상태</option>
-              {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ASSET_STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
             <button
               type="button"
               className={btnClass}
@@ -167,11 +313,20 @@ export default function PhysicalAssetListPage() {
           </>
         }
       >
+        {truncated && (
+          <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
+            실물자산이 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}
+            {all.length.toLocaleString('ko-KR')}건만 받아 왔습니다. 아래 결과는 그 안에서만 거른
+            것입니다 — 서버 필터 추가가 필요합니다.
+          </p>
+        )}
+
         {/* 체크박스가 전부 잠겨 보이는 이유를 미리 알려준다 */}
         {rows.length > 0 && !sel.showSelectColumn && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[17px] text-warn">
             이 페이지에는 스티커를 출력할 수 있는 실물자산이 없습니다. 자산코드가 없거나 출력
-            제외로 지정된 자산은 선택할 수 없습니다.
+            제외로 지정된 자산은 선택할 수 없습니다. 위 “스티커” 조건으로 그 대상만 모아 볼 수
+            있습니다.
           </p>
         )}
 
@@ -179,7 +334,7 @@ export default function PhysicalAssetListPage() {
           isPending={list.isPending}
           error={list.error}
           isEmpty={rows.length === 0}
-          emptyText="조건에 맞는 실물자산이 없습니다."
+          emptyText={dirty ? '조건에 맞는 실물자산이 없습니다.' : '등록된 실물자산이 없습니다.'}
         />
         {rows.length > 0 && (
           <>
@@ -277,9 +432,9 @@ export default function PhysicalAssetListPage() {
               </table>
             </TableScroll>
             <Pagination
-              page={list.data?.page ?? 0}
-              totalPages={list.data?.totalPages ?? 0}
-              total={list.data?.total ?? 0}
+              page={paged.page}
+              totalPages={paged.totalPages}
+              total={paged.total}
               size={size}
               onChange={setPage}
               onSizeChange={(s) => {
