@@ -7,6 +7,7 @@ import {
   type YearlyRow,
 } from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
+import type { Won } from '@/api/types';
 import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate } from '@/lib/date';
 import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
@@ -714,6 +715,12 @@ function ForecastTab() {
         </Section>
       )}
 
+      {byMonth && shownYear != null && (
+        <Section title={`${shownYear}년 월별 추이`}>
+          <MonthlyBars year={shownYear} amounts={d?.monthlyTotals?.[yearIndex] ?? []} />
+        </Section>
+      )}
+
       <Section title={byMonth ? `${shownYear}년 월별 예상` : '상세'}>
         <QueryState
           isPending={q.isPending}
@@ -797,6 +804,73 @@ function ForecastTab() {
           </TableScroll>
         )}
       </Section>
+    </div>
+  );
+}
+
+/**
+ * 한 해 열두 달 예상 상각비의 크기 비교.
+ *
+ * 정확한 금액은 바로 아래 표에 열두 달치가 다 있다. 여기서는 어느 달에 몰리는지
+ * 모양만 본다 — 그래서 숫자는 가장 큰 달에만 적고, 나머지는 달 위에 마우스를 올렸을 때
+ * 보여준다. 막대마다 숫자를 붙이면 읽어야 할 것이 스물넷이 돼 모양이 안 보인다.
+ *
+ * 계열이 하나뿐이라 색은 앱 액센트 하나만 쓴다(위 연도별 막대와 같은 색이라야
+ * 같은 자료로 읽힌다). 금액 산술은 하지 않는다 — wonRatio 는 CSS 높이에만 쓴다.
+ */
+function MonthlyBars({ year, amounts }: { year: number; amounts: Won[] }) {
+  const max = Math.max(0, ...amounts.filter(Number.isFinite));
+  /* 가장 큰 달에만 금액을 적는다. 전부 0 이면 짚을 달이 없다 */
+  const peak = max > 0 ? amounts.indexOf(max) : -1;
+
+  return (
+    <div className="px-3 py-4">
+      {/* 금액 표시줄을 막대 위에 따로 둔다 — 막대 안에 넣으면 제일 큰 달이 잘린다 */}
+      <div className="flex gap-0.5">
+        {MONTHS.map((m, i) => (
+          <span key={m} className="flex-1 text-center text-[17px] text-fg-sub">
+            {i === peak ? wonShort(amounts[i]) : ' '}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex h-40 items-end gap-0.5">
+        {MONTHS.map((m, i) => {
+          const v = amounts[i] ?? 0;
+          return (
+            <div
+              key={m}
+              className="flex h-full flex-1 flex-col justify-end"
+              title={`${year}년 ${m}월 · ${won(v)}원`}
+            >
+              <span
+                className="block w-full rounded-t-[4px] bg-accent"
+                /* 아주 작은 달도 사라지지 않게 최소 높이를 준다. 0 인 달은 그대로 비운다 */
+                style={{ height: `${wonRatio(v, max) * 100}%`, minHeight: v > 0 ? 2 : 0 }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-0.5 border-t border-line pt-1">
+        {MONTHS.map((m, i) => (
+          <span
+            key={m}
+            className={`flex-1 text-center text-[17px] ${
+              i === peak ? 'font-semibold text-fg' : 'text-fg-muted'
+            }`}
+          >
+            {m}
+          </span>
+        ))}
+      </div>
+
+      <p className="mt-2 text-[17px] text-fg-muted">
+        {max > 0
+          ? '가장 많이 잡히는 달만 금액을 적었습니다. 막대에 마우스를 올리면 그 달 금액이 뜨고, 열두 달 값은 아래 표에 있습니다.'
+          : '이 해에는 예상 상각비가 없습니다.'}
+      </p>
     </div>
   );
 }
