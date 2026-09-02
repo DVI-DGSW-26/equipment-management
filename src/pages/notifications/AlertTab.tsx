@@ -12,7 +12,7 @@ import { inspectionsApi } from '@/api/inspections';
 import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
 import { usersApi, type DirectoryUser } from '@/api/users';
-import { ApiError } from '@/api/types';
+import { ApiError, errorMessage } from '@/api/types';
 import { useDepartments } from '@/hooks/useMasters';
 import { fmtDateTime, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
@@ -244,11 +244,26 @@ function DirectoryPicker({ onPick }: { onPick: (user: DirectoryUser) => void }) 
     return found.sort((a, b) => first(b) - first(a));
   }, [people, k]);
 
-  /* 명단을 못 받았으면 이 칸을 아예 두지 않는다. 눌러도 아무것도 안 뜨는 칸이 더 나쁘다 */
+  /*
+   * 명단을 못 받았으면 이 칸을 아예 두지 않는다. 눌러도 아무것도 안 뜨는 칸이 더 나쁘다.
+   *
+   * 대신 왜 안 되는지를 적는다. 503 은 기다리면 되는 것이고 502 는 인증서버가 내려간
+   * 것이며, 그 밖의 코드는 우리 쪽에서 봐야 할 문제다 — 한 문구로 뭉뚱그리면
+   * 기다려야 할지 알려야 할지 알 수 없다.
+   */
   if (q.isError) {
+    const status = q.error instanceof ApiError ? q.error.status : 0;
+    const why =
+      status === 503
+        ? '통합로그인 연동 준비 중입니다 (인증서버 권한 등록 대기).'
+        : status === 502
+          ? '인증서버에 연결하지 못했습니다. 잠시 뒤 다시 열어 보세요.'
+          : status === 401 || status === 403
+            ? '이 계정으로는 명단을 볼 수 없습니다.'
+            : `${errorMessage(q.error)} (${status || '응답 없음'})`;
     return (
-      <span className="text-[18px] text-fg-muted" title="통합로그인 연동 전이거나 인증서버 장애">
-        사내 명단을 불러오지 못해 직접 입력만 됩니다.
+      <span className="text-[18px] text-warn" title={`GET /user/directory · ${status}`}>
+        사내 명단을 쓸 수 없어 직접 입력만 됩니다 — {why}
       </span>
     );
   }
