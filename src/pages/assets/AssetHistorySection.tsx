@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
 import { fmtDateTime } from '@/lib/date';
-import { inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 /**
  * 변경 이력.
@@ -14,6 +15,7 @@ import { inputClass, QueryState, Section, thClass } from '@/components/ui';
  */
 export default function AssetHistorySection({ assetId }: { assetId: number }) {
   const [type, setType] = useState('');
+  const [keyword, setKeyword] = useState('');
 
   const q = useQuery({
     queryKey: queryKeys.assets.history(assetId),
@@ -28,13 +30,25 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
     [all],
   );
 
-  const rows = type ? all.filter((h) => h.changeType === type) : all;
+  const hit = searchIn(keyword);
+  const rows = all.filter(
+    (h) =>
+      (type === '' || h.changeType === type) &&
+      hit(h.fieldName, h.beforeValue, h.afterValue, h.changedBy),
+  );
+  const filtering = type !== '' || keyword.trim() !== '';
 
   return (
     <Section
       title="변경 이력"
       right={
         <>
+          <SearchBox
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="항목·값·변경자"
+            width="w-48"
+          />
           <select
             className={`${inputClass} w-40`}
             value={type}
@@ -48,10 +62,7 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
               </option>
             ))}
           </select>
-          <span className="text-[18px] text-fg-muted">
-            {rows.length.toLocaleString('ko-KR')}건
-            {type && ` / 전체 ${all.length.toLocaleString('ko-KR')}건`}
-          </span>
+          <FilterCount shown={rows.length} total={all.length} />
         </>
       }
     >
@@ -59,7 +70,7 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
         isPending={q.isPending}
         error={q.error}
         isEmpty={rows.length === 0}
-        emptyText={type ? '해당 구분의 이력이 없습니다.' : '변경 이력이 없습니다.'}
+        emptyText={filtering ? '해당 조건의 이력이 없습니다.' : '변경 이력이 없습니다.'}
       />
       {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">

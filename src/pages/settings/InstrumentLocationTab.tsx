@@ -4,7 +4,8 @@ import { instrumentLocationsApi, type InstrumentLocation } from '@/api/instrumen
 import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations } from '@/hooks/useMasters';
 import { useToast } from '@/components/toastContext';
-import { btnPrimaryClass, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { btnPrimaryClass, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function InstrumentLocationTab() {
   const qc = useQueryClient();
@@ -12,8 +13,12 @@ export default function InstrumentLocationTab() {
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<InstrumentLocation | null>(null);
   const [editName, setEditName] = useState('');
+  const [keyword, setKeyword] = useState('');
 
   const q = useInstrumentLocations();
+
+  const all = q.data ?? [];
+  const rows = all.filter((l) => searchIn(keyword)(l.name));
 
   const invalidate = () =>
     void qc.invalidateQueries({ queryKey: queryKeys.masters.instrumentLocations() });
@@ -52,9 +57,11 @@ export default function InstrumentLocationTab() {
       title="계측기 사용위치"
       right={
         <>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="위치 검색" width="w-40" />
+          <FilterCount shown={rows.length} total={all.length} />
           <input
             className={`${inputClass} w-40`}
-            placeholder="사용위치명"
+            placeholder="추가할 사용위치명"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && draft.trim() && create.mutate()}
@@ -73,8 +80,13 @@ export default function InstrumentLocationTab() {
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
         고정자산의 위치 코드 마스터(A01 · 압출동 …)와는 별개 목록입니다.
       </p>
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -83,7 +95,7 @@ export default function InstrumentLocationTab() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((l) => (
+            {rows.map((l) => (
               <tr key={l.id} className="border-b border-line hover:bg-bg">
                 <td className="px-3 py-2">
                   {editing?.id === l.id ? (

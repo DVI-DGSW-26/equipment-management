@@ -4,6 +4,7 @@ import { inspectionsApi, type EquipmentStatus, type SafetyEquipment } from '@/ap
 import { queryKeys } from '@/api/queryKeys';
 import { byDueAsc, DDAY_CLASS, ddayLabel, levelOf } from '@/domain/dday';
 import { fmtDate } from '@/lib/date';
+import { searchIn } from '@/lib/search';
 import DetailModal from './DetailModal';
 import EquipmentModal from './EquipmentModal';
 import {
@@ -11,6 +12,7 @@ import {
   btnPrimaryClass,
   inputClass,
   QueryState,
+  SearchBox,
   Section,
   StatCards,
   thClass,
@@ -36,6 +38,7 @@ export default function EquipmentTab() {
   const [team, setTeam] = useState('');
   const [status, setStatus] = useState<EquipmentStatus | ''>('IN_USE');
   const [due, setDue] = useState<DueFilter>('all');
+  const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState<SafetyEquipment | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -58,7 +61,15 @@ export default function EquipmentTab() {
   });
 
   const all = useMemo(() => [...(list.data ?? [])].sort(byDueAsc), [list.data]);
-  const rows = useMemo(() => all.filter((e) => matchesDue(e, due)), [all, due]);
+  /* 담당반·상태는 서버가, 기한과 키워드는 여기서 거른다 (대상이 13건뿐이다) */
+  const rows = useMemo(() => {
+    const hit = searchIn(keyword);
+    return all.filter(
+      (e) =>
+        matchesDue(e, due) &&
+        hit(e.name, e.modelNo, e.installLocation, e.inspectionAgency, e.certificateNo, e.team),
+    );
+  }, [all, due, keyword]);
 
   /** 담당반 선택지는 실제 등록된 값에서 뽑는다. 마스터 API 가 따로 없다 */
   const teams = useMemo(
@@ -96,12 +107,19 @@ export default function EquipmentTab() {
           <>
             안전검사 대상{' '}
             <span className="font-normal text-fg-muted">
-              {rows.length}건{due !== 'all' && ' · 기한 필터 적용 중'}
+              {rows.length}건{rows.length !== all.length && ` / 전체 ${all.length}건`}
+              {due !== 'all' && ' · 기한 필터 적용 중'}
             </span>
           </>
         }
         right={
           <>
+            <SearchBox
+              value={keyword}
+              onChange={setKeyword}
+              placeholder="설비명·모델·설치위치·검사기관"
+              width="w-64"
+            />
             <select
               className={`${inputClass} w-32`}
               value={team}

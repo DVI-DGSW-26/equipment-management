@@ -11,26 +11,45 @@ import { queryKeys } from '@/api/queryKeys';
 import { useCodes } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
-import { btnClass, btnPrimaryClass, Field, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<CodeMaster | null | 'new'>(null);
+  const [keyword, setKeyword] = useState('');
   const extraLabel = CODE_MASTER_EXTRA_LABEL[kind];
 
   const q = useCodes(kind);
+
+  const all = q.data ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter((c) => hit(c.code, c.name, c.extra, c.remark));
 
   return (
     <Section
       title={CODE_MASTER_LABEL[kind]}
       right={
-        <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-          추가
-        </button>
+        <>
+          <SearchBox
+            value={keyword}
+            onChange={setKeyword}
+            placeholder={extraLabel ? `코드·이름·${extraLabel}·비고` : '코드·이름·비고'}
+          />
+          <FilterCount shown={rows.length} total={all.length} />
+          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+            추가
+          </button>
+        </>
       }
     >
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -43,7 +62,7 @@ export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((c) => (
+            {rows.map((c) => (
               <tr key={c.id} className="border-b border-line hover:bg-bg">
                 <td className="code px-3 py-2">{c.code}</td>
                 <td className="px-3 py-2">{c.name}</td>

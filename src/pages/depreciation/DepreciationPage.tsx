@@ -10,13 +10,16 @@ import { queryKeys } from '@/api/queryKeys';
 import type { Won } from '@/api/types';
 import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate } from '@/lib/date';
+import { searchIn } from '@/lib/search';
 import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import {
   Badge,
   btnPrimaryClass,
+  FilterCount,
   inputClass,
   QueryState,
+  SearchBox,
   Section,
   TableScroll,
   StatCards,
@@ -136,6 +139,58 @@ export default function DepreciationPage() {
   );
 }
 
+/**
+ * 계정과목 선택지를 표에 실제로 있는 행에서 뽑는다.
+ * 마스터를 따로 부르면 그 해에 상각 대상이 아닌 계정까지 목록에 뜬다.
+ */
+const accountOptions = (rows: { accountCode: string; accountName: string }[]) =>
+  [...new Map(rows.map((r) => [r.accountCode, r.accountName])).entries()].sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
+
+/**
+ * 소계·총계는 서버가 전체 행을 기준으로 계산해 보내 준다.
+ * 화면에서 행을 걸러내면 그 합계와 표가 맞지 않으므로, 필터가 걸린 동안에는 감추고
+ * 왜 안 보이는지 적어 준다 — 남겨 두면 더한 값이 틀린 것처럼 읽힌다.
+ */
+function FilteredTotalsNote({ colSpan }: { colSpan: number }) {
+  return (
+    <tr className="bg-bg">
+      <td className="px-3 py-2 text-[17px] text-fg-muted" colSpan={colSpan}>
+        필터를 적용하는 동안에는 소계·총계를 감춥니다. 서버가 보내 준 합계는 전체 기준이라 걸러낸
+        표와 맞지 않습니다.
+      </td>
+    </tr>
+  );
+}
+
+/** 계정과목 고르기. 표마다 같은 모양으로 쓴다 */
+function AccountPicker({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <select
+      className={`${inputClass} w-44`}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="계정과목"
+    >
+      <option value="">계정과목 전체</option>
+      {options.map(([code, name]) => (
+        <option key={code} value={code}>
+          {code} {name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /* ---------- 감가상각비명세: 자산별 월별 ---------- */
 
 /** 계산 결과가 없을 때 상단까지 올라가지 않고 그 자리에서 실행할 수 있게 하는 버튼 */
@@ -167,6 +222,9 @@ function ScheduleTab({
   onCalculate: () => void;
   calculating: boolean;
 }) {
+  const [keyword, setKeyword] = useState('');
+  const [account, setAccount] = useState('');
+
   const q = useQuery({
     queryKey: queryKeys.depreciation.schedule(fiscalYear),
     queryFn: () => depreciationApi.schedule(fiscalYear),
@@ -174,30 +232,46 @@ function ScheduleTab({
   const d = q.data;
   const estFrom = d?.estimatedFromMonth ?? null;
 
+  const all = d?.rows ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter(
+    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+  );
+  const filtering = keyword.trim() !== '' || account !== '';
+
   return (
     <Section
       title={`${fiscalYear}년 감가상각비명세`}
       right={
-        estFrom ? (
-          <Badge tone="warn">{estFrom}월부터 마감 전 예상치</Badge>
-        ) : (
-          d && <Badge tone="muted">전 기간 확정</Badge>
-        )
+        <>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
+          <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
+          <FilterCount shown={rows.length} total={all.length} />
+          {estFrom ? (
+            <Badge tone="warn">{estFrom}월부터 마감 전 예상치</Badge>
+          ) : (
+            d && <Badge tone="muted">전 기간 확정</Badge>
+          )}
+        </>
       }
     >
       <QueryState
         isPending={q.isPending}
         error={q.error}
-        isEmpty={(d?.rows ?? []).length === 0}
+        isEmpty={rows.length === 0}
         emptyText={
-          <CalculateHere
-            label={`${fiscalYear}년 계산 결과가 없습니다.`}
-            onCalculate={onCalculate}
-            calculating={calculating}
-          />
+          filtering ? (
+            '검색 결과가 없습니다.'
+          ) : (
+            <CalculateHere
+              label={`${fiscalYear}년 계산 결과가 없습니다.`}
+              onCalculate={onCalculate}
+              calculating={calculating}
+            />
+          )
         }
       />
-      {d && d.rows.length > 0 && (
+      {d && rows.length > 0 && (
         <TableScroll>
           <table className="w-max min-w-full text-[18px]">
             <thead>
@@ -218,7 +292,7 @@ function ScheduleTab({
               </tr>
             </thead>
             <tbody>
-              {d.rows.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                   <td className="px-3 py-1.5">{r.accountName}</td>
                   <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
@@ -235,24 +309,30 @@ function ScheduleTab({
                   <td className="num px-3 py-1.5 font-medium">{won(r.total)}</td>
                 </tr>
               ))}
-              {d.subtotals.map((s) => (
-                <tr key={s.accountCode} className="border-b border-line bg-bg/60 font-medium">
-                  <td className="px-3 py-1.5" colSpan={4}>
-                    소계 · {s.accountName}
-                  </td>
-                  {s.monthlyAmounts.map((v, i) => (
-                    <td key={i} className="num px-2 py-1.5">
-                      {won(v)}
-                    </td>
+              {filtering ? (
+                <FilteredTotalsNote colSpan={17} />
+              ) : (
+                <>
+                  {d.subtotals.map((s) => (
+                    <tr key={s.accountCode} className="border-b border-line bg-bg/60 font-medium">
+                      <td className="px-3 py-1.5" colSpan={4}>
+                        소계 · {s.accountName}
+                      </td>
+                      {s.monthlyAmounts.map((v, i) => (
+                        <td key={i} className="num px-2 py-1.5">
+                          {won(v)}
+                        </td>
+                      ))}
+                      <td className="num px-3 py-1.5">{won(s.total)}</td>
+                    </tr>
                   ))}
-                  <td className="num px-3 py-1.5">{won(s.total)}</td>
-                </tr>
-              ))}
-              <tr className="bg-bg font-semibold">
-                <td className="px-3 py-2" colSpan={16}>
-                  총계 <span className="num float-right">{won(d.grandTotal)}</span>
-                </td>
-              </tr>
+                  <tr className="bg-bg font-semibold">
+                    <td className="px-3 py-2" colSpan={17}>
+                      총계 <span className="num float-right">{won(d.grandTotal)}</span>
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </TableScroll>
@@ -267,6 +347,7 @@ interface PivotRow {
   assetId: number;
   assetCode: string | null;
   assetName: string;
+  accountCode: string;
   accountName: string;
   methodLabel: string | null;
   byYear: Record<number, YearlyRow>;
@@ -286,6 +367,8 @@ function YearlyTab({
 }) {
   const [fromYear, setFromYear] = useState(fiscalYear - 2);
   const [toYear, setToYear] = useState(fiscalYear);
+  const [keyword, setKeyword] = useState('');
+  const [account, setAccount] = useState('');
 
   const q = useQuery({
     queryKey: queryKeys.depreciation.yearly(fromYear, toYear),
@@ -307,6 +390,7 @@ function YearlyTab({
           assetId: r.assetId,
           assetCode: r.assetCode,
           assetName: r.assetName,
+          accountCode: r.accountCode,
           accountName: r.accountName,
           methodLabel: r.depreciationMethodLabel,
           byYear: {},
@@ -316,6 +400,12 @@ function YearlyTab({
     });
     return [...map.values()];
   }, [q.data]);
+
+  /* 자산별 표만 거른다. 위의 연도별 합계는 서버가 준 전체 기준 값이라 건드리지 않는다 */
+  const hit = searchIn(keyword);
+  const shown = pivot.filter(
+    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+  );
 
   const totals = q.data?.totalsByYear ?? {};
   const maxTotal = Math.max(0, ...years.map((y) => totals[String(y)] ?? 0));
@@ -387,14 +477,23 @@ function YearlyTab({
         </div>
       </Section>
 
-      <Section title="자산별">
+      <Section
+        title="자산별"
+        right={
+          <>
+            <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
+            <AccountPicker value={account} onChange={setAccount} options={accountOptions(pivot)} />
+            <FilterCount shown={shown.length} total={pivot.length} />
+          </>
+        }
+      >
         <QueryState
           isPending={q.isPending}
           error={q.error}
-          isEmpty={pivot.length === 0}
-          emptyText="조회 결과가 없습니다."
+          isEmpty={shown.length === 0}
+          emptyText={pivot.length > 0 ? '검색 결과가 없습니다.' : '조회 결과가 없습니다.'}
         />
-        {pivot.length > 0 && (
+        {shown.length > 0 && (
           <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
@@ -413,7 +512,7 @@ function YearlyTab({
                 </tr>
               </thead>
               <tbody>
-                {pivot.map((r) => (
+                {shown.map((r) => (
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                     <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
@@ -440,12 +539,22 @@ function YearlyTab({
 /* ---------- 고정자산관리대장 ---------- */
 
 function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
+  const [keyword, setKeyword] = useState('');
+  const [account, setAccount] = useState('');
+
   const q = useQuery({
     queryKey: queryKeys.depreciation.ledger(fiscalYear),
     queryFn: () => depreciationApi.ledger(fiscalYear),
   });
   const d = q.data;
   const g = d?.grandTotal;
+
+  const all = d?.rows ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter(
+    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+  );
+  const filtering = keyword.trim() !== '' || account !== '';
 
   return (
     <div className="space-y-3">
@@ -465,14 +574,23 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         />
       )}
 
-      <Section title={`${fiscalYear}년 고정자산관리대장`}>
+      <Section
+        title={`${fiscalYear}년 고정자산관리대장`}
+        right={
+          <>
+            <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
+            <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
+            <FilterCount shown={rows.length} total={all.length} />
+          </>
+        }
+      >
         <QueryState
           isPending={q.isPending}
           error={q.error}
-          isEmpty={(d?.rows ?? []).length === 0}
-          emptyText="대장 데이터가 없습니다."
+          isEmpty={rows.length === 0}
+          emptyText={filtering ? '검색 결과가 없습니다.' : '대장 데이터가 없습니다.'}
         />
-        {d && d.rows.length > 0 && (
+        {d && rows.length > 0 && (
           <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
@@ -504,7 +622,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                 </tr>
               </thead>
               <tbody>
-                {d.rows.map((r) => (
+                {rows.map((r) => (
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                     <td className="px-3 py-1.5">{r.accountName}</td>
                     <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
@@ -524,23 +642,30 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                     <td className="num px-3 py-1.5">{bookValue(r.endingBookValue)}</td>
                   </tr>
                 ))}
-                {d.subtotals.map((s) => (
-                  <tr key={s.accountCode ?? 'sub'} className="border-b border-line bg-bg/60 font-medium">
-                    <td className="px-3 py-1.5" colSpan={4}>
-                      소계 · {s.accountName} ({s.assetCount}건)
-                    </td>
-                    <td className="num px-3 py-1.5">{s.quantity?.toLocaleString('ko-KR')}</td>
-                    <td className="num px-3 py-1.5">{won(s.beginningValue)}</td>
-                    <td className="num px-3 py-1.5">{won(s.additionAmount)}</td>
-                    <td className="num px-3 py-1.5">{won(s.priorAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{bookValue(s.priorBookValue)}</td>
-                    <td colSpan={3} />
-                    <td className="num px-3 py-1.5">{won(s.annualRangeAmount)}</td>
-                    <td className="num px-3 py-1.5">{won(s.currentDepreciation)}</td>
-                    <td className="num px-3 py-1.5">{won(s.endingAccumulated)}</td>
-                    <td className="num px-3 py-1.5">{bookValue(s.endingBookValue)}</td>
-                  </tr>
-                ))}
+                {filtering ? (
+                  <FilteredTotalsNote colSpan={16} />
+                ) : (
+                  d.subtotals.map((s) => (
+                    <tr
+                      key={s.accountCode ?? 'sub'}
+                      className="border-b border-line bg-bg/60 font-medium"
+                    >
+                      <td className="px-3 py-1.5" colSpan={4}>
+                        소계 · {s.accountName} ({s.assetCount}건)
+                      </td>
+                      <td className="num px-3 py-1.5">{s.quantity?.toLocaleString('ko-KR')}</td>
+                      <td className="num px-3 py-1.5">{won(s.beginningValue)}</td>
+                      <td className="num px-3 py-1.5">{won(s.additionAmount)}</td>
+                      <td className="num px-3 py-1.5">{won(s.priorAccumulated)}</td>
+                      <td className="num px-3 py-1.5">{bookValue(s.priorBookValue)}</td>
+                      <td colSpan={3} />
+                      <td className="num px-3 py-1.5">{won(s.annualRangeAmount)}</td>
+                      <td className="num px-3 py-1.5">{won(s.currentDepreciation)}</td>
+                      <td className="num px-3 py-1.5">{won(s.endingAccumulated)}</td>
+                      <td className="num px-3 py-1.5">{bookValue(s.endingBookValue)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </TableScroll>
@@ -561,6 +686,7 @@ function ForecastTab() {
   const [includeCurrent, setIncludeCurrent] = useState(true);
   /** 월 단위로 볼 때 표에 펼칠 연도. 12개월 × N개년을 한 표에 늘어놓으면 읽을 수 없다 */
   const [monthYear, setMonthYear] = useState<number | null>(null);
+  const [keyword, setKeyword] = useState('');
 
   const query = {
     fromYear: includeCurrent ? currentYear() : undefined,
@@ -586,6 +712,10 @@ function ForecastTab() {
   const yearIndex = d && shownYear != null ? d.years.indexOf(shownYear) : -1;
   /* 서버가 월별 값을 실제로 실어 보냈을 때만 월 표로 바꾼다 */
   const byMonth = granularity === 'month' && yearIndex >= 0 && d?.monthlyTotals != null;
+
+  /* 표만 거른다. 위의 합계·추이 그래프는 서버가 준 전체 기준 값이라 건드리지 않는다 */
+  const hit = searchIn(keyword);
+  const shownRows = (d?.rows ?? []).filter((r) => hit(r.key, r.label));
 
   return (
     <div className="space-y-3">
@@ -721,14 +851,28 @@ function ForecastTab() {
         </Section>
       )}
 
-      <Section title={byMonth ? `${shownYear}년 월별 예상` : '상세'}>
+      <Section
+        title={byMonth ? `${shownYear}년 월별 예상` : '상세'}
+        right={
+          <>
+            <SearchBox
+              value={keyword}
+              onChange={setKeyword}
+              placeholder={groupBy === 'asset' ? '자산코드·자산명' : '코드·이름'}
+            />
+            <FilterCount shown={shownRows.length} total={(d?.rows ?? []).length} />
+          </>
+        }
+      >
         <QueryState
           isPending={q.isPending}
           error={q.error}
-          isEmpty={(d?.rows ?? []).length === 0}
-          emptyText="예상 데이터가 없습니다."
+          isEmpty={shownRows.length === 0}
+          emptyText={
+            (d?.rows ?? []).length > 0 ? '검색 결과가 없습니다.' : '예상 데이터가 없습니다.'
+          }
         />
-        {d && d.rows.length > 0 && (
+        {d && shownRows.length > 0 && (
           <TableScroll>
             <table className="w-max min-w-full text-[18px]">
               <thead>
@@ -754,7 +898,7 @@ function ForecastTab() {
                 </tr>
               </thead>
               <tbody>
-                {d.rows.map((r) => (
+                {shownRows.map((r) => (
                   <tr key={r.key} className="border-b border-line hover:bg-bg">
                     <td className="px-3 py-1.5">
                       <span className={groupBy === 'asset' ? 'code' : ''}>{r.key}</span>{' '}
@@ -780,25 +924,33 @@ function ForecastTab() {
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-bg font-semibold">
-                  <td className="px-3 py-2" colSpan={groupBy === 'asset' ? 2 : 1}>
-                    총계
-                  </td>
-                  {byMonth
-                    ? MONTHS.map((m, i) => (
-                        <td key={m} className="num px-3 py-2">
-                          {won(d.monthlyTotals?.[yearIndex]?.[i])}
-                        </td>
-                      ))
-                    : d.yearlyTotals.map((v, i) => (
-                        <td key={i} className="num px-3 py-2">
-                          {won(v)}
-                        </td>
-                      ))}
-                  <td className="num px-3 py-2">
-                    {won(byMonth ? d.yearlyTotals[yearIndex] : d.grandTotal)}
-                  </td>
-                </tr>
+                {keyword.trim() !== '' ? (
+                  <FilteredTotalsNote
+                    colSpan={
+                      (groupBy === 'asset' ? 2 : 1) + (byMonth ? MONTHS.length : d.years.length) + 1
+                    }
+                  />
+                ) : (
+                  <tr className="bg-bg font-semibold">
+                    <td className="px-3 py-2" colSpan={groupBy === 'asset' ? 2 : 1}>
+                      총계
+                    </td>
+                    {byMonth
+                      ? MONTHS.map((m, i) => (
+                          <td key={m} className="num px-3 py-2">
+                            {won(d.monthlyTotals?.[yearIndex]?.[i])}
+                          </td>
+                        ))
+                      : d.yearlyTotals.map((v, i) => (
+                          <td key={i} className="num px-3 py-2">
+                            {won(v)}
+                          </td>
+                        ))}
+                    <td className="num px-3 py-2">
+                      {won(byMonth ? d.yearlyTotals[yearIndex] : d.grandTotal)}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </TableScroll>

@@ -6,14 +6,21 @@ import { useAccounts } from '@/hooks/useMasters';
 import { DEPRECIATION_METHOD_LABEL } from '@/api/assets';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
-import { btnClass, btnPrimaryClass, Field, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function AccountTab() {
   const qc = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState<AssetAccount | null | 'new'>(null);
+  const [keyword, setKeyword] = useState('');
 
   const q = useAccounts();
+
+  /* 한 번에 다 받아 오는 목록이라 화면에서 거른다 */
+  const all = q.data ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter((a) => hit(a.code, a.name));
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: queryKeys.masters.all });
 
@@ -30,13 +37,22 @@ export default function AccountTab() {
     <Section
       title="계정과목"
       right={
-        <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-          계정과목 추가
-        </button>
+        <>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="코드·계정과목명" />
+          <FilterCount shown={rows.length} total={all.length} />
+          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+            계정과목 추가
+          </button>
+        </>
       }
     >
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -48,7 +64,7 @@ export default function AccountTab() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((a) => (
+            {rows.map((a) => (
               <tr key={a.id} className="border-b border-line hover:bg-bg">
                 <td className="code px-3 py-2">{a.code}</td>
                 <td className="px-3 py-2">{a.name}</td>

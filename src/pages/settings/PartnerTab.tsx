@@ -10,14 +10,24 @@ import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
-import { btnClass, btnPrimaryClass, Field, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function PartnerTab() {
   const qc = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState<Partner | 'new' | null>(null);
+  const [keyword, setKeyword] = useState('');
+  /* 거르는 기준은 두 갈래뿐이다. BOTH 는 골라야 할 값이 아니라 양쪽 다 하는 거래처다 */
+  const [type, setType] = useState<'' | 'SUPPLIER' | 'CALIBRATION_AGENCY'>('');
 
   const q = usePartners();
+
+  const all = q.data ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter(
+    (p) => hit(p.name) && (type === '' || p.partnerType === type || p.partnerType === 'BOTH'),
+  );
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: queryKeys.masters.partners() });
 
@@ -34,13 +44,32 @@ export default function PartnerTab() {
     <Section
       title="거래처"
       right={
-        <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-          거래처 추가
-        </button>
+        <>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="거래처명" />
+          <select
+            className={`${inputClass} w-36`}
+            value={type}
+            onChange={(e) => setType(e.target.value as typeof type)}
+            aria-label="구분"
+          >
+            <option value="">구분 전체</option>
+            <option value="SUPPLIER">{PARTNER_TYPE_LABEL.SUPPLIER}</option>
+            <option value="CALIBRATION_AGENCY">{PARTNER_TYPE_LABEL.CALIBRATION_AGENCY}</option>
+          </select>
+          <FilterCount shown={rows.length} total={all.length} />
+          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+            거래처 추가
+          </button>
+        </>
       }
     >
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword || type ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -50,7 +79,7 @@ export default function PartnerTab() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((p) => (
+            {rows.map((p) => (
               <tr key={p.id} className="border-b border-line hover:bg-bg">
                 <td className="px-3 py-2">{p.name}</td>
                 <td className="px-3 py-2">{p.partnerTypeLabel}</td>

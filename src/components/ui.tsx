@@ -35,6 +35,59 @@ export function TableScroll({ children }: { children: ReactNode }) {
  */
 export const stickyThClass = `${thClass} sticky top-0 z-10 bg-bg shadow-[inset_0_-1px_0_var(--color-line)]`;
 
+/**
+ * 목록 위에 놓는 검색칸.
+ *
+ * 조회 버튼이 없다 — 입력하는 대로 걸러진다. 지우려고 백스페이스를 열 번 누르지 않도록
+ * 글자가 있을 때만 지우기 단추를 띄운다. type 은 search 가 아니라 text 다.
+ * search 로 두면 브라우저가 제 지우기 단추를 하나 더 그려서 두 개가 겹친다.
+ */
+export function SearchBox({
+  value,
+  onChange,
+  placeholder,
+  width = 'w-56',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  /** 라벨을 겸한다 — 무엇으로 찾을 수 있는지 여기에 적는다 */
+  placeholder: string;
+  width?: string;
+}) {
+  return (
+    <span className={`relative inline-flex shrink-0 items-center ${width}`}>
+      <input
+        type="text"
+        className={`${inputClass} pr-8`}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {value !== '' && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          aria-label="검색어 지우기"
+          className="absolute right-1 px-1 text-[17px] text-fg-muted hover:text-fg"
+        >
+          ✕
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** 걸러낸 건수 표시. 필터가 걸려 있을 때만 전체 건수를 함께 보여 준다 */
+export function FilterCount({ shown, total }: { shown: number; total: number }) {
+  return (
+    <span className="text-[18px] text-fg-muted">
+      {shown.toLocaleString('ko-KR')}건
+      {shown !== total && ` / 전체 ${total.toLocaleString('ko-KR')}건`}
+    </span>
+  );
+}
+
 export function Section({
   title,
   right,

@@ -22,9 +22,11 @@ import {
   inputClass,
   Pagination,
   QueryState,
+  SearchBox,
   Section,
   thClass,
 } from '@/components/ui';
+import { searchIn } from '@/lib/search';
 
 /**
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
@@ -192,6 +194,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [editingTeam, setEditingTeam] = useState<NotificationEmail | null>(null);
 
   const q = useQuery({
@@ -202,10 +205,14 @@ function RecipientBlock({ type }: { type: AlertType }) {
   const invalidate = () => void qc.invalidateQueries({ queryKey: queryKeys.notifications.emails() });
 
   // 이 화면은 자기 유형만 책임진다. 다른 유형 수신자는 그 화면에서 관리한다
-  const rows = useMemo(
+  const all = useMemo(
     () => (q.data ?? []).filter((e) => e.alertTypes.includes(type)),
     [q.data, type],
   );
+  const rows = useMemo(() => {
+    const hit = searchIn(keyword);
+    return all.filter((e) => hit(e.email, e.statusLabel, ...e.teams));
+  }, [all, keyword]);
   const other: AlertType = type === 'CALIBRATION' ? 'SAFETY' : 'CALIBRATION';
 
   /**
@@ -275,8 +282,15 @@ function RecipientBlock({ type }: { type: AlertType }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
         <span className="text-[18px] text-fg-sub">
           수신자 <b className="text-fg">{rows.length}명</b>
+          {rows.length !== all.length && ` / 전체 ${all.length}명`}
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <SearchBox
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="이메일·담당반 검색"
+            width="w-48"
+          />
           <input
             type="email"
             className={`${inputClass} w-56`}
@@ -300,7 +314,11 @@ function RecipientBlock({ type }: { type: AlertType }) {
         isPending={q.isPending}
         error={q.error}
         isEmpty={rows.length === 0}
-        emptyText={`${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. 위에 주소를 넣으면 바로 받습니다.`}
+        emptyText={
+          keyword
+            ? '검색 결과가 없습니다.'
+            : `${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. 위에 주소를 넣으면 바로 받습니다.`
+        }
       />
 
       {rows.length > 0 && (

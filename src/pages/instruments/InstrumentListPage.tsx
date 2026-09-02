@@ -12,13 +12,16 @@ import InstrumentModal from './InstrumentModal';
 import {
   Badge,
   btnPrimaryClass,
+  FilterCount,
   inputClass,
   Pagination,
   QueryState,
+  SearchBox,
   Section,
   Tabs,
   thClass,
 } from '@/components/ui';
+import { searchIn } from '@/lib/search';
 
 type TabKey = 'list' | 'annual';
 
@@ -191,6 +194,8 @@ function AnnualTab() {
   const qc = useQueryClient();
   const toast = useToast();
   const [planYear, setPlanYear] = useState(currentYear());
+  const [keyword, setKeyword] = useState('');
+  const [state, setState] = useState<'' | 'done' | 'todo'>('');
 
   const q = useQuery({
     queryKey: queryKeys.calibrations.annual(planYear),
@@ -207,8 +212,16 @@ function AnnualTab() {
     onError: toast.fail,
   });
 
-  const rows = q.data ?? [];
-  const done = rows.filter((r) => r.performedDate).length;
+  /* 한 해치를 한 번에 받아 오는 목록이라 화면에서 거른다 */
+  const all = q.data ?? [];
+  const done = all.filter((r) => r.performedDate).length;
+
+  const hit = searchIn(keyword);
+  const rows = all.filter(
+    (r) =>
+      hit(r.mgmtNo, r.name, r.serialNo, r.locationName, r.userName) &&
+      (state === '' || (state === 'done') === Boolean(r.performedDate)),
+  );
 
   return (
     <Section
@@ -216,12 +229,29 @@ function AnnualTab() {
         <>
           {planYear}년 교정검사 LIST{' '}
           <span className="font-normal text-fg-muted">
-            실시 {done} / 계획 {rows.length}
+            실시 {done} / 계획 {all.length}
           </span>
         </>
       }
       right={
         <>
+          <SearchBox
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="관리번호·계측기명·S/NO·위치"
+            width="w-64"
+          />
+          <select
+            className={`${inputClass} w-32`}
+            value={state}
+            onChange={(e) => setState(e.target.value as typeof state)}
+            aria-label="실시 여부"
+          >
+            <option value="">실시 여부 전체</option>
+            <option value="done">실시</option>
+            <option value="todo">미실시</option>
+          </select>
+          <FilterCount shown={rows.length} total={all.length} />
           <select
             className={`${inputClass} w-28`}
             value={planYear}

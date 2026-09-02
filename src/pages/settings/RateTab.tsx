@@ -7,32 +7,46 @@ import { hasUnverifiedRate } from '@/domain/depreciationMethod';
 import { rateText } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
-import { Badge, btnClass, btnPrimaryClass, Field, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function RateTab() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<DepreciationRate | null | 'new'>(null);
+  const [keyword, setKeyword] = useState('');
 
   const q = useRates();
+
+  const all = q.data ?? [];
+  const hit = searchIn(keyword);
+  /* 숫자만 있는 표라 내용연수로 찾는다. "5" 를 넣으면 5년·15년·25년이 함께 나온다 */
+  const rows = all.filter((r) => hit(r.usefulLifeYears));
 
   return (
     <Section
       title="내용연수 × 상각방법 상각률"
       right={
         <>
-          {hasUnverifiedRate(q.data ?? []) && (
+          {hasUnverifiedRate(all) && (
             <Badge tone="warn" title="회계 담당자 확인 전 문서 초안값">
               미확인 값 포함
             </Badge>
           )}
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="내용연수" width="w-32" />
+          <FilterCount shown={rows.length} total={all.length} />
           <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
             상각률 추가
           </button>
         </>
       }
     >
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -44,7 +58,7 @@ export default function RateTab() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((r) => (
+            {rows.map((r) => (
               <tr key={r.id} className="border-b border-line hover:bg-bg">
                 <td className="num px-3 py-2">{r.usefulLifeYears}년</td>
                 <td className="num px-3 py-2">{rateText(r.straightLineRate)}</td>

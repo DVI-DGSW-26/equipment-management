@@ -5,15 +5,22 @@ import { queryKeys } from '@/api/queryKeys';
 import { useItems, useItemTypes } from '@/hooks/useMasters';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
-import { btnClass, btnPrimaryClass, Field, inputClass, QueryState, Section, thClass } from '@/components/ui';
+import { searchIn } from '@/lib/search';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 export default function ItemTab() {
   const qc = useQueryClient();
   const [itemTypeCode, setItemTypeCode] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [editing, setEditing] = useState<AssetItem | null | 'new'>(null);
 
   const types = useItemTypes();
+  /* 비품구분은 서버가 걸러 준다. 키워드는 받아 온 목록에서 거른다 */
   const q = useItems(itemTypeCode || undefined);
+
+  const all = q.data ?? [];
+  const hit = searchIn(keyword);
+  const rows = all.filter((i) => hit(i.itemTypeCode, i.code, i.name, i.remark));
 
   return (
     <Section
@@ -32,14 +39,21 @@ export default function ItemTab() {
               </option>
             ))}
           </select>
+          <SearchBox value={keyword} onChange={setKeyword} placeholder="품목코드·품목명·비고" />
+          <FilterCount shown={rows.length} total={all.length} />
           <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
             품목 추가
           </button>
         </>
       }
     >
-      <QueryState isPending={q.isPending} error={q.error} isEmpty={(q.data ?? []).length === 0} />
-      {(q.data ?? []).length > 0 && (
+      <QueryState
+        isPending={q.isPending}
+        error={q.error}
+        isEmpty={rows.length === 0}
+        emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+      />
+      {rows.length > 0 && (
         <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
@@ -51,7 +65,7 @@ export default function ItemTab() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).map((i) => (
+            {rows.map((i) => (
               <tr key={i.id} className="border-b border-line hover:bg-bg">
                 <td className="code px-3 py-2">{i.itemTypeCode}</td>
                 <td className="code px-3 py-2">{i.code}</td>
