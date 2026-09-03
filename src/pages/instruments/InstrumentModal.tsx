@@ -10,6 +10,7 @@ import {
 import { isSupplier } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { useInstrumentLocations, usePartners } from '@/hooks/useMasters';
+import { wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import SearchSelect, { type SearchOption } from '@/components/SearchSelect';
 import { useToast } from '@/components/toastContext';
@@ -251,10 +252,15 @@ export default function InstrumentModal({
             onChange={(e) => set('purchaseDate', e.target.value)}
           />
         </Field>
-        <Field label="구매가격">
+        {/* 자릿수를 잘못 넣기 쉬운 칸이라, 친 값을 원 단위로 되읽어 준다 */}
+        <Field
+          label="구매가격 (원)"
+          hint={form.purchasePrice ? wonUnit(Number(form.purchasePrice)) : '숫자만 적습니다.'}
+        >
           <input
             className={`${inputClass} num`}
             inputMode="numeric"
+            placeholder="0"
             value={form.purchasePrice}
             onChange={(e) => set('purchasePrice', e.target.value.replace(/[^\d]/g, ''))}
           />

@@ -16,7 +16,8 @@ import { appConfig } from '@/config/appConfig';
 import { codeText, isPrintable } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
 import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, won } from '@/lib/won';
-import { fmtDate } from '@/lib/date';
+import { fmtDate, getToday, toIsoDate } from '@/lib/date';
+import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
 import { ALL_ROWS, rowNo } from '@/lib/paging';
@@ -61,6 +62,35 @@ const EMPTY_FORM: FormState = {
   costTo: '',
 };
 
+/**
+ * 화면 그대로 내려받을 열.
+ *
+ * "Excel" 단추는 서버가 만든 고정자산목록표를 받는다 — 회계에 내는 정해진 양식이라
+ * 화면 표와 열이 다르고 연번도 없다. 화면에 보이는 그대로가 필요하다는 얘기가 있어
+ * (2026-09-03) 별도로 둔다. 두 가지는 쓰임이 달라 하나로 합칠 수 없다.
+ */
+type AssetRow = Asset & { no: number };
+
+const SCREEN_COLUMNS: ExcelColumn<AssetRow>[] = [
+  { header: 'No.', value: (a) => a.no, numeric: true, width: 6 },
+  { header: '자산코드', value: (a) => a.assetCode, width: 18 },
+  { header: '계정과목', value: (a) => a.accountName, width: 16 },
+  { header: '자산명', value: (a) => a.name, width: 26 },
+  { header: '취득일자', value: (a) => a.acquisitionDate, width: 14 },
+  { header: '취득가액', value: (a) => a.acquisitionCost, numeric: true, width: 16 },
+  {
+    header: '상각기초가액',
+    value: (a) => depreciationBase(a.acquisitionCost, a.additionTotal),
+    numeric: true,
+    width: 16,
+  },
+  { header: '상각누계액', value: (a) => a.accumulatedDepreciation, numeric: true, width: 16 },
+  { header: '장부가액', value: (a) => a.bookValue, numeric: true, width: 16 },
+  { header: '사용부서', value: (a) => a.usingDeptName, width: 14 },
+  { header: '사용위치', value: (a) => a.locationName, width: 14 },
+  { header: '상태', value: (a) => a.statusLabel, width: 10 },
+];
+
 /** 주소창에 담는 값. 조건에 쪽 정보를 더한 것 */
 const URL_DEFAULTS = { ...EMPTY_FORM, page: '0', size: String(ALL_ROWS) };
 
@@ -82,6 +112,7 @@ export default function AssetListPage() {
   const toast = useToast();
 
   const [previewing, setPreviewing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   /* 조건은 주소창에 담는다. 자산을 열었다 뒤로 와도 보던 그대로 돌아온다 */
   const [q, setQ] = useUrlState(URL_DEFAULTS);
@@ -144,6 +175,20 @@ export default function AssetListPage() {
     if (!a.assetCode) return '자산코드 미부여 — 사용위치를 지정하면 저장 시 채번됩니다.';
     if (a.excludedFromPrint) return '출력 제외로 지정된 자산입니다.';
     return null;
+  };
+
+  /* 지금 걸러 놓은 것 전부를 화면에 보이는 열 그대로 내려받는다 */
+  const exportScreen = async () => {
+    setExporting(true);
+    try {
+      const data: AssetRow[] = rows.map((a, i) => ({ ...a, no: rowNo(i, page, size) }));
+      await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('고정자산목록', toIsoDate(getToday())));
+      toast.ok(`고정자산 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const download = useMutation({
@@ -329,10 +374,20 @@ export default function AssetListPage() {
             <button
               type="button"
               className={btnClass}
+              disabled={rows.length === 0 || exporting}
+              title={`화면에 보이는 그대로 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+              onClick={() => void exportScreen()}
+            >
+              {exporting ? '만드는 중…' : '화면 Excel'}
+            </button>
+            <button
+              type="button"
+              className={btnClass}
               disabled={download.isPending}
+              title="회계에 내는 고정자산목록표 양식입니다. 화면 표와 열이 다릅니다."
               onClick={() => download.mutate({ kind: 'excel' })}
             >
-              Excel
+              목록표 Excel
             </button>
             <button
               type="button"
@@ -497,10 +552,7 @@ export default function AssetListPage() {
               total={list.data?.total ?? 0}
               size={size}
               onChange={setPage}
-              onSizeChange={(s) => {
-                setSize(s);
-                setPage(0);
-              }}
+              onSizeChange={setSize}
             />
           </>
         )}

@@ -252,10 +252,8 @@ function ListTab() {
     value: `${count.toLocaleString('ko-KR')}건`,
     tone: count > 0 ? tone : undefined,
     active: due === key,
-    onClick: () => {
-      setFilter({ due: due === key ? 'all' : key });
-      setPage(0);
-    },
+    /* setFilter 가 쪽까지 되돌린다. 여기서 또 부르면 뒤엣것이 앞엣것을 덮어 조건이 지워진다 */
+    onClick: () => setFilter({ due: due === key ? 'all' : key }),
   });
 
   return (
@@ -267,10 +265,7 @@ function ListTab() {
             label: '전체',
             value: `${beforeDue.length.toLocaleString('ko-KR')}건`,
             active: due === 'all',
-            onClick: () => {
-              setFilter({ due: 'all' });
-              setPage(0);
-            },
+            onClick: () => setFilter({ due: 'all' }),
           },
           dueCard('기한 경과', 'overdue', counts.overdue, 'danger'),
           dueCard('30일 이내', 'within30', counts.within30, 'danger'),
@@ -333,10 +328,7 @@ function ListTab() {
           <MultiPick
             label="사용자"
             selected={users}
-            onChange={(next) => {
-              setFilter({ users: next.join(',') });
-              setPage(0);
-            }}
+            onChange={(next) => setFilter({ users: next.join(',') })}
             options={options.users}
           />
           <select
@@ -443,10 +435,7 @@ function ListTab() {
               total={paged.total}
               size={size}
               onChange={setPage}
-              onSizeChange={(s) => {
-                setSize(s);
-                setPage(0);
-              }}
+              onSizeChange={setSize}
             />
           </>
         )}
