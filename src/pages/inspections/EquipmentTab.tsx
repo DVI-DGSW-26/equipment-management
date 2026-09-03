@@ -43,7 +43,7 @@ function Pick({
 }) {
   return (
     <select
-      className={`${filterClass} w-36`}
+      className={`${filterClass} w-40`}
       value={value}
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
@@ -208,7 +208,7 @@ export default function EquipmentTab() {
           <Pick label="검사기관" value={agency} onChange={setAgency} options={options.agencies} />
           <Pick label="설치장소" value={place} onChange={setPlace} options={options.places} />
           <select
-            className={`${filterClass} w-36`}
+            className={`${filterClass} w-40`}
             value={status}
             onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
             aria-label="상태"
@@ -219,7 +219,7 @@ export default function EquipmentTab() {
             <option value="DISPOSED">폐기만</option>
           </select>
           <select
-            className={`${filterClass} w-36`}
+            className={`${filterClass} w-40`}
             value={history}
             onChange={(e) => setHistory(e.target.value as typeof history)}
             aria-label="검사 이력"

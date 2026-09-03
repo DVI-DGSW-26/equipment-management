@@ -24,8 +24,7 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
-  filterClass,
-  inputClass,
+  filterClass,
   Pagination,
   QueryState,
   Section,
@@ -224,7 +223,7 @@ export default function AssetListPage() {
             ))}
           </select>
           <select
-            className={`${filterClass} w-32`}
+            className={`${filterClass} w-40`}
             value={form.usingDeptId}
             aria-label="사용부서"
             onChange={(e) => set('usingDeptId', e.target.value)}
@@ -263,7 +262,7 @@ export default function AssetListPage() {
             ))}
           </select>
 
-          <span className="flex items-center gap-1 text-[18px] text-fg-sub">
+          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[18px] text-fg-sub">
             취득일
             <input
               type="date"
@@ -282,10 +281,10 @@ export default function AssetListPage() {
             />
           </span>
 
-          <span className="flex items-center gap-1 text-[18px] text-fg-sub">
+          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[18px] text-fg-sub">
             취득가액
             <input
-              className={`${inputClass} num w-32`}
+              className={`${filterClass} num w-32`}
               inputMode="numeric"
               aria-label="취득가액 이상"
               value={form.costFrom}
@@ -293,7 +292,7 @@ export default function AssetListPage() {
             />
             ~
             <input
-              className={`${inputClass} num w-32`}
+              className={`${filterClass} num w-32`}
               inputMode="numeric"
               aria-label="취득가액 이하"
               value={form.costTo}
@@ -301,13 +300,11 @@ export default function AssetListPage() {
             />
           </span>
 
-          <span className="text-[18px] text-fg-muted">
-            입력하는 대로 바뀝니다.
-            {list.isFetching && <span className="ml-1 text-accent">조회 중…</span>}
-          </span>
-          <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
-            초기화
-          </button>
+        {/* 안내 문구는 자리만 먹고 알려 주는 것이 없다. 조회 중 표시만 남긴다 */}
+        {list.isFetching && <span className="shrink-0 text-[18px] text-accent">조회 중…</span>}
+        <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
+          초기화
+        </button>
       </div>
 
       <Section

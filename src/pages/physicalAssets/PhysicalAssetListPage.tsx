@@ -92,7 +92,7 @@ function Pick({
 }) {
   return (
     <select
-      className={`${filterClass} w-36`}
+      className={`${filterClass} w-40`}
       value={value}
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
@@ -232,7 +232,7 @@ export default function PhysicalAssetListPage() {
             options={options.makers}
           />
           <select
-            className={`${filterClass} w-32`}
+            className={`${filterClass} w-36`}
             value={form.registered}
             aria-label="자산등록"
             onChange={(e) => set('registered', e.target.value as FormState['registered'])}
@@ -255,7 +255,7 @@ export default function PhysicalAssetListPage() {
             ))}
           </select>
           <select
-            className={`${filterClass} w-36`}
+            className={`${filterClass} w-40`}
             value={form.sticker}
             aria-label="스티커"
             onChange={(e) => set('sticker', e.target.value as StickerFilter)}

@@ -19,7 +19,6 @@ import {
   btnPrimaryClass,
   filterClass,
   FilterCount,
-  inputClass,
   QueryState,
   SearchBox,
   Section,
@@ -423,7 +422,7 @@ function YearlyTab({
         <span className="text-[18px] text-fg-sub">조회 기간</span>
         <input
           type="number"
-          className={`${inputClass} num w-24`}
+          className={`${filterClass} num w-24`}
           aria-label="시작 연도"
           value={fromYear}
           onChange={(e) => setFromYear(Number(e.target.value))}
@@ -431,7 +430,7 @@ function YearlyTab({
         <span className="text-[18px] text-fg-muted">~</span>
         <input
           type="number"
-          className={`${inputClass} num w-24`}
+          className={`${filterClass} num w-24`}
           aria-label="종료 연도"
           value={toYear}
           onChange={(e) => setToYear(Number(e.target.value))}
