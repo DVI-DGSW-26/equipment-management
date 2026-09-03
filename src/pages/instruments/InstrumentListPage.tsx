@@ -74,6 +74,8 @@ const LIST_DEFAULTS = {
   location: '',
   /** 여럿을 고를 수 있어 쉼표로 잇는다 */
   users: '',
+  /** 'any' = 하나라도 / 'all' = 모두 */
+  userMode: 'any',
   cycle: '',
   due: 'all',
   sort: 'due',
@@ -124,6 +126,16 @@ const ANNUAL_COLUMNS: ExcelColumn<AnnualRow>[] = [
   { header: '비고', value: (r) => r.remark, width: 24 },
 ];
 
+/**
+ * 사용자 칸에는 "심민재,김진형" 처럼 여러 사람이 한 칸에 들어 있다.
+ * 고르는 목록에는 한 사람씩 올라가야 하므로 쉼표·가운뎃점으로 쪼갠다.
+ */
+const usersOf = (userName: string | null): string[] =>
+  (userName ?? '')
+    .split(/[,·/]/)
+    .map((u) => u.trim())
+    .filter((u) => u !== '');
+
 const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolean => {
   if (f === 'all') return true;
   if (f === 'overdue') return overdue || (days != null && days < 0);
@@ -145,6 +157,8 @@ function ListTab() {
   /* 쉼표로 이어 둔 것을 갈라 쓴다. 그때그때 나누면 매번 새 배열이라 목록이 계속 다시 걸러진다 */
   const users = useMemo(() => (q.users === '' ? [] : q.users.split(',')), [q.users]);
   const cycle = q.cycle;
+  /** 여럿을 골랐을 때 모두 가진 것만 볼지 (기본은 하나라도) */
+  const userAll = q.userMode === 'all';
   const due = q.due as DueFilter;
   const sort = q.sort as 'due' | 'mgmtNo';
   const page = Number(q.page) || 0;
@@ -186,7 +200,7 @@ function ListTab() {
       [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'ko'));
     return {
       locations: uniq(all.map((i) => i.locationName)),
-      users: uniq(all.map((i) => i.userName)),
+      users: uniq(all.flatMap((i) => usersOf(i.userName))),
       cycles: [...new Set(all.map((i) => i.calibrationCycleMonths))].sort((a, b) => a - b),
     };
   }, [all]);
@@ -198,10 +212,14 @@ function ListTab() {
       (i) =>
         hit(i.mgmtNo, i.name, i.serialNo, i.specText, i.accuracy, i.locationName, i.userName) &&
         (location === '' || i.locationName === location) &&
-        (users.length === 0 || (i.userName != null && users.includes(i.userName))) &&
+        (users.length === 0 ||
+          (() => {
+            const mine = usersOf(i.userName);
+            return userAll ? users.every((u) => mine.includes(u)) : users.some((u) => mine.includes(u));
+          })()) &&
         (cycle === '' || String(i.calibrationCycleMonths) === cycle),
     );
-  }, [all, keyword, location, users, cycle]);
+  }, [all, keyword, location, users, userAll, cycle]);
 
   const counts = useMemo(() => {
     const c = { overdue: 0, within30: 0, within90: 0 };
@@ -231,7 +249,7 @@ function ListTab() {
     keyword !== '' || location !== '' || users.length > 0 || cycle !== '' || due !== 'all';
 
   const reset = () =>
-    setQ({ keyword: '', location: '', users: '', cycle: '', due: 'all', page: '0' });
+    setQ({ keyword: '', location: '', users: '', userMode: 'any', cycle: '', due: 'all', page: '0' });
 
   /* 지금 화면에 걸러 놓은 것 전부를 내려받는다 — 펼친 장만이 아니다 */
   const download = async () => {
@@ -329,6 +347,8 @@ function ListTab() {
             label="사용자"
             selected={users}
             onChange={(next) => setFilter({ users: next.join(',') })}
+            matchAll={userAll}
+            onMatchAllChange={(on) => setFilter({ userMode: on ? 'all' : 'any' })}
             options={options.users}
           />
           <select

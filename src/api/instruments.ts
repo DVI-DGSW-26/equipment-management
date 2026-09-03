@@ -78,10 +78,19 @@ export interface CreateInstrumentPayload {
   department?: InstrumentDepartment;
   departmentEtc?: string;
   locationId?: number;
+  /**
+   * 사용위치·구매처를 이름으로 그대로 보낸다.
+   *
+   * 이름을 주면 서버가 ID 보다 먼저 보고, 마스터에 없는 이름이면 새로 만들어 이어 준다.
+   * 손으로 치는 칸이라 마스터에 미리 등록해 두지 않아도 된다 (백엔드 회신 2026-09-03).
+   * 기존 ID 방식도 그대로 살아 있다.
+   */
+  locationName?: string;
   userName?: string;
   purchaseDate?: IsoDate;
   purchasePrice?: number;
   supplierId?: number;
+  supplierName?: string;
   assetId?: number;
   remark?: string;
 }

@@ -297,12 +297,21 @@ export function MultiPick({
   onChange,
   options,
   width = 'w-40',
+  matchAll,
+  onMatchAllChange,
 }: {
   label: string;
   selected: string[];
   onChange: (next: string[]) => void;
   options: string[];
   width?: string;
+  /**
+   * 여럿을 골랐을 때 어떻게 맞출지.
+   * 켜면 고른 것을 모두 가진 줄만, 끄면 하나라도 가진 줄을 보여 준다.
+   * 넘기지 않으면 고르는 칸을 띄우지 않는다 — 값이 하나뿐인 칸에는 뜻이 없다.
+   */
+  matchAll?: boolean;
+  onMatchAllChange?: (next: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -371,6 +380,17 @@ export function MultiPick({
               </button>
             );
           })}
+          {selected.length > 1 && onMatchAllChange && (
+            <button
+              type="button"
+              aria-pressed={matchAll}
+              className="mt-1 flex w-full items-center gap-2 border-t border-line px-2 py-1 text-left text-[17px] text-fg-sub hover:bg-bg"
+              onClick={() => onMatchAllChange(!matchAll)}
+            >
+              <span aria-hidden>{matchAll ? '☑' : '☐'}</span>
+              고른 사람을 모두 가진 것만
+            </button>
+          )}
           {selected.length > 0 && (
             <button
               type="button"
