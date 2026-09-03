@@ -136,6 +136,23 @@ const usersOf = (userName: string | null): string[] =>
     .map((u) => u.trim())
     .filter((u) => u !== '');
 
+/** 오래 지난 것으로 보는 선. 이 날수를 넘겨 지나면 목록 뒤로 내린다 */
+const LONG_OVERDUE_DAYS = 10;
+
+/**
+ * 기한 임박순에서 어느 무리에 둘지.
+ *
+ * 날짜만으로 줄을 세우면 몇 달씩 지난 것들이 맨 위를 차지해,
+ * 정작 곧 해야 할 계측기가 그 밑으로 밀린다. 그래서 10일 넘게 지난 것은
+ * 뒤로 내린다. 지워지는 것이 아니라 차례만 뒤일 뿐이고,
+ * '경과' 카드를 누르면 그것들만 따로 볼 수 있다.
+ */
+const dueRank = (i: { nextDueDate: string | null }): number => {
+  const days = daysUntil(i.nextDueDate);
+  if (days == null) return 2; /* 기한 없는 것은 맨 뒤 */
+  return days < -LONG_OVERDUE_DAYS ? 1 : 0;
+};
+
 const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolean => {
   if (f === 'all') return true;
   if (f === 'overdue') return overdue || (days != null && days < 0);
@@ -236,7 +253,7 @@ function ListTab() {
     const kept = beforeDue.filter((i) => matchesDue(daysUntil(i.nextDueDate), i.overdue, due));
     return kept.sort((a, b) =>
       sort === 'due'
-        ? /* 기한 없는 건은 뒤로 */
+        ? dueRank(a) - dueRank(b) ||
           (a.nextDueDate ?? '9999-12-31').localeCompare(b.nextDueDate ?? '9999-12-31')
         : a.mgmtNo.localeCompare(b.mgmtNo, 'ko'),
     );
