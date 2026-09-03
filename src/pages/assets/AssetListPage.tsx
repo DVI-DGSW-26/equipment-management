@@ -19,12 +19,13 @@ import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, won } from '@/lib/won
 import { fmtDate } from '@/lib/date';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
-import { rowNo } from '@/lib/paging';
+import { ALL_ROWS, rowNo } from '@/lib/paging';
+import { useUrlState } from '@/hooks/useUrlState';
 import {
   Badge,
   btnClass,
   btnPrimaryClass,
-  filterClass,
+  filterClass,
   Pagination,
   QueryState,
   Section,
@@ -60,6 +61,9 @@ const EMPTY_FORM: FormState = {
   costTo: '',
 };
 
+/** 주소창에 담는 값. 조건에 쪽 정보를 더한 것 */
+const URL_DEFAULTS = { ...EMPTY_FORM, page: '0', size: String(ALL_ROWS) };
+
 const toFilter = (f: FormState): AssetFilter => ({
   name: f.name.trim() || undefined,
   assetCode: f.assetCode.trim() || undefined,
@@ -77,16 +81,19 @@ export default function AssetListPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
   const [previewing, setPreviewing] = useState(false);
 
+  /* 조건은 주소창에 담는다. 자산을 열었다 뒤로 와도 보던 그대로 돌아온다 */
+  const [q, setQ] = useUrlState(URL_DEFAULTS);
+  const form: FormState = q;
+  const page = Number(q.page) || 0;
+  const size = Number(q.size) || ALL_ROWS;
+
+  const setPage = (n: number) => setQ({ page: String(n) });
+  const setSize = (n: number) => setQ({ size: String(n), page: '0' });
   // 조건을 건드리면 늘 첫 페이지부터 다시 본다
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setPage(0);
-  };
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setQ({ [key]: value, page: '0' });
 
   /**
    * 조회 버튼 없이 입력하는 대로 결과가 바뀐다.
@@ -96,8 +103,7 @@ export default function AssetListPage() {
   const filter = useMemo(() => toFilter(settled), [settled]);
 
   const reset = () => {
-    setForm(EMPTY_FORM);
-    setPage(0);
+    setQ({ ...EMPTY_FORM, page: '0' });
     sel.clear();
   };
 

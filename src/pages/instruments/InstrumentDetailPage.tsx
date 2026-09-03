@@ -16,7 +16,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
 import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
-import { won } from '@/lib/won';
+import { wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -211,7 +211,7 @@ export default function InstrumentDetailPage() {
             <Section title="구매·연결">
               <Def label="구매일">{fmtDate(d.purchaseDate)}</Def>
               <Def label="구매가격">
-                <span className="num block">{won(d.purchasePrice)}</span>
+                <span className="num-left block">{wonUnit(d.purchasePrice)}</span>
               </Def>
               <Def label="구매처">{d.supplierName ?? '-'}</Def>
               <Def label="연결 고정자산">
@@ -273,7 +273,7 @@ export default function InstrumentDetailPage() {
                       </td>
                       <td className="px-3 py-2">{c.agencyName ?? '-'}</td>
                       <td className="px-3 py-2">{c.certificateNo ?? '-'}</td>
-                      <td className="num px-3 py-2">{won(c.cost)}</td>
+                      <td className="num px-3 py-2">{wonUnit(c.cost)}</td>
                       <td className="px-3 py-2 text-fg-sub">{c.actionNote ?? '-'}</td>
                       <td className="px-3 py-2">{c.confirmedBy ?? '-'}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">

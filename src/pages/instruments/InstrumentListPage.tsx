@@ -7,8 +7,9 @@ import { queryKeys } from '@/api/queryKeys';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
 import { currentYear, daysUntil, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
-import { rowNo, slicePage } from '@/lib/paging';
+import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
 import {
@@ -17,6 +18,7 @@ import {
   btnPrimaryClass,
   FilterCount,
   filterClass,
+  MultiPick,
   Pagination,
   QueryState,
   SearchBox,
@@ -66,14 +68,28 @@ type DueFilter = 'all' | 'overdue' | 'within30' | 'within90';
  */
 const LOAD_LIMIT = 500;
 
+/** 주소창에 담는 조건. 컴포넌트 밖에 둬야 매번 새 객체가 되지 않는다 */
+const LIST_DEFAULTS = {
+  keyword: '',
+  location: '',
+  /** 여럿을 고를 수 있어 쉼표로 잇는다 */
+  users: '',
+  cycle: '',
+  due: 'all',
+  sort: 'due',
+  page: '0',
+  size: String(ALL_ROWS),
+};
+
 /**
  * 내려받을 열. 화면 표와 같은 차례로 둔다 — 파일을 열었을 때 화면과 다르면 대조하기 어렵다.
  * "남은 기한" 은 화면과 같은 D-30 표기로, 날짜는 계산해서 쓸 수 있게 원본 그대로 넣는다.
  */
-/** 내려받을 행 = 목록 행 + 올해 교정계획(목록 응답에 없어 이어 붙인 것) */
-type ListRow = Instrument & { plan?: AnnualCalibration };
+/** 내려받을 행 = 목록 행 + 연번 + 올해 교정계획(목록 응답에 없어 이어 붙인 것) */
+type ListRow = Instrument & { no: number; plan?: AnnualCalibration };
 
 const LIST_COLUMNS: ExcelColumn<ListRow>[] = [
+  { header: 'No.', value: (i) => i.no, numeric: true, width: 6 },
   { header: '관리번호', value: (i) => i.mgmtNo, width: 14 },
   { header: '계측기명', value: (i) => i.name, width: 24 },
   { header: 'S/NO', value: (i) => i.serialNo, width: 16 },
@@ -88,10 +104,12 @@ const LIST_COLUMNS: ExcelColumn<ListRow>[] = [
   { header: '최근 교정일', value: (i) => i.lastCalibratedDate, width: 14 },
   { header: '차기 교정일', value: (i) => i.nextDueDate, width: 14 },
   { header: '남은 기한', value: (i) => ddayLabel(daysUntil(i.nextDueDate)), width: 12 },
-  { header: '기한 경과', value: (i) => (i.overdue ? 'O' : ''), width: 10 },
 ];
 
-const ANNUAL_COLUMNS: ExcelColumn<AnnualCalibration>[] = [
+type AnnualRow = AnnualCalibration & { no: number };
+
+const ANNUAL_COLUMNS: ExcelColumn<AnnualRow>[] = [
+  { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
   { header: '관리번호', value: (r) => r.mgmtNo, width: 14 },
   { header: '계측기명', value: (r) => r.name, width: 24 },
   { header: 'S/NO', value: (r) => r.serialNo, width: 16 },
@@ -118,15 +136,24 @@ function ListTab() {
   const navigate = useNavigate();
   const toast = useToast();
   const [exporting, setExporting] = useState(false);
-  const [keyword, setKeyword] = useState('');
-  const [location, setLocation] = useState('');
-  const [user, setUser] = useState('');
-  const [cycle, setCycle] = useState('');
-  const [due, setDue] = useState<DueFilter>('all');
-  const [sort, setSort] = useState<'due' | 'mgmtNo'>('due');
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
   const [creating, setCreating] = useState(false);
+
+  /* 조건은 주소창에 담는다. 계측기를 열었다 뒤로 와도 보던 그대로 돌아온다 */
+  const [q, setQ] = useUrlState(LIST_DEFAULTS);
+  const keyword = q.keyword;
+  const location = q.location;
+  /* 쉼표로 이어 둔 것을 갈라 쓴다. 그때그때 나누면 매번 새 배열이라 목록이 계속 다시 걸러진다 */
+  const users = useMemo(() => (q.users === '' ? [] : q.users.split(',')), [q.users]);
+  const cycle = q.cycle;
+  const due = q.due as DueFilter;
+  const sort = q.sort as 'due' | 'mgmtNo';
+  const page = Number(q.page) || 0;
+  const size = Number(q.size) || ALL_ROWS;
+
+  const setPage = (n: number) => setQ({ page: String(n) });
+  const setSize = (n: number) => setQ({ size: String(n), page: '0' });
+  /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
+  const setFilter = (next: Partial<typeof LIST_DEFAULTS>) => setQ({ ...next, page: '0' });
 
   const query = useMemo(() => ({ page: 0, size: LOAD_LIMIT }), []);
   const list = useQuery({
@@ -171,10 +198,10 @@ function ListTab() {
       (i) =>
         hit(i.mgmtNo, i.name, i.serialNo, i.specText, i.accuracy, i.locationName, i.userName) &&
         (location === '' || i.locationName === location) &&
-        (user === '' || i.userName === user) &&
+        (users.length === 0 || (i.userName != null && users.includes(i.userName))) &&
         (cycle === '' || String(i.calibrationCycleMonths) === cycle),
     );
-  }, [all, keyword, location, user, cycle]);
+  }, [all, keyword, location, users, cycle]);
 
   const counts = useMemo(() => {
     const c = { overdue: 0, within30: 0, within90: 0 };
@@ -201,28 +228,16 @@ function ListTab() {
   const paged = slicePage(rows, page, size);
 
   const dirty =
-    keyword !== '' || location !== '' || user !== '' || cycle !== '' || due !== 'all';
+    keyword !== '' || location !== '' || users.length > 0 || cycle !== '' || due !== 'all';
 
-  const reset = () => {
-    setKeyword('');
-    setLocation('');
-    setUser('');
-    setCycle('');
-    setDue('all');
-    setPage(0);
-  };
-
-  /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
-  const pick = (set: (v: string) => void) => (v: string) => {
-    set(v);
-    setPage(0);
-  };
+  const reset = () =>
+    setQ({ keyword: '', location: '', users: '', cycle: '', due: 'all', page: '0' });
 
   /* 지금 화면에 걸러 놓은 것 전부를 내려받는다 — 펼친 장만이 아니다 */
   const download = async () => {
     setExporting(true);
     try {
-      const data: ListRow[] = rows.map((i) => ({ ...i, plan: planOf.get(i.id) }));
+      const data: ListRow[] = rows.map((i, n) => ({ ...i, no: rowNo(n), plan: planOf.get(i.id) }));
       await downloadExcel(data, LIST_COLUMNS, stampedFileName('계측기목록', toIsoDate(getToday())));
       toast.ok(`계측기 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
@@ -238,7 +253,7 @@ function ListTab() {
     tone: count > 0 ? tone : undefined,
     active: due === key,
     onClick: () => {
-      setDue(due === key ? 'all' : key);
+      setFilter({ due: due === key ? 'all' : key });
       setPage(0);
     },
   });
@@ -253,7 +268,7 @@ function ListTab() {
             value: `${beforeDue.length.toLocaleString('ko-KR')}건`,
             active: due === 'all',
             onClick: () => {
-              setDue('all');
+              setFilter({ due: 'all' });
               setPage(0);
             },
           },
@@ -269,7 +284,7 @@ function ListTab() {
           <>
             <SearchBox
               value={keyword}
-              onChange={pick(setKeyword)}
+              onChange={(v) => setFilter({ keyword: v })}
               placeholder="관리번호·계측기명·S/NO·규격·사용자"
               width="w-72"
             />
@@ -304,7 +319,7 @@ function ListTab() {
           <select
             className={`${filterClass} w-36`}
             value={location}
-            onChange={(e) => pick(setLocation)(e.target.value)}
+            onChange={(e) => setFilter({ location: e.target.value })}
             aria-label="사용위치"
           >
             <option value="">사용위치 전체</option>
@@ -314,23 +329,20 @@ function ListTab() {
               </option>
             ))}
           </select>
-          <select
-            className={`${filterClass} w-32`}
-            value={user}
-            onChange={(e) => pick(setUser)(e.target.value)}
-            aria-label="사용자"
-          >
-            <option value="">사용자 전체</option>
-            {options.users.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
+          {/* 사용자는 여럿을 함께 고른다 — 두 사람 것을 같이 보려고 두 번 거르지 않게 */}
+          <MultiPick
+            label="사용자"
+            selected={users}
+            onChange={(next) => {
+              setFilter({ users: next.join(',') });
+              setPage(0);
+            }}
+            options={options.users}
+          />
           <select
             className={`${filterClass} w-32`}
             value={cycle}
-            onChange={(e) => pick(setCycle)(e.target.value)}
+            onChange={(e) => setFilter({ cycle: e.target.value })}
             aria-label="교정주기"
           >
             <option value="">교정주기 전체</option>
@@ -343,7 +355,7 @@ function ListTab() {
           <select
             className={`${filterClass} w-36`}
             value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
+            onChange={(e) => setQ({ sort: e.target.value })}
             aria-label="정렬"
           >
             <option value="due">기한 임박순</option>
@@ -485,7 +497,8 @@ function AnnualTab() {
   const download = async () => {
     setExporting(true);
     try {
-      await downloadExcel(rows, ANNUAL_COLUMNS, stampedFileName(`${planYear}년_교정검사LIST`, toIsoDate(getToday())));
+      const data: AnnualRow[] = rows.map((r, n) => ({ ...r, no: rowNo(n) }));
+      await downloadExcel(data, ANNUAL_COLUMNS, stampedFileName(`${planYear}년_교정검사LIST`, toIsoDate(getToday())));
       toast.ok(`${planYear}년 계획 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ALL_ROWS, PAGE_SIZES } from '@/lib/paging';
 import { errorMessage } from '@/api/types';
 
 /* 공통 클래스. 사내 관리 도구 — 정보 밀도 우선, 애니메이션 없음 */
@@ -282,6 +283,96 @@ export function QueryState({
   return null;
 }
 
+/**
+ * 여럿을 함께 고르는 칸.
+ *
+ * 엑셀 필터처럼 "홍길동과 김철수" 를 같이 보고 싶을 때 쓴다. 셀렉트 하나로는 한 사람만
+ * 고를 수 있어 두 번 걸러 봐야 했다.
+ * 고른 것이 없으면 전체다 — 아무것도 안 고른 상태가 "거르지 않음" 이어야
+ * 처음 화면에서 목록이 비지 않는다.
+ */
+export function MultiPick({
+  label,
+  selected,
+  onChange,
+  options,
+  width = 'w-40',
+}: {
+  label: string;
+  selected: string[];
+  onChange: (next: string[]) => void;
+  options: string[];
+  width?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (o: string) =>
+    onChange(selected.includes(o) ? selected.filter((x) => x !== o) : [...selected, o]);
+
+  const text =
+    selected.length === 0
+      ? `${label} 전체`
+      : selected.length === 1
+        ? selected[0]
+        : `${selected[0]} 외 ${selected.length - 1}`;
+
+  return (
+    <span className={`relative inline-block shrink-0 ${width}`}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`${filterClass} w-full truncate text-left ${
+          selected.length > 0 ? 'border-accent text-accent' : 'text-fg'
+        }`}
+        title={selected.length > 0 ? selected.join(', ') : undefined}
+      >
+        {text}
+      </button>
+      {open && (
+        <>
+          {/* 바깥을 누르면 닫힌다 */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute z-20 mt-0.5 max-h-64 w-56 overflow-auto rounded-sm border border-line bg-surface p-1 shadow-lg">
+            {options.length === 0 && (
+              <p className="px-2 py-1.5 text-[17px] text-fg-muted">고를 값이 없습니다.</p>
+            )}
+            {options.map((o) => (
+              <label
+                key={o}
+                className="flex cursor-pointer items-center gap-2 px-2 py-1 text-[18px] hover:bg-bg"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(o)}
+                  onChange={() => toggle(o)}
+                />
+                {o}
+              </label>
+            ))}
+            {selected.length > 0 && (
+              <button
+                type="button"
+                className="mt-1 w-full border-t border-line px-2 py-1 text-left text-[17px] text-fg-muted hover:text-fg"
+                onClick={() => onChange([])}
+              >
+                모두 지우기
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 export function Pagination({
   page,
   totalPages,
@@ -313,9 +404,9 @@ export function Pagination({
             value={size}
             onChange={(e) => onSizeChange(Number(e.target.value))}
           >
-            {[20, 50, 100, 200].map((s) => (
+            {PAGE_SIZES.map((s) => (
               <option key={s} value={s}>
-                {s}건씩
+                {s === ALL_ROWS ? '전체 보기' : `${s}건씩`}
               </option>
             ))}
           </select>

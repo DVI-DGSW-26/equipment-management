@@ -12,7 +12,7 @@ import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
 import { fmtDate } from '@/lib/date';
-import { rowNo, slicePage } from '@/lib/paging';
+import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { won } from '@/lib/won';
 import Modal from '@/components/Modal';
@@ -111,7 +111,7 @@ export default function PhysicalAssetListPage() {
   const toast = useToast();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(ALL_ROWS);
   const [editing, setEditing] = useState<PhysicalAsset | 'new' | null>(null);
   const [previewing, setPreviewing] = useState(false);
 

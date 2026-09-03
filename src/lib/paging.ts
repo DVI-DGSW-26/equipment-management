@@ -28,3 +28,15 @@ export const slicePage = <T>(rows: T[], page: number, size: number): Page<T> => 
     size,
   };
 };
+
+/**
+ * "전체 보기" 의 쪽 크기.
+ *
+ * 목록을 쪽으로 끊어 보면 무엇을 찾을 때마다 장을 넘겨야 해서 불편하다는 얘기가
+ * 있었다(2026-09-03). 기본을 전체로 두고, 느리면 줄여 볼 수 있게 선택지는 남긴다.
+ * 자산이 이 수를 넘을 일은 없다 — 넘으면 그때는 쪽을 나눠야 하는 규모다.
+ */
+export const ALL_ROWS = 100000;
+
+/** 쪽 크기 선택지 */
+export const PAGE_SIZES = [50, 100, 200, ALL_ROWS];
