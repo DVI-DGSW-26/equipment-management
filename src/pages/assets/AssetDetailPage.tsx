@@ -469,7 +469,7 @@ function EditModal({
         취득가액·취득일자·내용연수처럼 감가상각에 영향을 주는 항목은 “회계 정정”에서 사유와 함께
         고칩니다.
       </p>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="form-lg grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="자산명">
           <input
             className={inputClass}
@@ -717,7 +717,7 @@ function CorrectModal({
         기존 자산에 수리비가 들어 가액이 늘어난 경우는 정정이 아니라 “자산변동사항 → 자본적지출”에
         등록하세요.
       </p>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="form-lg grid grid-cols-1 gap-3 md:grid-cols-2">
         <Field label="취득일자">
           <input
             type="date"

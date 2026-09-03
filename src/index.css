@@ -184,6 +184,34 @@
   textarea.num {
     text-align: left;
   }
+
+  /*
+   * 고정자산 등록·수정은 회계 프로그램 고정자산등록화면을 옮겨 적는 자리다.
+   * 회계에서 보던 화면보다 칸이 작아 보기 불편하다는 얘기가 있어
+   * (한미화 책임 회신 2026-09-01) 이 안쪽만 한 단계 키운다.
+   *
+   * .form-lg input(0,1,1)이 텍스트 크기 유틸(0,1,0)을 이긴다 — 같은 레이어라 순서와 무관하다.
+   */
+  .form-lg input,
+  .form-lg select,
+  .form-lg textarea {
+    font-size: 22px;
+    padding-block: 0.5rem;
+  }
+
+  .form-lg input[type='checkbox'] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* 첫 줄은 항목 이름, 그 아래는 안내 문구 */
+  .form-lg label > span:first-child {
+    font-size: 20px;
+  }
+
+  .form-lg label > span:not(:first-child) {
+    font-size: 18px;
+  }
 }
 
 @utility code {

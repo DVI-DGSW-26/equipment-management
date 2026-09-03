@@ -18,6 +18,8 @@ import { allowedMethods, defaultMethod, lookupRate } from '@/domain/depreciation
 import { rateText } from '@/lib/won';
 import { toIsoDate } from '@/lib/date';
 import { useToast } from '@/components/toastContext';
+import { emptyTaxForm, hasTaxInput, TAX_NOTE, taxBody, type TaxFormState } from '@/domain/taxRecord';
+import TaxRecordFields from '@/components/TaxRecordFields';
 import { Badge, btnClass, btnPrimaryClass, Field, inputClass, Section } from '@/components/ui';
 
 interface FormState {
@@ -134,6 +136,19 @@ export default function AssetNewPage() {
     retry: false,
   });
 
+  /*
+   * 추가등록사항(세무 기록 13종).
+   *
+   * 회계 프로그램 고정자산등록화면에는 이 칸이 등록할 때부터 있다. 등록을 마치고
+   * 상세에 들어가 다시 적게 하면 회계에서 하던 일이 두 번으로 갈린다
+   * (한미화 책임 회신 2026-09-01). 등록에 필요한 항목은 아니라 비워 둬도 된다.
+   *
+   * 자산 만들기 요청에는 이 항목이 없어, 저장한 뒤 적힌 것이 있을 때만 한 번 더 보낸다.
+   */
+  const [tax, setTax] = useState<TaxFormState>(emptyTaxForm);
+  const setTaxField = (key: string, v: string | boolean) =>
+    setTax((prev) => ({ ...prev, [key]: v }));
+
   const create = useMutation({
     mutationFn: () => {
       const body: CreateAssetPayload = {
@@ -165,7 +180,10 @@ export default function AssetNewPage() {
         instrumentMgmtNo: form.instrumentMgmtNo || undefined,
         remark: form.remark || undefined,
       };
-      return assetsApi.create(body);
+      return assetsApi.create(body).then(async (asset) => {
+        if (hasTaxInput(tax)) await assetsApi.updateTaxRecord(asset.id, taxBody(tax));
+        return asset;
+      });
     },
     onSuccess: (asset) => {
       toast.ok('자산을 등록했습니다.');
@@ -196,7 +214,8 @@ export default function AssetNewPage() {
   };
 
   return (
-    <div className="space-y-3">
+    /* form-lg: 회계에서 보던 등록화면만큼 칸과 글자를 키운다 */
+    <div className="form-lg space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/assets')}>
           ← 목록
@@ -224,7 +243,10 @@ export default function AssetNewPage() {
         </div>
       </Section>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      {/* 묶음 이름과 차례를 회계 프로그램 고정자산등록화면에 맞춘다 */}
+      <h2 className="px-1 pt-1 text-[21px] font-semibold">주요등록사항</h2>
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Section title="분류">
           <div className="space-y-3 px-3 py-3">
             <Field label="자산구분" required>
@@ -460,7 +482,7 @@ export default function AssetNewPage() {
       </div>
 
       <Section title="관리 정보">
-        <div className="grid grid-cols-1 gap-3 px-3 py-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 px-3 py-3 sm:grid-cols-2 xl:grid-cols-3">
           <Field label="매입처">
             <input
               className={inputClass}
@@ -512,7 +534,7 @@ export default function AssetNewPage() {
               />
             </Field>
           </div>
-          <label className="col-span-4 flex w-fit items-center gap-2 text-[19px]">
+          <label className="sm:col-span-2 xl:col-span-3 flex w-fit items-center gap-2 text-[19px]">
             <input
               type="checkbox"
               checked={form.excludedFromPrint}
@@ -521,20 +543,40 @@ export default function AssetNewPage() {
             목록표·스티커 출력에서 제외 (금형 등)
           </label>
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-2">
-          <button type="button" className={btnClass} onClick={() => setForm(initialForm())}>
-            초기화
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={!valid || create.isPending}
-            onClick={() => create.mutate()}
-          >
-            등록
-          </button>
+      </Section>
+
+      <h2 className="px-1 pt-1 text-[21px] font-semibold">추가등록사항</h2>
+
+      <Section title="세무 기록 13종">
+        <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
+          {TAX_NOTE} 지금 비워 두고 나중에 자산 상세에서 적어도 됩니다.
+        </p>
+        <div className="px-3 py-3">
+          <TaxRecordFields form={tax} onChange={setTaxField} />
         </div>
       </Section>
+
+      {/* 저장줄은 맨 아래 한 자리에 둔다 — 어느 묶음에 딸린 단추인지 헷갈리지 않게 */}
+      <div className="flex items-center justify-end gap-2 rounded-sm border border-line bg-surface px-3 py-2">
+        <button
+          type="button"
+          className={btnClass}
+          onClick={() => {
+            setForm(initialForm());
+            setTax(emptyTaxForm());
+          }}
+        >
+          초기화
+        </button>
+        <button
+          type="button"
+          className={btnPrimaryClass}
+          disabled={!valid || create.isPending}
+          onClick={() => create.mutate()}
+        >
+          등록
+        </button>
+      </div>
     </div>
   );
 }
