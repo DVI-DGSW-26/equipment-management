@@ -328,6 +328,13 @@ export const assetsApi = {
     requestFile('POST', '/asset/sticker', '자산스티커.pdf', { body }),
   exportPdf: (query: AssetFilter = {}): Promise<DownloadResult> =>
     requestFile('GET', '/asset/export/pdf', '고정자산목록표.pdf', { query }),
+  /**
+   * 서버가 만드는 고정자산목록표 엑셀.
+   *
+   * 지금 화면에서는 쓰지 않는다 — 화면 표와 열이 다르고 연번이 없어 헷갈린다는 회신이 있어
+   * 단추를 걷어냈고(2026-09-03), 엑셀은 화면 표 그대로 lib/excel 로 만든다.
+   * 서버 쪽은 그대로 살아 있어 회계 양식이 다시 필요해지면 이 자리를 쓰면 된다.
+   */
   exportExcel: (query: AssetFilter = {}): Promise<DownloadResult> =>
     requestFile('GET', '/asset/export/excel', '고정자산목록표.xlsx', { query }),
 };

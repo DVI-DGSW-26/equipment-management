@@ -196,11 +196,11 @@ export default function AssetListPage() {
       kind,
       startPosition = 1,
     }: {
-      kind: 'pdf' | 'excel' | 'sticker';
+      /* 엑셀은 화면 표 그대로 여기서 만든다(exportScreen). 서버 목록표 양식은 PDF 만 쓴다 */
+      kind: 'pdf' | 'sticker';
       startPosition?: number;
     }) => {
       if (kind === 'pdf') return assetsApi.exportPdf(filter);
-      if (kind === 'excel') return assetsApi.exportExcel(filter);
       return assetsApi.sticker({ ids: sel.ids(), startPosition });
     },
     onSuccess: (file) => {
@@ -379,15 +379,6 @@ export default function AssetListPage() {
               onClick={() => void exportScreen()}
             >
               {exporting ? '만드는 중…' : 'Excel'}
-            </button>
-            <button
-              type="button"
-              className={btnClass}
-              disabled={download.isPending}
-              title="회계에 내는 고정자산목록표 양식입니다. 연번 없이 자산코드부터 시작합니다."
-              onClick={() => download.mutate({ kind: 'excel' })}
-            >
-              목록표 Excel (회계양식)
             </button>
             <button
               type="button"
