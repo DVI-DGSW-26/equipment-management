@@ -15,7 +15,7 @@ import { isAgency } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
-import { currentYear, fmtDate, fmtDateTime, getToday, toIsoDate } from '@/lib/date';
+import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
 import { wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
@@ -77,7 +77,6 @@ export default function InstrumentDetailPage() {
    * 빠진다. 현장에서 못 쓰게 된 계측기는 지우지 말고 폐기로 넘겨야, 나중에 "그 계측기
    * 언제 어떻게 됐냐" 는 물음에 답할 수 있다. 삭제는 잘못 등록한 것을 치울 때만 쓴다.
    */
-  const [discarding, setDiscarding] = useState(false);
 
   const restore = useMutation({
     mutationFn: () => instrumentsApi.restore(instrumentId),
@@ -88,10 +87,18 @@ export default function InstrumentDetailPage() {
     onError: toast.fail,
   });
 
+  /*
+   * [삭제] 는 정말 지우지 않고 폐기로 넘긴다.
+   *
+   * 서버의 DELETE 는 교정 이력과 사진까지 함께 지워 되돌릴 수 없다. 못 쓰게 된 계측기를
+   * 목록에서 치우려던 것뿐인데 이력이 사라지면 "그 계측기 언제 어떻게 됐냐" 에 답할 수 없다.
+   * 그래서 폐기로 바꾼다 — 화면에서는 사라지고(목록 기본이 사용중), 상태를 폐기·전체로
+   * 두면 다시 보이고 [폐기 취소] 로 되돌릴 수 있다.
+   */
   const removeInstrument = useMutation({
-    mutationFn: () => instrumentsApi.remove(instrumentId),
+    mutationFn: () => instrumentsApi.discard(instrumentId),
     onSuccess: () => {
-      toast.ok('계측기를 삭제했습니다.');
+      toast.ok('폐기 처리했습니다. 교정 이력은 그대로 남습니다.');
       invalidateAll();
       navigate('/instruments');
     },
@@ -188,25 +195,21 @@ export default function InstrumentDetailPage() {
           ) : (
             <button
               type="button"
-              className={btnClass}
-              disabled={!d}
-              onClick={() => setDiscarding(true)}
+              className={btnDangerClass}
+              disabled={!d || removeInstrument.isPending}
+              title="목록에서 내려갑니다. 교정 이력과 사진은 그대로 남고, 상태를 폐기로 두면 다시 보입니다."
+              onClick={() => {
+                if (
+                  window.confirm(
+                    '이 계측기를 폐기 처리합니다. 목록에서 내려가지만 교정 이력은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
+                  )
+                )
+                  removeInstrument.mutate();
+              }}
             >
-              폐기
+              삭제
             </button>
           )}
-          <button
-            type="button"
-            className={btnDangerClass}
-            disabled={!d || removeInstrument.isPending}
-            title="교정 이력과 첨부까지 함께 지웁니다. 현장 폐기는 [폐기] 를 쓰세요."
-            onClick={() => {
-              if (window.confirm('이 계측기를 삭제합니다. 교정 이력도 함께 사라집니다.'))
-                removeInstrument.mutate();
-            }}
-          >
-            삭제
-          </button>
         </div>
       </div>
 
@@ -447,9 +450,7 @@ export default function InstrumentDetailPage() {
       )}
 
       {d && editing && <InstrumentModal instrument={d} onClose={() => setEditing(false)} />}
-      {d && discarding && (
-        <DiscardModal instrumentId={instrumentId} onClose={() => setDiscarding(false)} />
-      )}
+
       {calibrationTarget && (
         <CalibrationModal
           instrumentId={instrumentId}
@@ -458,80 +459,6 @@ export default function InstrumentDetailPage() {
         />
       )}
     </div>
-  );
-}
-
-/* ---------- 폐기 ---------- */
-
-/**
- * 폐기일과 사유를 적어 둔다. 둘 다 비워도 되지만(서버가 오늘로 적는다),
- * 나중에 "왜 뺐냐" 를 묻는 쪽은 사유를 본다.
- */
-function DiscardModal({ instrumentId, onClose }: { instrumentId: number; onClose: () => void }) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [discardedAt, setDiscardedAt] = useState(toIsoDate(getToday()));
-  const [reason, setReason] = useState('');
-
-  const save = useMutation({
-    mutationFn: () =>
-      instrumentsApi.discard(instrumentId, {
-        discardedAt: discardedAt || undefined,
-        reason: reason.trim() || undefined,
-      }),
-    onSuccess: () => {
-      toast.ok('폐기 처리했습니다. 교정 이력은 그대로 남습니다.');
-      void qc.invalidateQueries({ queryKey: queryKeys.instruments.all });
-      void qc.invalidateQueries({ queryKey: queryKeys.calibrations.all });
-      onClose();
-    },
-    onError: toast.fail,
-  });
-
-  return (
-    <Modal
-      title="계측기 폐기"
-      width={520}
-      onClose={onClose}
-      footer={
-        <>
-          <button type="button" className={btnClass} onClick={onClose}>
-            취소
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={save.isPending}
-            onClick={() => save.mutate()}
-          >
-            폐기
-          </button>
-        </>
-      }
-    >
-      <p className="mb-3 text-[18px] text-fg-sub">
-        교정 이력과 사진은 그대로 남고, 목록·교정계획·알림 대상에서만 빠집니다. 잘못했으면
-        상세 화면에서 [폐기 취소] 로 되돌립니다.
-      </p>
-      <div className="grid grid-cols-1 gap-3">
-        <Field label="폐기일" hint="비우면 오늘로 적힙니다.">
-          <input
-            type="date"
-            className={inputClass}
-            value={discardedAt}
-            onChange={(e) => setDiscardedAt(e.target.value)}
-          />
-        </Field>
-        <Field label="폐기 사유">
-          <input
-            className={inputClass}
-            placeholder="예: 파손 · 교정 불가"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </Field>
-      </div>
-    </Modal>
   );
 }
 

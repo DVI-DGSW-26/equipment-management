@@ -59,7 +59,6 @@ export default function AssetDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const [mode, setMode] = useState<'none' | 'edit' | 'correct'>('none');
-  const [disposing, setDisposing] = useState(false);
   const [tab, setTab] = useState<DetailTab>('main');
 
   const detail = useQuery({
@@ -94,10 +93,19 @@ export default function AssetDetailPage() {
     onError: toast.fail,
   });
 
+  /*
+   * [삭제] 는 정말 지우지 않고 폐기로 넘긴다.
+   *
+   * 서버의 DELETE 는 감가상각 내역과 변경 이력까지 함께 지워 되돌릴 수 없다.
+   * 쓰지 않게 된 자산을 목록에서 치우려던 것뿐인데 결산 자료가 사라지면 손쓸 수 없다.
+   * 그래서 상태만 폐기로 바꾼다 — 화면에서는 사라지고(목록 기본이 사용중), 자료는 남아
+   * 상태를 전체로 두면 다시 보이고 [폐기 취소] 로 되돌릴 수 있다.
+   */
   const remove = useMutation({
-    mutationFn: () => assetsApi.remove(assetId),
+    mutationFn: () =>
+      assetsApi.update(assetId, { status: 'DISPOSED', disposalDate: toIsoDate(getToday()) }),
     onSuccess: () => {
-      toast.ok('자산을 삭제했습니다.');
+      toast.ok('폐기 처리했습니다. 감가상각 내역은 그대로 남습니다.');
       invalidate();
       navigate('/assets');
     },
@@ -154,11 +162,7 @@ export default function AssetDetailPage() {
               className={btnClass}
               disabled={restore.isPending}
               onClick={() => {
-                if (
-                  window.confirm(
-                    '사용중으로 되돌립니다. 적어 둔 양도/폐기일과 금액은 지워집니다.',
-                  )
-                )
+                if (window.confirm('사용중으로 되돌립니다. 적어 둔 양도/폐기일과 금액은 지워집니다.'))
                   restore.mutate();
               }}
             >
@@ -167,29 +171,21 @@ export default function AssetDetailPage() {
           ) : (
             <button
               type="button"
-              className={btnClass}
-              disabled={!a}
-              onClick={() => setDisposing(true)}
+              className={btnDangerClass}
+              disabled={!a || remove.isPending}
+              title="목록에서 내려갑니다. 감가상각 내역과 변경 이력은 그대로 남고, 상태를 전체로 두면 다시 보입니다."
+              onClick={() => {
+                if (
+                  window.confirm(
+                    '이 자산을 폐기 처리합니다. 목록에서 내려가지만 감가상각 내역은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
+                  )
+                )
+                  remove.mutate();
+              }}
             >
-              폐기 · 매각
+              삭제
             </button>
           )}
-          <button
-            type="button"
-            className={btnDangerClass}
-            disabled={!a || remove.isPending}
-            title="감가상각 내역과 변경 이력까지 함께 지웁니다. 실제 폐기는 [폐기 · 매각] 을 쓰세요."
-            onClick={() => {
-              if (
-                window.confirm(
-                  '이 자산을 완전히 삭제합니다. 감가상각 내역과 변경 이력도 함께 사라지고 되돌릴 수 없습니다. 실제로 폐기·매각한 자산이라면 [취소] 를 누르고 [폐기 · 매각] 을 쓰세요.',
-                )
-              )
-                remove.mutate();
-            }}
-          >
-            삭제
-          </button>
         </div>
       </div>
 
@@ -322,129 +318,8 @@ export default function AssetDetailPage() {
       {a && mode === 'correct' && (
         <CorrectModal asset={a} onClose={() => setMode('none')} onDone={invalidate} />
       )}
-      {a && disposing && (
-        <DisposeModal asset={a} onClose={() => setDisposing(false)} onDone={invalidate} />
-      )}
+
     </div>
-  );
-}
-
-/* ---------- 폐기 · 매각 ---------- */
-
-/**
- * 자산을 사용중에서 내린다.
- *
- * 계측기 폐기와 하는 일은 같지만 고정자산은 금액이 따라붙는다 — 양도폐기금액과
- * 부분매각및폐기는 상각 계산에 쓰이지 않는 기록 항목이라, 여기서 함께 적어 두지
- * 않으면 나중에 결산할 때 다시 찾아 넣어야 한다 (회계팀 회신 2026-09-01).
- */
-function DisposeModal({
-  asset,
-  onClose,
-  onDone,
-}: {
-  asset: Asset;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [status, setStatus] = useState<Exclude<AssetStatus, 'IN_USE'>>('DISPOSED');
-  const [disposalDate, setDisposalDate] = useState(asset.disposalDate ?? toIsoDate(getToday()));
-  const [disposalAmount, setDisposalAmount] = useState(
-    asset.disposalAmount != null ? String(asset.disposalAmount) : '',
-  );
-  const [partialAmount, setPartialAmount] = useState(
-    asset.partialDisposalAmount != null ? String(asset.partialDisposalAmount) : '',
-  );
-
-  const save = useMutation({
-    mutationFn: () =>
-      assetsApi.update(asset.id, {
-        status,
-        disposalDate: disposalDate || null,
-        disposalAmount: disposalAmount === '' ? null : Number(disposalAmount),
-        partialDisposalAmount: partialAmount === '' ? null : Number(partialAmount),
-      }),
-    onSuccess: () => {
-      toast.ok(`${ASSET_STATUS_LABEL[status]} 처리했습니다. 감가상각 내역은 그대로 남습니다.`);
-      onDone();
-      void qc.invalidateQueries({ queryKey: queryKeys.assets.detail(asset.id) });
-      onClose();
-    },
-    onError: toast.fail,
-  });
-
-  return (
-    <Modal
-      title="자산 폐기 · 매각"
-      width={560}
-      onClose={onClose}
-      footer={
-        <>
-          <button type="button" className={btnClass} onClick={onClose}>
-            취소
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {ASSET_STATUS_LABEL[status]} 처리
-          </button>
-        </>
-      }
-    >
-      <p className="mb-3 text-[18px] text-fg-sub">
-        감가상각 내역과 변경 이력은 그대로 남고, 목록에서 상태로 갈라 보게 됩니다. 잘못했으면
-        상세 화면에서 [폐기 취소] 로 되돌립니다.
-      </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="구분" required>
-          <select
-            className={inputClass}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as Exclude<AssetStatus, 'IN_USE'>)}
-          >
-            <option value="DISPOSED">{ASSET_STATUS_LABEL.DISPOSED}</option>
-            <option value="SOLD">{ASSET_STATUS_LABEL.SOLD}</option>
-          </select>
-        </Field>
-        <Field label="양도/폐기일">
-          <input
-            type="date"
-            className={inputClass}
-            value={disposalDate}
-            onChange={(e) => setDisposalDate(e.target.value)}
-          />
-        </Field>
-        <Field
-          label="양도폐기금액 (원)"
-          hint={disposalAmount ? wonUnit(Number(disposalAmount)) : '감가상각 계산에 쓰이지 않는 기록 항목'}
-        >
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
-            placeholder="0"
-            value={disposalAmount}
-            onChange={(e) => setDisposalAmount(e.target.value.replace(/[^d]/g, ''))}
-          />
-        </Field>
-        <Field
-          label="부분매각및폐기 (원)"
-          hint={partialAmount ? wonUnit(Number(partialAmount)) : '일부만 처분한 경우에 적습니다.'}
-        >
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
-            placeholder="0"
-            value={partialAmount}
-            onChange={(e) => setPartialAmount(e.target.value.replace(/[^d]/g, ''))}
-          />
-        </Field>
-      </div>
-    </Modal>
   );
 }
 

@@ -55,7 +55,8 @@ const EMPTY_FORM: FormState = {
   accountId: '',
   usingDeptId: '',
   locationId: '',
-  status: '',
+  /* 폐기·매각한 자산은 기본으로 감춘다. 목록은 지금 쓰고 있는 것을 보는 자리다 */
+  status: 'IN_USE',
   acquiredFrom: '',
   acquiredTo: '',
   costFrom: '',
@@ -311,7 +312,7 @@ export default function AssetListPage() {
             aria-label="상태"
             onChange={(e) => set('status', e.target.value)}
           >
-            <option value="">상태 전체</option>
+            <option value="">상태 전체 (폐기·매각 포함)</option>
             {(Object.keys(ASSET_STATUS_LABEL) as AssetStatus[]).map((s) => (
               <option key={s} value={s}>
                 {ASSET_STATUS_LABEL[s]}
