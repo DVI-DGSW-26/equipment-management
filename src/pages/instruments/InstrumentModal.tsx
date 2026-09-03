@@ -40,7 +40,7 @@ export default function InstrumentModal({
     calibrationCycleMonths: String(instrument?.calibrationCycleMonths ?? 12),
     department: (instrument?.department ?? '') as InstrumentDepartment | '',
     departmentEtc: instrument?.departmentEtc ?? '',
-    locationId: instrument?.locationId != null ? String(instrument.locationId) : '',
+    locationName: instrument?.locationName ?? '',
     userName: instrument?.userName ?? '',
     purchaseDate: instrument?.purchaseDate ?? '',
     purchasePrice: instrument?.purchasePrice != null ? String(instrument.purchasePrice) : '',
@@ -61,6 +61,11 @@ export default function InstrumentModal({
     queryFn: () => instrumentsApi.list(INSTRUMENT_ALL),
     staleTime: 5 * 60_000,
   });
+
+  const locationOptions = useMemo<SearchOption[]>(
+    () => (locations.data ?? []).map((l) => ({ value: l.name, label: l.name })),
+    [locations.data],
+  );
 
   const nameOptions = useMemo<SearchOption[]>(
     () =>
@@ -90,7 +95,7 @@ export default function InstrumentModal({
         accuracy: form.accuracy || undefined,
         department: form.department || undefined,
         departmentEtc: form.department === 'ETC' ? form.departmentEtc || undefined : undefined,
-        locationId: form.locationId ? Number(form.locationId) : undefined,
+        locationName: form.locationName.trim() || undefined,
         userName: form.userName || undefined,
         purchaseDate: form.purchaseDate || undefined,
         purchasePrice: form.purchasePrice ? Number(form.purchasePrice) : undefined,
@@ -211,19 +216,16 @@ export default function InstrumentModal({
             />
           </Field>
         )}
-        <Field label="사용위치">
-          <select
-            className={inputClass}
-            value={form.locationId}
-            onChange={(e) => set('locationId', e.target.value)}
-          >
-            <option value="">선택</option>
-            {(locations.data ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+        {/* 구매처와 같다 — 쓰던 곳에서 고르거나, 새 자리는 그냥 쳐 넣는다 */}
+        <Field label="사용위치" hint="마스터에 없는 곳은 저장할 때 새로 등록됩니다.">
+          <SearchSelect
+            value={form.locationName}
+            onChange={(v) => set('locationName', v)}
+            options={locationOptions}
+            placeholder="사용위치"
+            loading={locations.isLoading}
+            allowFree
+          />
         </Field>
         <Field label="사용자" hint="여러 작업자가 공용하면 비워 둡니다.">
           <input

@@ -20,7 +20,7 @@ import { fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
-import { ALL_ROWS, rowNo } from '@/lib/paging';
+import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { useUrlState } from '@/hooks/useUrlState';
 import {
   Badge,
@@ -142,17 +142,23 @@ export default function AssetListPage() {
   const departments = useDepartments();
   const locations = useLocations();
 
-  const listQuery = useMemo(() => ({ ...filter, page, size }), [filter, page, size]);
+  /*
+   * 서버가 page/size 를 무시하고 걸러 낸 전건을 한 번에 준다 (백엔드 회신 2026-09-03).
+   * 그래서 쪽은 화면에서 나눈다 — 장을 넘길 때마다 다시 물을 것도 없다.
+   */
   const list = useQuery({
-    queryKey: queryKeys.assets.list(listQuery),
-    queryFn: () => assetsApi.list(listQuery),
+    queryKey: queryKeys.assets.list(filter),
+    queryFn: () => assetsApi.list(filter),
   });
   const summary = useQuery({
     queryKey: queryKeys.assets.summary(filter),
     queryFn: () => assetsApi.summary(filter),
   });
 
-  const rows = list.data?.items ?? [];
+  const all = useMemo(() => list.data?.items ?? [], [list.data]);
+  const paged = slicePage(all, page, size);
+  /** 지금 펼친 장에 보이는 것 */
+  const rows = paged.items;
 
   /**
    * 스티커 선택.
@@ -181,9 +187,9 @@ export default function AssetListPage() {
   const exportScreen = async () => {
     setExporting(true);
     try {
-      const data: AssetRow[] = rows.map((a, i) => ({ ...a, no: rowNo(i, page, size) }));
+      const data: AssetRow[] = all.map((a, i) => ({ ...a, no: rowNo(i) }));
       await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('고정자산목록', toIsoDate(getToday())));
-      toast.ok(`고정자산 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+      toast.ok(`고정자산 ${all.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);
     } finally {
@@ -374,8 +380,8 @@ export default function AssetListPage() {
             <button
               type="button"
               className={btnClass}
-              disabled={rows.length === 0 || exporting}
-              title={`화면에 보이는 그대로 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+              disabled={all.length === 0 || exporting}
+              title={`걸러 놓은 ${all.length.toLocaleString('ko-KR')}건을 화면에 보이는 열 그대로 내려받습니다.`}
               onClick={() => void exportScreen()}
             >
               {exporting ? '만드는 중…' : 'Excel'}
@@ -407,7 +413,7 @@ export default function AssetListPage() {
         }
       >
         {/* 선택 열을 숨긴 이유를 알린다 */}
-        {rows.length > 0 && !sel.showSelectColumn && (
+        {all.length > 0 && !sel.showSelectColumn && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[17px] text-warn">
             이 페이지에는 스티커를 출력할 수 있는 자산이 없어 선택 열을 숨겼습니다. 자산코드가
             없거나(사용위치 미확정), 출력 제외로 지정됐거나, 실물이 없는 무형자산은 라벨 대상이
@@ -418,11 +424,11 @@ export default function AssetListPage() {
         <QueryState
           isPending={list.isPending}
           error={list.error}
-          isEmpty={rows.length === 0}
+          isEmpty={all.length === 0}
           emptyText="조건에 맞는 자산이 없습니다."
         />
 
-        {rows.length > 0 && (
+        {all.length > 0 && (
           <>
             <TableScroll>
               <table className="w-max min-w-full text-[19px]">
@@ -475,7 +481,7 @@ export default function AssetListPage() {
                           />
                         </td>
                       )}
-                      <td className="num px-3 py-2 text-fg-muted">{rowNo(i, page, size)}</td>
+                      <td className="num px-3 py-2 text-fg-muted">{rowNo(i, paged.page, size)}</td>
                       <td className="code px-3 py-2">
                         {a.assetCode ? (
                           codeText(a.assetCode)
@@ -538,9 +544,9 @@ export default function AssetListPage() {
             </TableScroll>
 
             <Pagination
-              page={list.data?.page ?? 0}
-              totalPages={list.data?.totalPages ?? 0}
-              total={list.data?.total ?? 0}
+              page={paged.page}
+              totalPages={paged.totalPages}
+              total={paged.total}
               size={size}
               onChange={setPage}
               onSizeChange={setSize}

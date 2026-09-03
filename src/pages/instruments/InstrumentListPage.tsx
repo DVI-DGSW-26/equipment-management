@@ -77,6 +77,8 @@ const LIST_DEFAULTS = {
   /** 'any' = 하나라도 / 'all' = 모두 */
   userMode: 'any',
   cycle: '',
+  /** 'IN_USE'(기본) / 'DISCARDED' / 'ALL' */
+  status: 'IN_USE',
   due: 'all',
   sort: 'due',
   page: '0',
@@ -106,6 +108,13 @@ const LIST_COLUMNS: ExcelColumn<ListRow>[] = [
   { header: '최근 교정일', value: (i) => i.lastCalibratedDate, width: 14 },
   { header: '차기 교정일', value: (i) => i.nextDueDate, width: 14 },
   { header: '남은 기한', value: (i) => ddayLabel(daysUntil(i.nextDueDate)), width: 12 },
+];
+
+/** 폐기내역을 함께 볼 때만 붙이는 열. 화면 표와 차례를 맞춰 뒤에 붙인다 */
+const DISCARD_COLUMNS: ExcelColumn<ListRow>[] = [
+  { header: '상태', value: (i) => i.statusLabel, width: 10 },
+  { header: '폐기일', value: (i) => i.discardedAt, width: 14 },
+  { header: '폐기 사유', value: (i) => i.discardReason, width: 24 },
 ];
 
 type AnnualRow = AnnualCalibration & { no: number };
@@ -147,9 +156,10 @@ const LONG_OVERDUE_DAYS = 10;
  * 뒤로 내린다. 지워지는 것이 아니라 차례만 뒤일 뿐이고,
  * '경과' 카드를 누르면 그것들만 따로 볼 수 있다.
  */
-const dueRank = (i: { nextDueDate: string | null }): number => {
+const dueRank = (i: Instrument): number => {
+  if (i.status === 'DISCARDED') return 3; /* 폐기한 것은 맨 뒤 */
   const days = daysUntil(i.nextDueDate);
-  if (days == null) return 2; /* 기한 없는 것은 맨 뒤 */
+  if (days == null) return 2; /* 기한 없는 것은 그다음 */
   return days < -LONG_OVERDUE_DAYS ? 1 : 0;
 };
 
@@ -174,6 +184,8 @@ function ListTab() {
   /* 쉼표로 이어 둔 것을 갈라 쓴다. 그때그때 나누면 매번 새 배열이라 목록이 계속 다시 걸러진다 */
   const users = useMemo(() => (q.users === '' ? [] : q.users.split(',')), [q.users]);
   const cycle = q.cycle;
+  /** 사용중만 볼지, 폐기내역만 볼지, 둘 다 볼지 */
+  const view = q.status as 'IN_USE' | 'DISCARDED' | 'ALL';
   /** 여럿을 골랐을 때 모두 가진 것만 볼지 (기본은 하나라도) */
   const userAll = q.userMode === 'all';
   const due = q.due as DueFilter;
@@ -186,15 +198,35 @@ function ListTab() {
   /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
   const setFilter = (next: Partial<typeof LIST_DEFAULTS>) => setQ({ ...next, page: '0' });
 
-  const query = useMemo(() => ({ page: 0, size: LOAD_LIMIT }), []);
+  /*
+   * 서버는 사용중과 폐기를 따로 준다 (status 를 비우면 사용중만, DISCARDED 면 폐기만).
+   * 그래서 "전체" 를 보려면 두 번 물어 합친다. 보는 쪽만 부르니 평소엔 한 번뿐이다.
+   */
+  const inUseQuery = useMemo(() => ({ page: 0, size: LOAD_LIMIT }), []);
+  const discardQuery = useMemo(() => ({ page: 0, size: LOAD_LIMIT, status: 'DISCARDED' as const }), []);
   const list = useQuery({
-    queryKey: queryKeys.instruments.list(query),
-    queryFn: () => instrumentsApi.list(query),
+    queryKey: queryKeys.instruments.list(inUseQuery),
+    queryFn: () => instrumentsApi.list(inUseQuery),
+    enabled: view !== 'DISCARDED',
+  });
+  const discarded = useQuery({
+    queryKey: queryKeys.instruments.list(discardQuery),
+    queryFn: () => instrumentsApi.list(discardQuery),
+    enabled: view !== 'IN_USE',
   });
 
-  const all = useMemo(() => list.data?.items ?? [], [list.data]);
+  const all = useMemo(
+    () => [
+      ...(view === 'DISCARDED' ? [] : (list.data?.items ?? [])),
+      ...(view === 'IN_USE' ? [] : (discarded.data?.items ?? [])),
+    ],
+    [view, list.data, discarded.data],
+  );
   /** 서버에 더 있는데 못 받아 왔다 */
-  const truncated = (list.data?.total ?? 0) > all.length;
+  const loadedTotal =
+    (view === 'DISCARDED' ? 0 : (list.data?.total ?? 0)) +
+    (view === 'IN_USE' ? 0 : (discarded.data?.total ?? 0));
+  const truncated = loadedTotal > all.length;
 
   /*
    * 올해 교정계획·실시·결과. 목록 응답에는 없고 연간 계획 쪽에만 있어 이어 붙인다.
@@ -241,6 +273,7 @@ function ListTab() {
   const counts = useMemo(() => {
     const c = { overdue: 0, within30: 0, within90: 0 };
     beforeDue.forEach((i) => {
+      if (i.status === 'DISCARDED') return; /* 폐기한 것은 교정할 일이 없다 */
       const d = daysUntil(i.nextDueDate);
       if (matchesDue(d, i.overdue, 'overdue')) c.overdue += 1;
       if (matchesDue(d, i.overdue, 'within30')) c.within30 += 1;
@@ -250,7 +283,11 @@ function ListTab() {
   }, [beforeDue]);
 
   const rows = useMemo(() => {
-    const kept = beforeDue.filter((i) => matchesDue(daysUntil(i.nextDueDate), i.overdue, due));
+    const kept = beforeDue.filter((i) =>
+      i.status === 'DISCARDED'
+        ? due === 'all' /* 폐기한 것은 기한 칸을 눌렀을 때 끼어들지 않는다 */
+        : matchesDue(daysUntil(i.nextDueDate), i.overdue, due),
+    );
     return kept.sort((a, b) =>
       sort === 'due'
         ? dueRank(a) - dueRank(b) ||
@@ -263,17 +300,32 @@ function ListTab() {
   const paged = slicePage(rows, page, size);
 
   const dirty =
-    keyword !== '' || location !== '' || users.length > 0 || cycle !== '' || due !== 'all';
+    keyword !== '' ||
+    location !== '' ||
+    users.length > 0 ||
+    cycle !== '' ||
+    due !== 'all' ||
+    view !== 'IN_USE';
 
   const reset = () =>
-    setQ({ keyword: '', location: '', users: '', userMode: 'any', cycle: '', due: 'all', page: '0' });
+    setQ({
+      keyword: '',
+      location: '',
+      users: '',
+      userMode: 'any',
+      cycle: '',
+      due: 'all',
+      status: 'IN_USE',
+      page: '0',
+    });
 
   /* 지금 화면에 걸러 놓은 것 전부를 내려받는다 — 펼친 장만이 아니다 */
   const download = async () => {
     setExporting(true);
     try {
       const data: ListRow[] = rows.map((i, n) => ({ ...i, no: rowNo(n), plan: planOf.get(i.id) }));
-      await downloadExcel(data, LIST_COLUMNS, stampedFileName('계측기목록', toIsoDate(getToday())));
+      const columns = view === 'IN_USE' ? LIST_COLUMNS : [...LIST_COLUMNS, ...DISCARD_COLUMNS];
+      await downloadExcel(data, columns, stampedFileName('계측기목록', toIsoDate(getToday())));
       toast.ok(`계측기 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);
@@ -339,13 +391,24 @@ function ListTab() {
       >
         {truncated && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
-            계측기가 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}
+            계측기가 {loadedTotal.toLocaleString('ko-KR')}건이라 앞의{' '}
             {all.length.toLocaleString('ko-KR')}건만 받아 왔습니다. 아래 결과는 그 안에서만
             거른 것입니다 — 서버 필터 추가가 필요합니다.
           </p>
         )}
 
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+          {/* 폐기한 것은 기본으로 감춘다. 찾을 일이 있을 때만 꺼내 본다 */}
+          <select
+            className={`${filterClass} w-28`}
+            value={view}
+            onChange={(e) => setFilter({ status: e.target.value })}
+            aria-label="상태"
+          >
+            <option value="IN_USE">사용중</option>
+            <option value="DISCARDED">폐기</option>
+            <option value="ALL">전체</option>
+          </select>
           <select
             className={`${filterClass} w-36`}
             value={location}
@@ -402,8 +465,8 @@ function ListTab() {
         </div>
 
         <QueryState
-          isPending={list.isPending}
-          error={list.error}
+          isPending={(view !== 'DISCARDED' && list.isPending) || (view !== 'IN_USE' && discarded.isPending)}
+          error={list.error ?? discarded.error}
           isEmpty={rows.length === 0}
           emptyText={dirty ? '조건에 맞는 계측기가 없습니다.' : '등록된 계측기가 없습니다.'}
         />
@@ -428,17 +491,28 @@ function ListTab() {
                   <th className={thClass}>최근 교정일</th>
                   <th className={thClass}>차기 교정일</th>
                   <th className={`${thClass} text-right`}>남은 기한</th>
+                  {view !== 'IN_USE' && (
+                    <>
+                      <th className={thClass}>상태</th>
+                      <th className={thClass}>폐기일</th>
+                      <th className={thClass}>폐기 사유</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {paged.items.map((i, idx) => {
-                  const days = daysUntil(i.nextDueDate);
+                  const gone = i.status === 'DISCARDED';
+                  /* 폐기한 것은 교정 기한을 따지지 않는다 — 빨갛게 물들면 아직 할 일로 보인다 */
+                  const days = gone ? null : daysUntil(i.nextDueDate);
                   const plan = planOf.get(i.id);
                   return (
                     <tr
                       key={i.id}
                       onClick={() => navigate(`/instruments/${i.id}`)}
-                      className="cursor-pointer border-b border-line hover:bg-bg"
+                      className={`cursor-pointer border-b border-line hover:bg-bg ${
+                        gone ? 'text-fg-muted' : ''
+                      }`}
                     >
                       <td className="num px-3 py-2 text-fg-muted">
                         {rowNo(idx, paged.page, size)}
@@ -455,12 +529,25 @@ function ListTab() {
                       <td className="px-3 py-2">{i.locationName ?? '-'}</td>
                       <td className="px-3 py-2">{i.userName ?? '-'}</td>
                       <td className="px-3 py-2">{fmtDate(i.lastCalibratedDate)}</td>
-                      <td className={`px-3 py-2 ${i.overdue ? 'font-semibold text-danger' : ''}`}>
+                      <td
+                        className={`px-3 py-2 ${
+                          i.overdue && !gone ? 'font-semibold text-danger' : ''
+                        }`}
+                      >
                         {fmtDate(i.nextDueDate)}
                       </td>
-                      <td className={`num px-3 py-2 ${DDAY_CLASS[levelOfDays(days)]}`}>
-                        {ddayLabel(days)}
+                      <td className={`num px-3 py-2 ${gone ? '' : DDAY_CLASS[levelOfDays(days)]}`}>
+                        {gone ? '-' : ddayLabel(days)}
                       </td>
+                      {view !== 'IN_USE' && (
+                        <>
+                          <td className="px-3 py-2">
+                            {gone ? <Badge tone="muted">{i.statusLabel}</Badge> : i.statusLabel}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">{fmtDate(i.discardedAt)}</td>
+                          <td className="px-3 py-2">{i.discardReason ?? '-'}</td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
