@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { inspectionsApi, type EquipmentStatus, type SafetyEquipment } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { byDueAsc, DDAY_CLASS, ddayLabel, levelOf } from '@/domain/dday';
-import { fmtDate } from '@/lib/date';
+import { fmtDate, getToday, toIsoDate } from '@/lib/date';
+import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { searchIn } from '@/lib/search';
+import { useToast } from '@/components/toastContext';
 import DetailModal from './DetailModal';
 import EquipmentModal from './EquipmentModal';
 import { rowNo } from '@/lib/paging';
@@ -58,6 +60,25 @@ function Pick({
   );
 }
 
+/** 화면 표와 같은 차례로 내려받는다 */
+type SafetyRow = SafetyEquipment & { no: number };
+
+const SCREEN_COLUMNS: ExcelColumn<SafetyRow>[] = [
+  { header: 'No.', value: (e) => e.no, numeric: true, width: 6 },
+  { header: '기한', value: (e) => e.nextInspectionDue, width: 14 },
+  { header: 'D-day', value: (e) => ddayLabel(e.daysUntilExpiry), width: 10 },
+  { header: '대상품명', value: (e) => e.name, width: 24 },
+  { header: '형식번호', value: (e) => e.modelNo, width: 16 },
+  { header: '설치장소', value: (e) => e.installLocation, width: 16 },
+  { header: '용량', value: (e) => e.capacity, width: 12 },
+  { header: '담당반', value: (e) => e.team, width: 12 },
+  { header: '검사기관', value: (e) => e.inspectionAgency, width: 18 },
+  { header: '주기(개월)', value: (e) => e.inspectionCycleMonths, numeric: true, width: 12 },
+  { header: '최근 검사일', value: (e) => e.lastInspectedAt, width: 14 },
+  { header: '합격번호', value: (e) => e.certificateNo, width: 16 },
+  { header: '상태', value: (e) => e.statusLabel, width: 10 },
+];
+
 const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
   if (f === 'all') return true;
   const d = e.daysUntilExpiry;
@@ -68,6 +89,7 @@ const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
 };
 
 export default function EquipmentTab() {
+  const toast = useToast();
   const [keyword, setKeyword] = useState('');
   const [team, setTeam] = useState('');
   const [agency, setAgency] = useState('');
@@ -78,6 +100,7 @@ export default function EquipmentTab() {
   const [due, setDue] = useState<DueFilter>('all');
   const [selected, setSelected] = useState<SafetyEquipment | null>(null);
   const [creating, setCreating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   /*
    * 대상 전체를 한 번에 받아 화면에서 거른다.
@@ -154,6 +177,20 @@ export default function EquipmentTab() {
     setDue('all');
   };
 
+  /* 지금 걸러 놓은 것 전부를 화면에 보이는 열 그대로 내려받는다 */
+  const exportScreen = async () => {
+    setExporting(true);
+    try {
+      const data: SafetyRow[] = rows.map((e, i) => ({ ...e, no: rowNo(i) }));
+      await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('안전검사대상', toIsoDate(getToday())));
+      toast.ok(`안전검사 대상 ${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const card = (label: string, key: DueFilter, count: number, tone?: 'danger' | 'warn') => ({
     label,
     value: `${count}건`,
@@ -197,6 +234,15 @@ export default function EquipmentTab() {
               placeholder="설비명·모델·설치위치·검사기관·합격번호"
               width="w-72"
             />
+            <button
+              type="button"
+              className={btnClass}
+              disabled={rows.length === 0 || exporting}
+              title={`화면에 보이는 그대로 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+              onClick={() => void exportScreen()}
+            >
+              {exporting ? '만드는 중…' : 'Excel'}
+            </button>
             <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
               대상 등록
             </button>

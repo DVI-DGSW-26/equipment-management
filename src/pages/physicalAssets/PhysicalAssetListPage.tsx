@@ -11,7 +11,8 @@ import { useCategories, useDepartments, useItemTypes, useItems, useLocations } f
 import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
 import { useStickerSelection } from '@/hooks/useStickerSelection';
-import { fmtDate } from '@/lib/date';
+import { fmtDate, getToday, toIsoDate } from '@/lib/date';
+import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { won } from '@/lib/won';
@@ -74,6 +75,26 @@ const EMPTY = {
 
 type FormState = typeof EMPTY;
 
+/** 화면 표와 같은 차례로 내려받는다 */
+type PhysicalRow = PhysicalAsset & { no: number };
+
+const SCREEN_COLUMNS: ExcelColumn<PhysicalRow>[] = [
+  { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
+  { header: '자산등록', value: (r) => (r.registered ? 'O' : 'X'), width: 10 },
+  { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+  { header: '품명', value: (r) => r.name, width: 26 },
+  { header: '자산구분', value: (r) => r.categoryName, width: 14 },
+  { header: '위치', value: (r) => r.locationName, width: 14 },
+  { header: '부서', value: (r) => r.deptName, width: 14 },
+  { header: '구입일', value: (r) => r.acquisitionDate, width: 14 },
+  { header: '모델명', value: (r) => r.modelName, width: 20 },
+  { header: '제조업체', value: (r) => r.maker, width: 16 },
+  { header: '구입금액', value: (r) => r.purchasePrice, numeric: true, width: 16 },
+  { header: '상태', value: (r) => r.statusLabel, width: 10 },
+  { header: '렌탈', value: (r) => (r.rental ? 'O' : ''), width: 8 },
+  { header: '비고', value: (r) => r.remark, width: 24 },
+];
+
 /**
  * 목록에서 뽑은 값으로 만드는 고르기 칸.
  * 라벨을 칸 위에 얹지 않고 첫 항목 이름으로 알린다 — 한 줄에 늘어놓아야 해서
@@ -114,6 +135,7 @@ export default function PhysicalAssetListPage() {
   const [size, setSize] = useState(ALL_ROWS);
   const [editing, setEditing] = useState<PhysicalAsset | 'new' | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   /** 조건을 건드리면 늘 첫 장부터 다시 본다 */
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
@@ -178,6 +200,20 @@ export default function PhysicalAssetListPage() {
       : r.excludedFromPrint
         ? '출력 제외로 지정된 자산입니다.'
         : null;
+
+  /* 지금 걸러 놓은 것 전부를 화면에 보이는 열 그대로 내려받는다 */
+  const exportScreen = async () => {
+    setExporting(true);
+    try {
+      const data: PhysicalRow[] = filtered.map((r, i) => ({ ...r, no: rowNo(i) }));
+      await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('실물자산목록', toIsoDate(getToday())));
+      toast.ok(`실물자산 ${filtered.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const sticker = useMutation({
     mutationFn: (startPosition: number) =>
@@ -291,6 +327,15 @@ export default function PhysicalAssetListPage() {
         }
         right={
           <>
+            <button
+              type="button"
+              className={btnClass}
+              disabled={filtered.length === 0 || exporting}
+              title={`화면에 보이는 그대로 ${filtered.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+              onClick={() => void exportScreen()}
+            >
+              {exporting ? '만드는 중…' : 'Excel'}
+            </button>
             <button
               type="button"
               className={btnClass}

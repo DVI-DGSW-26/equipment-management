@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ALL_ROWS, PAGE_SIZES } from '@/lib/paging';
 import { errorMessage } from '@/api/types';
 
@@ -316,8 +316,23 @@ export function MultiPick({
         ? selected[0]
         : `${selected[0]} 외 ${selected.length - 1}`;
 
+  /*
+   * 바깥을 눌러 닫는 일은 문서에서 듣는다.
+   * 화면을 덮는 투명한 단추를 깔아 두었더니 그것이 목록의 클릭을 먹어 체크가 되지 않았다
+   * (2026-09-03). 덮개를 없애고, 이 칸 밖에서 눌렸을 때만 닫는다.
+   */
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   return (
-    <span className={`relative inline-block shrink-0 ${width}`}>
+    <span ref={box} className={`relative inline-block shrink-0 ${width}`}>
       <button
         type="button"
         aria-label={label}
@@ -331,43 +346,41 @@ export function MultiPick({
         {text}
       </button>
       {open && (
-        <>
-          {/* 바깥을 누르면 닫힌다 */}
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute z-20 mt-0.5 max-h-64 w-56 overflow-auto rounded-sm border border-line bg-surface p-1 shadow-lg">
-            {options.length === 0 && (
-              <p className="px-2 py-1.5 text-[17px] text-fg-muted">고를 값이 없습니다.</p>
-            )}
-            {options.map((o) => (
-              <label
-                key={o}
-                className="flex cursor-pointer items-center gap-2 px-2 py-1 text-[18px] hover:bg-bg"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.includes(o)}
-                  onChange={() => toggle(o)}
-                />
-                {o}
-              </label>
-            ))}
-            {selected.length > 0 && (
+        <div className="absolute z-30 mt-0.5 max-h-64 w-56 overflow-auto rounded-sm border border-line bg-surface p-1 shadow-lg">
+          {options.length === 0 && (
+            <p className="px-2 py-1.5 text-[17px] text-fg-muted">고를 값이 없습니다.</p>
+          )}
+          {/*
+            네이티브 체크박스 대신 단추 한 줄로 둔다. 라벨·체크박스·덮개가 얽히면
+            어디를 눌렀는지에 따라 안 먹는 자리가 생긴다. 표시는 글자로 직접 그린다.
+          */}
+          {options.map((o) => {
+            const on = selected.includes(o);
+            return (
               <button
+                key={o}
                 type="button"
-                className="mt-1 w-full border-t border-line px-2 py-1 text-left text-[17px] text-fg-muted hover:text-fg"
-                onClick={() => onChange([])}
+                aria-pressed={on}
+                onClick={() => toggle(o)}
+                className={`flex w-full items-center gap-2 px-2 py-1 text-left text-[18px] hover:bg-bg ${
+                  on ? 'text-accent' : ''
+                }`}
               >
-                모두 지우기
+                <span aria-hidden>{on ? '☑' : '☐'}</span>
+                {o}
               </button>
-            )}
-          </div>
-        </>
+            );
+          })}
+          {selected.length > 0 && (
+            <button
+              type="button"
+              className="mt-1 w-full border-t border-line px-2 py-1 text-left text-[17px] text-fg-muted hover:text-fg"
+              onClick={() => onChange([])}
+            >
+              모두 지우기
+            </button>
+          )}
+        </div>
       )}
     </span>
   );

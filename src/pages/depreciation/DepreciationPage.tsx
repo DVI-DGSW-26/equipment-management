@@ -9,13 +9,15 @@ import {
 import { queryKeys } from '@/api/queryKeys';
 import type { Won } from '@/api/types';
 import { codeText } from '@/domain/assetCode';
-import { currentYear, fmtDate } from '@/lib/date';
+import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
+import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import { rowNo } from '@/lib/paging';
 import {
   Badge,
+  btnClass,
   btnPrimaryClass,
   filterClass,
   FilterCount,
@@ -194,6 +196,48 @@ function AccountPicker({
   );
 }
 
+/**
+ * 표를 화면에 보이는 열 그대로 엑셀로 내려받는 단추.
+ * 네 탭이 같은 자리에 같은 모양으로 둔다 — 어느 표를 보든 같은 곳을 누르면 된다.
+ * 소계·총계는 넣지 않는다. 엑셀에서 직접 더해 쓰는 편이 낫고, 걸러낸 표에서는 맞지도 않는다.
+ */
+function ExcelButton<T>({
+  rows,
+  columns,
+  name,
+}: {
+  rows: T[];
+  columns: ExcelColumn<T>[];
+  name: string;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      await downloadExcel(rows, columns, stampedFileName(name, toIsoDate(getToday())));
+      toast.ok(`${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+    } catch (e) {
+      toast.fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={btnClass}
+      disabled={rows.length === 0 || busy}
+      title={`화면에 보이는 그대로 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+      onClick={() => void run()}
+    >
+      {busy ? '만드는 중…' : 'Excel'}
+    </button>
+  );
+}
+
 /* ---------- 감가상각비명세: 자산별 월별 ---------- */
 
 /** 계산 결과가 없을 때 상단까지 올라가지 않고 그 자리에서 실행할 수 있게 하는 버튼 */
@@ -250,6 +294,24 @@ function ScheduleTab({
           <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
           <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
           <FilterCount shown={rows.length} total={all.length} />
+          <ExcelButton
+            rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
+            columns={[
+              { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
+              { header: '계정과목', value: (r) => r.accountName, width: 16 },
+              { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+              { header: '자산명', value: (r) => r.assetName, width: 26 },
+              { header: '취득일', value: (r) => r.acquisitionDate, width: 14 },
+              ...MONTHS.map((m, mi) => ({
+                header: `${m}월`,
+                value: (r: (typeof rows)[number]) => r.monthlyAmounts[mi] ?? null,
+                numeric: true,
+                width: 14,
+              })),
+              { header: '합계', value: (r) => r.total, numeric: true, width: 16 },
+            ]}
+            name={`${fiscalYear}년_감가상각비명세`}
+          />
           {estFrom ? (
             <Badge tone="warn">{estFrom}월부터 마감 전 예상치</Badge>
           ) : (
@@ -486,6 +548,35 @@ function YearlyTab({
             <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
             <AccountPicker value={account} onChange={setAccount} options={accountOptions(pivot)} />
             <FilterCount shown={shown.length} total={pivot.length} />
+            <ExcelButton
+              rows={shown.map((r, i) => ({ ...r, no: rowNo(i) }))}
+              columns={[
+                { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
+                { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+                { header: '자산명', value: (r) => r.assetName, width: 26 },
+                { header: '계정과목', value: (r) => r.accountName, width: 16 },
+                { header: '상각방법', value: (r) => r.methodLabel, width: 12 },
+                ...years.map((y) => ({
+                  header: `${y} 상각비`,
+                  value: (r: (typeof shown)[number]) => r.byYear[y]?.depreciation ?? null,
+                  numeric: true,
+                  width: 16,
+                })),
+                {
+                  header: `${toYear} 상각누계액`,
+                  value: (r) => r.byYear[toYear]?.accumulated ?? null,
+                  numeric: true,
+                  width: 18,
+                },
+                {
+                  header: `${toYear} 장부가액`,
+                  value: (r) => r.byYear[toYear]?.bookValue ?? null,
+                  numeric: true,
+                  width: 18,
+                },
+              ]}
+              name={`${fromYear}-${toYear}년_연도별상각`}
+            />
           </>
         }
       >
@@ -585,6 +676,29 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
             <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
             <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
             <FilterCount shown={rows.length} total={all.length} />
+            <ExcelButton
+              rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
+              columns={[
+                { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
+                { header: '계정과목', value: (r) => r.accountName, width: 16 },
+                { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+                { header: '자산명', value: (r) => r.assetName, width: 26 },
+                { header: '취득일', value: (r) => r.acquisitionDate, width: 14 },
+                { header: '수량', value: (r) => r.quantity, numeric: true, width: 8 },
+                { header: '기초가액', value: (r) => r.beginningValue, numeric: true, width: 16 },
+                { header: '신규취득및증가', value: (r) => r.additionAmount, numeric: true, width: 16 },
+                { header: '전기말누계', value: (r) => r.priorAccumulated, numeric: true, width: 16 },
+                { header: '전기말장부', value: (r) => r.priorBookValue, numeric: true, width: 16 },
+                { header: '내용연수', value: (r) => r.usefulLifeYears, numeric: true, width: 10 },
+                { header: '상각률', value: (r) => r.depreciationRate, numeric: true, width: 10 },
+                { header: '상각방법', value: (r) => r.depreciationMethodLabel, width: 12 },
+                { header: '범위액', value: (r) => r.annualRangeAmount, numeric: true, width: 16 },
+                { header: '회사계상', value: (r) => r.currentDepreciation, numeric: true, width: 16 },
+                { header: '당기말누계', value: (r) => r.endingAccumulated, numeric: true, width: 16 },
+                { header: '당기말장부', value: (r) => r.endingBookValue, numeric: true, width: 16 },
+              ]}
+              name={`${fiscalYear}년_고정자산관리대장`}
+            />
           </>
         }
       >
@@ -856,6 +970,34 @@ function ForecastTab() {
               placeholder={groupBy === 'asset' ? '자산코드·자산명' : '코드·이름'}
             />
             <FilterCount shown={shownRows.length} total={(d?.rows ?? []).length} />
+            <ExcelButton
+              rows={shownRows.map((r, i) => ({ ...r, no: rowNo(i) }))}
+              columns={[
+                { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
+                { header: '구분', value: (r) => `${r.key} ${r.label}`.trim(), width: 28 },
+                ...(byMonth
+                  ? MONTHS.map((m, mi) => ({
+                      header: `${m}월`,
+                      value: (r: (typeof shownRows)[number]) =>
+                        r.monthlyAmounts?.[yearIndex]?.[mi] ?? null,
+                      numeric: true,
+                      width: 14,
+                    }))
+                  : (d?.years ?? []).map((y, yi) => ({
+                      header: `${y}`,
+                      value: (r: (typeof shownRows)[number]) => r.yearlyAmounts[yi] ?? null,
+                      numeric: true,
+                      width: 16,
+                    }))),
+                {
+                  header: byMonth ? `${shownYear} 합계` : '기간 합계',
+                  value: (r) => (byMonth ? (r.yearlyAmounts[yearIndex] ?? null) : r.total),
+                  numeric: true,
+                  width: 18,
+                },
+              ]}
+              name={byMonth ? `${shownYear}년_월별예상` : '향후상각예상'}
+            />
           </>
         }
       >

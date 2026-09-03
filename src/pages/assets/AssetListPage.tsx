@@ -378,16 +378,16 @@ export default function AssetListPage() {
               title={`화면에 보이는 그대로 ${rows.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
               onClick={() => void exportScreen()}
             >
-              {exporting ? '만드는 중…' : '화면 Excel'}
+              {exporting ? '만드는 중…' : 'Excel'}
             </button>
             <button
               type="button"
               className={btnClass}
               disabled={download.isPending}
-              title="회계에 내는 고정자산목록표 양식입니다. 화면 표와 열이 다릅니다."
+              title="회계에 내는 고정자산목록표 양식입니다. 연번 없이 자산코드부터 시작합니다."
               onClick={() => download.mutate({ kind: 'excel' })}
             >
-              목록표 Excel
+              목록표 Excel (회계양식)
             </button>
             <button
               type="button"

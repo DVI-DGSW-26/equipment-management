@@ -41,8 +41,14 @@ const DEPT_BOXES: { key: InstrumentDepartment; label: string }[] = [
   { key: 'ETC', label: '기타' },
 ];
 
-const cycleText = (months: number | null | undefined): string =>
-  months == null ? '' : `${months}개월`;
+/**
+ * 이력카드에서만 12의 배수를 년으로 적는다 — 종이 양식이 "2년" 이라 그대로 맞춘다
+ * (요청 2026-09-03). 목록·상세·엑셀은 개월 그대로다.
+ */
+const cycleText = (months: number | null | undefined): string => {
+  if (months == null) return '';
+  return months % 12 === 0 ? `${months / 12}년` : `${months}개월`;
+};
 
 /** 양식의 날짜 표기. 2017-02-02 → 17.02.02 */
 const cardDate = (v: IsoDate | null | undefined): string => {
