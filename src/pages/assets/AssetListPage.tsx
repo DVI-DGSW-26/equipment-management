@@ -24,13 +24,14 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
+  filterClass,
   inputClass,
   Pagination,
   QueryState,
   Section,
-  TableScroll,
   StatCards,
   stickyThClass,
+  TableScroll,
 } from '@/components/ui';
 
 /** 화면 입력값. select 는 전부 문자열로 다루고 요청 직전에 숫자로 바꾼다 */
@@ -196,21 +197,21 @@ export default function AssetListPage() {
       */}
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
           <input
-            className={`${inputClass} w-40`}
+            className={`${filterClass} w-40`}
             placeholder="자산명"
             aria-label="자산명"
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
           />
           <input
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             placeholder="자산코드"
             aria-label="자산코드"
             value={form.assetCode}
             onChange={(e) => set('assetCode', e.target.value)}
           />
           <select
-            className={`${inputClass} w-40`}
+            className={`${filterClass} w-40`}
             value={form.accountId}
             aria-label="계정과목"
             onChange={(e) => set('accountId', e.target.value)}
@@ -223,7 +224,7 @@ export default function AssetListPage() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={form.usingDeptId}
             aria-label="사용부서"
             onChange={(e) => set('usingDeptId', e.target.value)}
@@ -236,7 +237,7 @@ export default function AssetListPage() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={form.locationId}
             aria-label="사용위치"
             onChange={(e) => set('locationId', e.target.value)}
@@ -249,7 +250,7 @@ export default function AssetListPage() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-28`}
+            className={`${filterClass} w-28`}
             value={form.status}
             aria-label="상태"
             onChange={(e) => set('status', e.target.value)}
@@ -266,7 +267,7 @@ export default function AssetListPage() {
             취득일
             <input
               type="date"
-              className={`${inputClass} w-36`}
+              className={`${filterClass} w-36`}
               aria-label="취득일 시작"
               value={form.acquiredFrom}
               onChange={(e) => set('acquiredFrom', e.target.value)}
@@ -274,7 +275,7 @@ export default function AssetListPage() {
             ~
             <input
               type="date"
-              className={`${inputClass} w-36`}
+              className={`${filterClass} w-36`}
               aria-label="취득일 종료"
               value={form.acquiredTo}
               onChange={(e) => set('acquiredTo', e.target.value)}

@@ -16,7 +16,7 @@ import {
   btnClass,
   btnPrimaryClass,
   FilterCount,
-  inputClass,
+  filterClass,
   Pagination,
   QueryState,
   SearchBox,
@@ -302,7 +302,7 @@ function ListTab() {
 
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={location}
             onChange={(e) => pick(setLocation)(e.target.value)}
             aria-label="사용위치"
@@ -315,7 +315,7 @@ function ListTab() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={user}
             onChange={(e) => pick(setUser)(e.target.value)}
             aria-label="사용자"
@@ -328,7 +328,7 @@ function ListTab() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={cycle}
             onChange={(e) => pick(setCycle)(e.target.value)}
             aria-label="교정주기"
@@ -341,7 +341,7 @@ function ListTab() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
             aria-label="정렬"
@@ -513,7 +513,7 @@ function AnnualTab() {
             width="w-64"
           />
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={state}
             onChange={(e) => setState(e.target.value as typeof state)}
             aria-label="실시 여부"
@@ -537,7 +537,7 @@ function AnnualTab() {
             {exporting ? '만드는 중…' : '엑셀 다운로드'}
           </button>
           <select
-            className={`${inputClass} w-28`}
+            className={`${filterClass} w-28`}
             value={planYear}
             onChange={(e) => setPlanYear(Number(e.target.value))}
           >

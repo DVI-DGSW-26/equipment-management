@@ -24,14 +24,15 @@ import {
   btnDangerClass,
   btnPrimaryClass,
   Field,
+  filterClass,
   FilterCount,
   inputClass,
   Pagination,
   QueryState,
   SearchBox,
   Section,
-  TableScroll,
   stickyThClass,
+  TableScroll,
 } from '@/components/ui';
 
 /**
@@ -91,7 +92,7 @@ function Pick({
 }) {
   return (
     <select
-      className={`${inputClass} w-36`}
+      className={`${filterClass} w-36`}
       value={value}
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
@@ -231,7 +232,7 @@ export default function PhysicalAssetListPage() {
             options={options.makers}
           />
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={form.registered}
             aria-label="자산등록"
             onChange={(e) => set('registered', e.target.value as FormState['registered'])}
@@ -241,7 +242,7 @@ export default function PhysicalAssetListPage() {
             <option value="false">소액 비품</option>
           </select>
           <select
-            className={`${inputClass} w-28`}
+            className={`${filterClass} w-28`}
             value={form.status}
             aria-label="상태"
             onChange={(e) => set('status', e.target.value as AssetStatus | '')}
@@ -254,7 +255,7 @@ export default function PhysicalAssetListPage() {
             ))}
           </select>
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={form.sticker}
             aria-label="스티커"
             onChange={(e) => set('sticker', e.target.value as StickerFilter)}
@@ -538,7 +539,7 @@ function ParentAssetPicker({
     >
       <div className="relative">
         <input
-          className={`${inputClass} w-full`}
+          className={`${filterClass} w-full`}
           placeholder="자산명·자산코드로 찾기"
           value={text}
           /* 다시 누르면 곧바로 다른 자산을 찾을 수 있게 검색어를 비우고 목록을 편다 */

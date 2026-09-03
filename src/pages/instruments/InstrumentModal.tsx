@@ -43,7 +43,7 @@ export default function InstrumentModal({
     userName: instrument?.userName ?? '',
     purchaseDate: instrument?.purchaseDate ?? '',
     purchasePrice: instrument?.purchasePrice != null ? String(instrument.purchasePrice) : '',
-    supplierId: instrument?.supplierId != null ? String(instrument.supplierId) : '',
+    /* 구매처는 이름으로 따로 들고 있다가(supplierText) 보낼 때 ID 로 바꾼다 */
     assetId: instrument?.assetId != null ? String(instrument.assetId) : '',
     remark: instrument?.remark ?? '',
   });
@@ -70,13 +70,17 @@ export default function InstrumentModal({
     [others.data],
   );
 
-  const supplierOptions = useMemo<SearchOption[]>(
-    () =>
-      (partners.data ?? [])
-        .filter(isSupplier)
-        .map((p) => ({ value: String(p.id), label: p.name })),
-    [partners.data],
+  /*
+   * 구매처는 이름을 그대로 친다. 서버는 거래처 ID 로만 받으므로 보낼 때 이름을 ID 로 바꾼다.
+   * 대소문자·앞뒤 공백은 무시하고 맞춘다 — 사람이 치는 값이라 그 정도는 흔들린다.
+   */
+  const [supplierText, setSupplierText] = useState(instrument?.supplierName ?? '');
+  const suppliers = useMemo(() => (partners.data ?? []).filter(isSupplier), [partners.data]);
+  const matchedSupplier = suppliers.find(
+    (p) => p.name.trim().toLowerCase() === supplierText.trim().toLowerCase(),
   );
+  /** 적었는데 마스터에 없는 이름. 저장해도 붙일 데가 없다 */
+  const supplierUnknown = supplierText.trim() !== '' && !matchedSupplier;
 
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -95,7 +99,7 @@ export default function InstrumentModal({
         userName: form.userName || undefined,
         purchaseDate: form.purchaseDate || undefined,
         purchasePrice: form.purchasePrice ? Number(form.purchasePrice) : undefined,
-        supplierId: form.supplierId ? Number(form.supplierId) : undefined,
+        supplierId: matchedSupplier?.id,
         assetId: form.assetId ? Number(form.assetId) : undefined,
         remark: form.remark || undefined,
       };
@@ -123,7 +127,13 @@ export default function InstrumentModal({
           <button
             type="button"
             className={btnPrimaryClass}
-            disabled={save.isPending || form.name.trim() === '' || !form.calibrationCycleMonths}
+            disabled={
+              save.isPending ||
+              form.name.trim() === '' ||
+              !form.calibrationCycleMonths ||
+              /* 마스터에 없는 구매처는 저장해도 붙지 않는다. 모르고 넘어가지 않게 막는다 */
+              supplierUnknown
+            }
             onClick={() => save.mutate()}
           >
             저장
@@ -249,14 +259,26 @@ export default function InstrumentModal({
             onChange={(e) => set('purchasePrice', e.target.value.replace(/[^\d]/g, ''))}
           />
         </Field>
-        <Field label="구매처" hint="이름을 쳐서 찾습니다. 마스터의 거래처 목록에서 고릅니다.">
-          <SearchSelect
-            value={form.supplierId}
-            onChange={(v) => set('supplierId', v)}
-            options={supplierOptions}
-            placeholder="구매처 이름으로 찾기"
-            loading={partners.isLoading}
-            emptyText="거래처 마스터에 없습니다. 마스터 화면에서 먼저 등록하세요."
+        {/*
+          구매처는 그냥 쳐서 넣는다. 고르는 목록을 걷어냈다(요청 2026-09-03).
+          다만 서버는 거래처 ID 로만 받으므로, 친 이름을 마스터에서 찾아 ID 로 바꿔 보낸다.
+          마스터에 없는 이름은 저장할 데가 없어 그 자리에서 알려 준다 — 조용히 흘리면
+          저장한 줄 알고 넘어간다.
+        */}
+        <Field
+          label="구매처"
+          hint={supplierUnknown ? undefined : '이름을 그대로 적습니다.'}
+          error={
+            supplierUnknown
+              ? '거래처 마스터에 없는 이름입니다. 마스터 화면에서 먼저 등록해야 저장됩니다.'
+              : undefined
+          }
+        >
+          <input
+            className={inputClass}
+            placeholder="예: METRIS"
+            value={supplierText}
+            onChange={(e) => setSupplierText(e.target.value)}
           />
         </Field>
         <Field label="연결 고정자산 ID" hint="고정자산 등록 대상이 아니면 비웁니다.">

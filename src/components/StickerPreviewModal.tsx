@@ -5,7 +5,7 @@ import { useItems } from '@/hooks/useMasters';
 import { appConfig, labelsPerSheet, type StickerFieldKey } from '@/config/appConfig';
 import { fmtDate } from '@/lib/date';
 import Modal from '@/components/Modal';
-import { Badge, btnClass, btnPrimaryClass, inputClass } from '@/components/ui';
+import { Badge, btnClass, btnPrimaryClass, filterClass } from '@/components/ui';
 
 /** 값이 비어 있는 칸 */
 const NO_VALUE = '—';
@@ -185,7 +185,7 @@ export default function StickerPreviewModal(props: Props) {
         <label className="block">
           <span className="mb-0.5 block text-[18px] text-fg-sub">시작 위치</span>
           <select
-            className={`${inputClass} w-28`}
+            className={`${filterClass} w-28`}
             value={startPosition}
             onChange={(e) => setStartPosition(Number(e.target.value))}
           >

@@ -23,6 +23,7 @@ import {
   btnClass,
   btnPrimaryClass,
   Field,
+  filterClass,
   inputClass,
   Pagination,
   QueryState,
@@ -121,7 +122,7 @@ function ScheduleRow({ type }: { type: AlertType }) {
       {draft !== null ? (
         <>
           <input
-            className={`${inputClass} w-52`}
+            className={`${filterClass} w-52`}
             value={draft}
             placeholder="예: 60, 30, 7"
             autoFocus
@@ -277,7 +278,7 @@ function DirectoryPicker({ onPick }: { onPick: (user: DirectoryUser) => void }) 
   return (
     <span className="relative inline-block w-52">
       <input
-        className={`${inputClass} w-full`}
+        className={`${filterClass} w-full`}
         placeholder="사내 명단에서 찾기"
         aria-label="사내 명단에서 찾기"
         value={keyword}
@@ -495,7 +496,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         <DirectoryPicker onPick={pickPerson} />
         <input
           type="email"
-          className={`${inputClass} w-56`}
+          className={`${filterClass} w-56`}
           placeholder="name@dvi-ind.com"
           aria-label="이메일"
           value={draft.email}
@@ -503,7 +504,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
           onKeyDown={(e) => e.key === 'Enter' && draft.email.trim() && add.mutate()}
         />
         <input
-          className={`${inputClass} w-28`}
+          className={`${filterClass} w-28`}
           placeholder="이름"
           aria-label="이름"
           maxLength={50}
@@ -830,7 +831,7 @@ function SendModal({ type, onClose }: { type: AlertType; onClose: () => void }) 
         <Field label="기준일" hint="이 날짜에서 역산해 대상을 다시 계산합니다">
           <input
             type="date"
-            className={`${inputClass} w-48`}
+            className={`${filterClass} w-48`}
             value={baseDate}
             onChange={(e) => setBaseDate(e.target.value)}
           />
@@ -1034,7 +1035,7 @@ function LogSection({ type }: { type: AlertType }) {
         <>
           {type === 'SAFETY' && teamOptions.length > 0 && (
             <select
-              className={`${inputClass} w-36`}
+              className={`${filterClass} w-36`}
               value={team}
               onChange={(e) => {
                 setTeam(e.target.value);

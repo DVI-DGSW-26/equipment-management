@@ -3,8 +3,21 @@ import { errorMessage } from '@/api/types';
 
 /* 공통 클래스. 사내 관리 도구 — 정보 밀도 우선, 애니메이션 없음 */
 
+/** 폼 칸. 제 줄을 다 쓴다 (모달·격자 안) */
 export const inputClass =
   'w-full shrink-0 rounded-sm border border-line bg-surface px-2 py-1.5 text-[19px] outline-none focus:border-accent disabled:bg-bg disabled:text-fg-muted';
+
+/**
+ * 조건줄 칸. 너비를 함께 적어 쓴다 — `${filterClass} w-36`
+ *
+ * inputClass 와 같되 w-full 만 없다. inputClass 를 쓰고 뒤에 w-36 을 붙여도
+ * Tailwind 가 만든 CSS 에서 .w-full 이 더 뒤에 놓여 그쪽이 이긴다(둘 다 클래스 하나라
+ * 우선순위가 같다). 그래서 조건줄의 칸들이 저마다 한 줄을 다 먹어 세로로 쌓여
+ * 있었다(2026-09-03). 두 값을 한 문자열로 나눠 적어 둔 이유다 —
+ * 이어 붙여 만들면 상수 export 가 아니게 돼 fast-refresh 규칙에 걸린다.
+ */
+export const filterClass =
+  'shrink-0 rounded-sm border border-line bg-surface px-2 py-1.5 text-[19px] outline-none focus:border-accent disabled:bg-bg disabled:text-fg-muted';
 
 export const btnClass =
   'shrink-0 whitespace-nowrap rounded-sm border border-line bg-surface px-3 py-1.5 text-[18px] text-fg-sub hover:bg-bg disabled:opacity-50';

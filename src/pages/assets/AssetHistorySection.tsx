@@ -4,7 +4,7 @@ import { assetsApi } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
 import { fmtDateTime } from '@/lib/date';
 import { searchIn } from '@/lib/search';
-import { FilterCount, inputClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { FilterCount, filterClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
 
 /**
  * 변경 이력.
@@ -50,7 +50,7 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
             width="w-48"
           />
           <select
-            className={`${inputClass} w-40`}
+            className={`${filterClass} w-40`}
             value={type}
             onChange={(e) => setType(e.target.value)}
             aria-label="구분 필터"

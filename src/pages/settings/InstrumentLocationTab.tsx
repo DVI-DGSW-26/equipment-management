@@ -6,7 +6,7 @@ import { useInstrumentLocations } from '@/hooks/useMasters';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnPrimaryClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnPrimaryClass, FilterCount, filterClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function InstrumentLocationTab() {
   const qc = useQueryClient();
@@ -61,7 +61,7 @@ export default function InstrumentLocationTab() {
           <SearchBox value={keyword} onChange={setKeyword} placeholder="위치 검색" width="w-40" />
           <FilterCount shown={rows.length} total={all.length} />
           <input
-            className={`${inputClass} w-40`}
+            className={`${filterClass} w-40`}
             placeholder="추가할 사용위치명"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -103,7 +103,7 @@ export default function InstrumentLocationTab() {
                 <td className="px-3 py-2">
                   {editing?.id === l.id ? (
                     <input
-                      className={`${inputClass} w-60`}
+                      className={`${filterClass} w-60`}
                       value={editName}
                       autoFocus
                       onChange={(e) => setEditName(e.target.value)}

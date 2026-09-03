@@ -17,15 +17,16 @@ import { rowNo } from '@/lib/paging';
 import {
   Badge,
   btnPrimaryClass,
+  filterClass,
   FilterCount,
   inputClass,
   QueryState,
   SearchBox,
   Section,
-  TableScroll,
   StatCards,
-  Tabs,
   stickyThClass,
+  TableScroll,
+  Tabs,
 } from '@/components/ui';
 
 type TabKey = 'schedule' | 'yearly' | 'ledger' | 'forecast';
@@ -179,7 +180,7 @@ function AccountPicker({
 }) {
   return (
     <select
-      className={`${inputClass} w-44`}
+      className={`${filterClass} w-44`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label="계정과목"
@@ -728,7 +729,7 @@ function ForecastTab() {
       {/* 조건은 한 줄로. 라벨을 칸 위에 얹으면 높이가 두 배가 되고 표가 그만큼 밀린다 */}
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
         <select
-          className={`${inputClass} w-28`}
+          className={`${filterClass} w-28`}
           value={years}
           aria-label="기간"
           onChange={(e) => setYears(Number(e.target.value))}
@@ -740,7 +741,7 @@ function ForecastTab() {
           ))}
         </select>
         <select
-          className={`${inputClass} w-28`}
+          className={`${filterClass} w-28`}
           value={granularity}
           aria-label="단위"
           onChange={(e) => setGranularity(e.target.value as ForecastGranularity)}
@@ -750,7 +751,7 @@ function ForecastTab() {
         </select>
         {granularity === 'month' && (
           <select
-            className={`${inputClass} w-28`}
+            className={`${filterClass} w-28`}
             value={shownYear ?? ''}
             aria-label="표시 연도"
             onChange={(e) => setMonthYear(Number(e.target.value))}
@@ -763,7 +764,7 @@ function ForecastTab() {
           </select>
         )}
         <select
-          className={`${inputClass} w-44`}
+          className={`${filterClass} w-44`}
           value={groupBy}
           aria-label="묶는 기준"
           onChange={(e) => setGroupBy(e.target.value as ForecastGroupBy)}

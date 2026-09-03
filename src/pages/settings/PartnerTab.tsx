@@ -12,7 +12,7 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function PartnerTab() {
   const qc = useQueryClient();
@@ -48,7 +48,7 @@ export default function PartnerTab() {
         <>
           <SearchBox value={keyword} onChange={setKeyword} placeholder="거래처명" />
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={type}
             onChange={(e) => setType(e.target.value as typeof type)}
             aria-label="구분"

@@ -7,7 +7,7 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function ItemTab() {
   const qc = useQueryClient();
@@ -29,7 +29,7 @@ export default function ItemTab() {
       right={
         <>
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={itemTypeCode}
             onChange={(e) => setItemTypeCode(e.target.value)}
           >

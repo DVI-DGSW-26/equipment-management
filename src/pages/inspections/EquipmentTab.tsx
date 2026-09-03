@@ -12,8 +12,8 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
+  filterClass,
   FilterCount,
-  inputClass,
   QueryState,
   SearchBox,
   Section,
@@ -43,7 +43,7 @@ function Pick({
 }) {
   return (
     <select
-      className={`${inputClass} w-36`}
+      className={`${filterClass} w-36`}
       value={value}
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
@@ -208,7 +208,7 @@ export default function EquipmentTab() {
           <Pick label="검사기관" value={agency} onChange={setAgency} options={options.agencies} />
           <Pick label="설치장소" value={place} onChange={setPlace} options={options.places} />
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={status}
             onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
             aria-label="상태"
@@ -219,7 +219,7 @@ export default function EquipmentTab() {
             <option value="DISPOSED">폐기만</option>
           </select>
           <select
-            className={`${inputClass} w-36`}
+            className={`${filterClass} w-36`}
             value={history}
             onChange={(e) => setHistory(e.target.value as typeof history)}
             aria-label="검사 이력"
@@ -229,7 +229,7 @@ export default function EquipmentTab() {
             <option value="never">최초 검사 전</option>
           </select>
           <select
-            className={`${inputClass} w-32`}
+            className={`${filterClass} w-32`}
             value={cycle}
             onChange={(e) => setCycle(e.target.value)}
             aria-label="검사 주기"
