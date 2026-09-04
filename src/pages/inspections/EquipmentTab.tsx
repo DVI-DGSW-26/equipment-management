@@ -60,22 +60,32 @@ function Pick({
   );
 }
 
-/** 화면 표와 같은 차례로 내려받는다 */
+/**
+ * 화면 표와 같은 차례로 내려받는다.
+ *
+ * 앞쪽 열 차례는 안전검사 대장 양식을 그대로 따른다 —
+ * 대상품명 · 형식번호 · 설치장소 · 용량 · 검사유효기간 · 합격번호 · 비고 (2026-09-03 요청).
+ * 담당반 · 검사기관 · 주기 · 상태는 양식에 없고 화면에서 더한 것이라 뒤에 붙인다.
+ */
 type SafetyRow = SafetyEquipment & { no: number };
 
 const SCREEN_COLUMNS: ExcelColumn<SafetyRow>[] = [
   { header: 'No.', value: (e) => e.no, numeric: true, width: 6 },
-  { header: '기한', value: (e) => e.nextInspectionDue, width: 14 },
-  { header: 'D-day', value: (e) => ddayLabel(e.daysUntilExpiry), width: 10 },
   { header: '대상품명', value: (e) => e.name, width: 24 },
   { header: '형식번호', value: (e) => e.modelNo, width: 16 },
   { header: '설치장소', value: (e) => e.installLocation, width: 16 },
   { header: '용량', value: (e) => e.capacity, width: 12 },
+  { header: '검사유효 시작', value: (e) => e.validFrom, width: 14 },
+  { header: '~', value: () => '~', width: 4 },
+  { header: '검사유효 만료일', value: (e) => e.validUntil, width: 14 },
+  { header: '합격번호', value: (e) => e.certificateNo, width: 16 },
+  { header: '비고', value: (e) => e.remark, width: 24 },
+  { header: '검사일', value: (e) => e.lastInspectedAt, width: 14 },
+  { header: 'D-day', value: (e) => ddayLabel(e.daysUntilExpiry), width: 10 },
+  { header: '기한', value: (e) => e.nextInspectionDue, width: 14 },
   { header: '담당반', value: (e) => e.team, width: 12 },
   { header: '검사기관', value: (e) => e.inspectionAgency, width: 18 },
   { header: '주기(개월)', value: (e) => e.inspectionCycleMonths, numeric: true, width: 12 },
-  { header: '최근 검사일', value: (e) => e.lastInspectedAt, width: 14 },
-  { header: '합격번호', value: (e) => e.certificateNo, width: 16 },
   { header: '상태', value: (e) => e.statusLabel, width: 10 },
 ];
 
@@ -318,18 +328,23 @@ export default function EquipmentTab() {
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={seqThClass}>No.</th>
-                <th className={thClass}>기한</th>
-                <th className={thClass}>D-day</th>
                 <th className={thClass}>대상품명</th>
                 <th className={thClass}>형식번호</th>
                 <th className={thClass}>설치장소</th>
                 <th className={thClass}>용량</th>
+                {/* 합격증에 적힌 유효기간. 양식대로 시작 ~ 만료를 두 칸으로 벌려 적는다 */}
+                <th className={thClass}>검사유효 시작</th>
+                <th className={`${thClass} px-1 text-center`}>~</th>
+                <th className={thClass}>검사유효 만료일</th>
+                <th className={thClass}>합격번호</th>
+                <th className={thClass}>비고</th>
+                <th className={thClass}>검사일</th>
+                <th className={thClass}>D-day</th>
+                {/* 여기부터는 양식에 없고 화면에서 더한 것 */}
+                <th className={thClass}>기한</th>
                 <th className={thClass}>담당반</th>
-                {/* 어디서 검사하는지. 등록·상세에는 있었는데 목록에만 빠져 있었다 */}
                 <th className={thClass}>검사기관</th>
                 <th className={`${thClass} text-right`}>주기(개월)</th>
-                <th className={thClass}>최근 검사일</th>
-                <th className={thClass}>합격번호</th>
                 <th className={thClass}>상태</th>
               </tr>
             </thead>
@@ -341,8 +356,17 @@ export default function EquipmentTab() {
                   className="cursor-pointer border-b border-line hover:bg-bg"
                 >
                   <td className="num px-3 py-2 text-fg-muted">{rowNo(i)}</td>
-                  <td className="px-3 py-2">{fmtDate(e.nextInspectionDue)}</td>
-                  <td className={`px-3 py-2 ${DDAY_CLASS[levelOf(e.severity)]}`}>
+                  <td className="px-3 py-2">{e.name}</td>
+                  <td className="px-3 py-2">{e.modelNo ?? '-'}</td>
+                  <td className="px-3 py-2">{e.installLocation ?? '-'}</td>
+                  <td className="px-3 py-2">{e.capacity ?? '-'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{fmtDate(e.validFrom)}</td>
+                  <td className="px-1 py-2 text-center text-fg-muted">~</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{fmtDate(e.validUntil)}</td>
+                  <td className="px-3 py-2">{e.certificateNo ?? '-'}</td>
+                  <td className="px-3 py-2">{e.remark ?? '-'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{fmtDate(e.lastInspectedAt)}</td>
+                  <td className={`px-3 py-2 whitespace-nowrap ${DDAY_CLASS[levelOf(e.severity)]}`}>
                     {ddayLabel(e.daysUntilExpiry)}
                     {e.neverInspected && (
                       <span className="ml-1">
@@ -350,15 +374,10 @@ export default function EquipmentTab() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2">{e.name}</td>
-                  <td className="px-3 py-2">{e.modelNo ?? '-'}</td>
-                  <td className="px-3 py-2">{e.installLocation ?? '-'}</td>
-                  <td className="px-3 py-2">{e.capacity ?? '-'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{fmtDate(e.nextInspectionDue)}</td>
                   <td className="px-3 py-2">{e.team ?? '-'}</td>
                   <td className="px-3 py-2">{e.inspectionAgency ?? '-'}</td>
                   <td className="num px-3 py-2">{e.inspectionCycleMonths}</td>
-                  <td className="px-3 py-2">{fmtDate(e.lastInspectedAt)}</td>
-                  <td className="px-3 py-2">{e.certificateNo ?? '-'}</td>
                   <td className="px-3 py-2">{e.statusLabel}</td>
                 </tr>
               ))}
