@@ -52,6 +52,36 @@ export const wonRatio = (value: Won, max: Won): number => {
 };
 
 /**
+ * 최소~최대 구간 안에서의 자리(0~1).
+ *
+ * 달마다 상각비가 거의 같으면 0 부터 그린 막대는 열두 개가 다 같아 보인다.
+ * 그 구간만 확대해 그리려고 쓴다. 결과는 좌표에만 쓰고 금액으로 표시하지 않는다
+ * (wonRatio 와 같은 예외). 값이 하나로 몰려 있으면 가운데(0.5)로 둔다.
+ *
+ * 이 자리를 막대 길이에 쓰면 안 된다 — 막대는 0 에서 시작해야 길이가 금액이 된다.
+ * 점과 선(위치로 읽는 그림)에만 쓴다.
+ */
+export const wonSpan = (value: Won, min: Won, max: Won): number => {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max)) return 0.5;
+  if (max <= min) return 0.5;
+  return Math.min(1, Math.max(0, (value - min) / (max - min)));
+};
+
+/**
+ * 그래프 눈금용 금액. 만 단위까지만 줄인다.
+ *
+ * wonShort 는 1억이 넘으면 "1.2억" 으로 자르는데, 달마다 몇백만원씩 다른 값이
+ * 모두 "1.2억" 이 돼 변동이 지워진다. 눈금에서는 만 자리를 남긴다.
+ */
+export const wonTick = (value: Won | null | undefined): string => {
+  if (value == null || !Number.isFinite(value)) return '-';
+  const n = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  if (n < 10_000) return `${sign}${Math.round(n).toLocaleString('ko-KR')}원`;
+  return `${sign}${Math.round(n / 10_000).toLocaleString('ko-KR')}만원`;
+};
+
+/**
  * 상각기초가액 = 취득가액 + 자본적지출 증가 누계.
  *
  * "화면에서 금액 산술을 하지 않는다" 규칙의 유일한 예외다. 서버가 합계 필드를 따로 주지 않고

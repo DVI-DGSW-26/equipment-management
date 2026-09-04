@@ -12,7 +12,7 @@ import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
-import { bookValue, won, wonRatio, wonShort } from '@/lib/won';
+import { bookValue, won, wonRatio, wonShort, wonSpan, wonTick } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import { rowNo } from '@/lib/paging';
 import {
@@ -956,7 +956,7 @@ function ForecastTab() {
 
       {byMonth && shownYear != null && (
         <Section title={`${shownYear}년 월별 추이`}>
-          <MonthlyBars year={shownYear} amounts={d?.monthlyTotals?.[yearIndex] ?? []} />
+          <MonthlyTrend year={shownYear} amounts={d?.monthlyTotals?.[yearIndex] ?? []} />
         </Section>
       )}
 
@@ -1104,67 +1104,158 @@ function ForecastTab() {
 }
 
 /**
- * 한 해 열두 달 예상 상각비의 크기 비교.
+ * 한 해 열두 달 예상 상각비의 추이.
  *
- * 정확한 금액은 바로 아래 표에 열두 달치가 다 있다. 여기서는 어느 달에 몰리는지
- * 모양만 본다 — 그래서 숫자는 가장 큰 달에만 적고, 나머지는 달 위에 마우스를 올렸을 때
- * 보여준다. 막대마다 숫자를 붙이면 읽어야 할 것이 스물넷이 돼 모양이 안 보인다.
+ * 막대가 아니라 점과 선으로 그린다. 상각비는 달마다 거의 같아서(정액법이라 자산이
+ * 새로 들어오거나 다 상각될 때만 계단처럼 바뀐다) 0 부터 그린 막대는 열두 개가 모두
+ * 같은 높이로 보인다 — 어느 달이 오르내리는지 읽을 수가 없었다(2026-09-03 피드백).
+ *
+ * 그래서 세로축을 그 해 최소~최대 구간으로 확대한다. 막대는 이렇게 자르면 안 된다.
+ * 막대는 길이가 곧 금액이라 밑을 자르는 순간 두 배 차이처럼 보이는 거짓말이 된다.
+ * 점과 선은 길이가 아니라 자리로 읽으니 구간을 확대해도 괜찮다.
+ *
+ * 대신 확대했다는 사실과 위아래 눈금 금액을 그림 안에 적는다. 정확한 열두 달 금액은
+ * 바로 아래 표에 다 있고, 점에 마우스를 올리면 그 달 금액이 뜬다.
  *
  * 계열이 하나뿐이라 색은 앱 액센트 하나만 쓴다(위 연도별 막대와 같은 색이라야
- * 같은 자료로 읽힌다). 금액 산술은 하지 않는다 — wonRatio 는 CSS 높이에만 쓴다.
+ * 같은 자료로 읽힌다). 금액 산술은 하지 않는다 — wonSpan 은 좌표에만 쓴다.
  */
-function MonthlyBars({ year, amounts }: { year: number; amounts: Won[] }) {
-  const max = Math.max(0, ...amounts.filter(Number.isFinite));
-  /* 가장 큰 달에만 금액을 적는다. 전부 0 이면 짚을 달이 없다 */
-  const peak = max > 0 ? amounts.indexOf(max) : -1;
+function MonthlyTrend({ year, amounts }: { year: number; amounts: Won[] }) {
+  const values = MONTHS.map((_, i) => {
+    const v = amounts[i];
+    return Number.isFinite(v) ? v : 0;
+  });
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const peak = max > 0 ? values.indexOf(max) : -1;
+  const trough = max > 0 ? values.indexOf(min) : -1;
+  /** 열두 달이 모두 같으면 오르내림이 없다 — 확대해도 보여줄 것이 없다 */
+  const flat = max === min;
+
+  if (max <= 0) {
+    return (
+      <p className="px-3 py-4 text-[18px] text-fg-muted">이 해에는 예상 상각비가 없습니다.</p>
+    );
+  }
+
+  /* 점이 그림 위아래 끝에 붙어 잘리지 않게 안쪽으로 들여 놓는다 */
+  const posOf = (i: number) => (flat ? 50 : 10 + wonSpan(values[i], min, max) * 80);
+  /* 달마다 한 칸씩 나눠 가운데에 점을 찍는다. 아래 달 이름과 같은 자리 */
+  const xOf = (i: number) => ((i + 0.5) / MONTHS.length) * 100;
 
   return (
     <div className="px-3 py-4">
-      {/* 금액 표시줄을 막대 위에 따로 둔다 — 막대 안에 넣으면 제일 큰 달이 잘린다 */}
-      <div className="flex gap-0.5">
-        {MONTHS.map((m, i) => (
-          <span key={m} className="flex-1 text-center text-[17px] text-fg-sub">
-            {i === peak ? wonShort(amounts[i]) : ' '}
-          </span>
-        ))}
+      {/* 가장 많은 달과 가장 적은 달은 그림에서 찾게 하지 말고 글로 먼저 적는다 */}
+      <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-[18px]">
+        <span>
+          <span className="text-fg-muted">가장 많은 달</span>{' '}
+          <b className="font-semibold">
+            {peak + 1}월 · {won(max)}원
+          </b>
+        </span>
+        <span>
+          <span className="text-fg-muted">가장 적은 달</span>{' '}
+          <b className="font-semibold">
+            {trough + 1}월 · {won(min)}원
+          </b>
+        </span>
       </div>
 
-      <div className="flex h-40 items-end gap-0.5">
-        {MONTHS.map((m, i) => {
-          const v = amounts[i] ?? 0;
-          return (
-            <div
-              key={m}
-              className="flex h-full flex-1 flex-col justify-end"
-              title={`${year}년 ${m}월 · ${won(v)}원`}
+      <div className="flex">
+        {/* 눈금 금액은 그림 밖 왼쪽 칸에 둔다 — 그림 안에 얹으면 그 달 점을 가린다 */}
+        <div className="relative h-44 w-24 shrink-0 pr-2 text-right text-[17px] text-fg-muted">
+          {!flat && (
+            <>
+              <span className="absolute right-2 -translate-y-1/2" style={{ bottom: '90%' }}>
+                {wonTick(max)}
+              </span>
+              <span className="absolute right-2 translate-y-1/2" style={{ bottom: '10%' }}>
+                {wonTick(min)}
+              </span>
+            </>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="relative h-44 border-y border-line">
+            {!flat && (
+              <>
+                <span
+                  className="absolute inset-x-0 border-t border-dashed border-line"
+                  style={{ bottom: '90%' }}
+                />
+                <span
+                  className="absolute inset-x-0 border-t border-dashed border-line"
+                  style={{ bottom: '10%' }}
+                />
+              </>
+            )}
+
+        {/*
+          선만 SVG 로 그린다. 폭에 맞춰 늘어나도 굵기가 변하지 않게 non-scaling-stroke 를 준다.
+          점은 HTML 로 찍는다 — SVG 를 가로로 늘리면 동그라미가 타원이 된다.
+        */}
+            <svg
+              className="absolute inset-0 h-full w-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
             >
-              <span
-                className="block w-full rounded-t-[4px] bg-accent"
-                /* 아주 작은 달도 사라지지 않게 최소 높이를 준다. 0 인 달은 그대로 비운다 */
-                style={{ height: `${wonRatio(v, max) * 100}%`, minHeight: v > 0 ? 2 : 0 }}
+              <polyline
+                points={MONTHS.map((_, i) => `${xOf(i)},${100 - posOf(i)}`).join(' ')}
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth="2"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
               />
-            </div>
-          );
-        })}
-      </div>
+            </svg>
 
-      <div className="flex gap-0.5 border-t border-line pt-1">
-        {MONTHS.map((m, i) => (
-          <span
-            key={m}
-            className={`flex-1 text-center text-[17px] ${
-              i === peak ? 'font-semibold text-fg' : 'text-fg-muted'
-            }`}
-          >
-            {m}
-          </span>
-        ))}
+            {MONTHS.map((m, i) => {
+              const mark = i === peak || i === trough;
+              return (
+                <span
+                  key={m}
+                  className={`absolute block translate-x-[-50%] translate-y-1/2 rounded-full bg-accent ${
+                    mark ? 'h-3 w-3 ring-2 ring-surface' : 'h-2 w-2'
+                  }`}
+                  style={{ left: `${xOf(i)}%`, bottom: `${posOf(i)}%` }}
+                />
+              );
+            })}
+
+            {/* 마우스를 올리면 그 달 금액이 뜨는 칸. 점보다 넓어야 잡힌다 */}
+            <div className="absolute inset-0 flex">
+              {MONTHS.map((m) => (
+                <span
+                  key={m}
+                  className="flex-1"
+                  title={`${year}년 ${m}월 · ${won(values[m - 1])}원`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex pt-1">
+            {MONTHS.map((m, i) => (
+              <span
+                key={m}
+                className={`flex-1 text-center text-[17px] ${
+                  i === peak || i === trough ? 'font-semibold text-fg' : 'text-fg-muted'
+                }`}
+              >
+                {m}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       <p className="mt-2 text-[17px] text-fg-muted">
-        {max > 0
-          ? '가장 많이 잡히는 달만 금액을 적었습니다. 막대에 마우스를 올리면 그 달 금액이 뜨고, 열두 달 값은 아래 표에 있습니다.'
-          : '이 해에는 예상 상각비가 없습니다.'}
+        {flat
+          ? '열두 달이 모두 같은 금액입니다.'
+          : '오르내림이 보이도록 세로축을 0원이 아니라 그 해 최소~최대 구간으로 확대해 그렸습니다. 점에 마우스를 올리면 그 달 금액이 뜨고, 열두 달 값은 아래 표에 있습니다.'}
       </p>
     </div>
   );
