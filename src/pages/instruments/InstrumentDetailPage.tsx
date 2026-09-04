@@ -16,7 +16,6 @@ import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
 import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
-import { wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -26,7 +25,6 @@ import {
   btnClass,
   btnDangerClass,
   btnPrimaryClass,
-  Def,
   Field,
   inputClass,
   QueryState,
@@ -56,11 +54,6 @@ export default function InstrumentDetailPage() {
   const detail = useQuery({
     queryKey: queryKeys.instruments.detail(instrumentId),
     queryFn: () => instrumentsApi.detail(instrumentId),
-    enabled: Number.isFinite(instrumentId),
-  });
-  const calibrations = useQuery({
-    queryKey: queryKeys.calibrations.byInstrument(instrumentId),
-    queryFn: () => calibrationsApi.byInstrument(instrumentId),
     enabled: Number.isFinite(instrumentId),
   });
   const attachments = useQuery({
@@ -211,228 +204,109 @@ export default function InstrumentDetailPage() {
 
       <QueryState isPending={detail.isPending} error={detail.error} />
 
-      {d && <InstrumentCard instrumentId={instrumentId} />}
-
-      {/* 이력카드에 없는 것까지 한 화면에서 다 본다. 종이에는 나가지 않는다 */}
+      {/*
+        계측기가 가진 것은 전부 이력카드 안에 있다. 양식에 칸이 없는 항목과 첨부는
+        카드 안에 이어 붙이되 종이에는 나가지 않는다 (2026-09-04 요청).
+      */}
       {d && (
-        <div className="no-print space-y-3">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <Section title="계측기">
-              <Def label="관리번호">
-                <span className="code">{d.mgmtNo}</span>
-              </Def>
-              {/* 폐기한 것만. 사용중인 계측기에 "상태: 사용중" 을 적어 봐야 읽을 것이 늘 뿐이다 */}
-              {gone && (
-                <>
-                  <Def label="폐기일">{fmtDate(d.discardedAt)}</Def>
-                  <Def label="폐기 사유">{d.discardReason ?? '-'}</Def>
-                </>
-              )}
-              <Def label="계측기명">{d.name}</Def>
-              <Def label="S/NO">{d.serialNo ?? '-'}</Def>
-              <Def label="제작사">{d.maker ?? '-'}</Def>
-              <Def label="규격">{d.specText ?? '-'}</Def>
-              <Def label="정도 / 정확도">{d.accuracy ?? '-'}</Def>
-            </Section>
-
-            <Section title="운용">
-              <Def label="교정주기">{d.calibrationCycleMonths}개월</Def>
-              <Def label="최근 교정일">{fmtDate(d.lastCalibratedDate)}</Def>
-              <Def label="차기 교정일">
-                <span className={overdue ? 'font-semibold text-danger' : ''}>
-                  {fmtDate(d.nextDueDate)}
-                </span>
-              </Def>
-              <Def label="사용부서">{d.departmentDisplay ?? '-'}</Def>
-              <Def label="사용위치">{d.locationName ?? '-'}</Def>
-              <Def label="사용자">{d.userName ?? '-'}</Def>
-            </Section>
-
-            <Section title="구매·연결">
-              <Def label="구매일">{fmtDate(d.purchaseDate)}</Def>
-              <Def label="구매가격">
-                <span className="num-left block">{wonUnit(d.purchasePrice)}</span>
-              </Def>
-              <Def label="구매처">{d.supplierName ?? '-'}</Def>
-              <Def label="연결 고정자산">
-                {d.assetId ? (
-                  <button
-                    type="button"
-                    className="text-accent hover:underline"
-                    onClick={() => navigate(`/assets/${d.assetId}`)}
-                  >
-                    {d.assetName ?? `#${d.assetId}`}
-                  </button>
-                ) : (
-                  '-'
-                )}
-              </Def>
-              <Def label="비고">{d.remark ?? '-'}</Def>
-            </Section>
-          </div>
-
-          <Section title="교정 이력 (HISTORY)">
-            <QueryState
-              isPending={calibrations.isPending}
-              error={calibrations.error}
-              isEmpty={(calibrations.data ?? []).length === 0}
-              emptyText="교정 이력이 없습니다."
-            />
-            {(calibrations.data ?? []).length > 0 && (
-              <table className="w-max text-[19px]">
-                <thead>
-                  <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                    <th className={thClass}>계획 연도</th>
-                    <th className={thClass}>계획일</th>
-                    <th className={thClass}>실시일</th>
-                    <th className={thClass}>차기 교정일</th>
-                    <th className={thClass}>결과</th>
-                    <th className={thClass}>의뢰처</th>
-                    <th className={thClass}>성적서 번호</th>
-                    <th className={`${thClass} text-right`}>비용</th>
-                    <th className={thClass}>이상발생 조치</th>
-                    <th className={thClass}>확인자</th>
-                    <th className={thClass} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(calibrations.data ?? []).map((c) => (
-                    <tr key={c.id} className="border-b border-line hover:bg-bg">
-                      <td className="px-3 py-2 tabular-nums">{c.planYear}</td>
-                      <td className="px-3 py-2">{fmtDate(c.planDate)}</td>
-                      <td className="px-3 py-2">{fmtDate(c.performedDate)}</td>
-                      <td className="px-3 py-2">{fmtDate(c.nextDueDate)}</td>
-                      <td className="px-3 py-2">
-                        {c.performed ? (
-                          <span className={c.result === 'FAIL' ? 'text-danger' : ''}>
-                            {c.resultMark ?? '-'}
-                          </span>
-                        ) : (
-                          <Badge tone="warn">미실시</Badge>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">{c.agencyName ?? '-'}</td>
-                      <td className="px-3 py-2">{c.certificateNo ?? '-'}</td>
-                      <td className="num px-3 py-2">{wonUnit(c.cost)}</td>
-                      <td className="px-3 py-2 text-fg-sub">{c.actionNote ?? '-'}</td>
-                      <td className="px-3 py-2">{c.confirmedBy ?? '-'}</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                          onClick={() => setCalibrationTarget(c)}
-                        >
-                          수정
-                        </button>
-                        <button
-                          type="button"
-                          className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                          onClick={() => {
-                            if (window.confirm('이 교정 이력을 삭제합니다.'))
-                              removeCalibration.mutate(c.id);
-                          }}
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
-
-          <Section
-            title="첨부파일"
-            right={
-              <>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) upload.mutate(file);
-                    e.target.value = '';
-                  }}
+        <InstrumentCard
+          instrumentId={instrumentId}
+          onEditCalibration={setCalibrationTarget}
+          onDeleteCalibration={(id) => removeCalibration.mutate(id)}
+          footer={
+            <>
+              <Section
+                title="첨부파일"
+                right={
+                  <>
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) upload.mutate(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className={btnPrimaryClass}
+                      disabled={upload.isPending}
+                      onClick={() => fileInput.current?.click()}
+                    >
+                      {upload.isPending ? '업로드 중…' : '파일 올리기'}
+                    </button>
+                  </>
+                }
+              >
+                <QueryState
+                  isPending={attachments.isPending}
+                  error={attachments.error}
+                  isEmpty={(attachments.data ?? []).length === 0}
+                  emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
                 />
-                <button
-                  type="button"
-                  className={btnPrimaryClass}
-                  disabled={upload.isPending}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  {upload.isPending ? '업로드 중…' : '파일 올리기'}
-                </button>
-              </>
-            }
-          >
-            <QueryState
-              isPending={attachments.isPending}
-              error={attachments.error}
-              isEmpty={(attachments.data ?? []).length === 0}
-              emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
-            />
-            {(attachments.data ?? []).length > 0 && (
-              <table className="w-max text-[19px]">
-                <thead>
-                  <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                    <th className={thClass} />
-                    <th className={thClass}>파일명</th>
-                    <th className={thClass}>형식</th>
-                    <th className={`${thClass} text-right`}>크기</th>
-                    <th className={thClass}>올린 일시</th>
-                    <th className={thClass} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(attachments.data ?? []).map((f) => (
-                    <tr key={f.id} className="border-b border-line hover:bg-bg">
-                      {/* 사진이면 어느 것인지 열어 보지 않아도 알 수 있게 */}
-                      <td className="px-3 py-2">
-                        {f.contentType?.startsWith('image/') ? (
-                          <AuthImage
-                            path={`/attachment/${f.id}/download`}
-                            alt=""
-                            className="h-12 w-16 rounded-sm border border-line object-cover"
-                          />
-                        ) : (
-                          <span className="text-fg-muted">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">{f.originalName}</td>
-                      <td className="px-3 py-2 text-fg-sub">{f.contentType ?? '-'}</td>
-                      <td className="num px-3 py-2">{fileSizeText(f.fileSize)}</td>
-                      <td className="px-3 py-2">{fmtDateTime(f.createdAt)}</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                          disabled={download.isPending}
-                          onClick={() => download.mutate(f)}
-                        >
-                          내려받기
-                        </button>
-                        <button
-                          type="button"
-                          className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                          onClick={() => {
-                            if (window.confirm(`${f.originalName} 을 삭제합니다.`))
-                              removeAttachment.mutate(f.id);
-                          }}
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
-        </div>
+                {(attachments.data ?? []).length > 0 && (
+                  <table className="w-max text-[19px]">
+                    <thead>
+                      <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                        <th className={thClass} />
+                        <th className={thClass}>파일명</th>
+                        <th className={thClass}>형식</th>
+                        <th className={`${thClass} text-right`}>크기</th>
+                        <th className={thClass}>올린 일시</th>
+                        <th className={thClass} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(attachments.data ?? []).map((f) => (
+                        <tr key={f.id} className="border-b border-line hover:bg-bg">
+                          {/* 사진이면 어느 것인지 열어 보지 않아도 알 수 있게 */}
+                          <td className="px-3 py-2">
+                            {f.contentType?.startsWith('image/') ? (
+                              <AuthImage
+                                path={`/attachment/${f.id}/download`}
+                                alt=""
+                                className="h-12 w-16 rounded-sm border border-line object-cover"
+                              />
+                            ) : (
+                              <span className="text-fg-muted">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">{f.originalName}</td>
+                          <td className="px-3 py-2 text-fg-sub">{f.contentType ?? '-'}</td>
+                          <td className="num px-3 py-2">{fileSizeText(f.fileSize)}</td>
+                          <td className="px-3 py-2">{fmtDateTime(f.createdAt)}</td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
+                              disabled={download.isPending}
+                              onClick={() => download.mutate(f)}
+                            >
+                              내려받기
+                            </button>
+                            <button
+                              type="button"
+                              className="whitespace-nowrap text-[18px] text-danger hover:underline"
+                              onClick={() => {
+                                if (window.confirm(`${f.originalName} 을 삭제합니다.`))
+                                  removeAttachment.mutate(f.id);
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </Section>
+            </>
+          }
+        />
       )}
-
       {d && editing && <InstrumentModal instrument={d} onClose={() => setEditing(false)} />}
 
       {calibrationTarget && (

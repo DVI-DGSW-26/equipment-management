@@ -6,9 +6,10 @@ import { calibrationsApi, type Calibration } from '@/api/calibrations';
 import { attachmentsApi } from '@/api/attachments';
 import { queryKeys } from '@/api/queryKeys';
 import type { IsoDate } from '@/api/types';
+import { fmtDate } from '@/lib/date';
 import { won } from '@/lib/won';
 import AuthImage from '@/components/AuthImage';
-import { QueryState } from '@/components/ui';
+import { Badge, QueryState } from '@/components/ui';
 
 /**
  * 계측기 이력카드. 현업이 쓰던 엑셀 양식(A4 가로)을 그대로 옮긴다.
@@ -22,8 +23,14 @@ import { QueryState } from '@/components/ui';
  * "24개월" 로 적는다. 화면·엑셀이 전부 개월이라 여기만 년으로 두면 같은 값이
  * 달라 보인다(계측기 담당 요청 2026-09-02).
  *
- * 상세 화면 탭과 인쇄 전용 화면이 이 하나를 같이 쓴다. 부르는 조회는 상세와 같은 키라
- * 탭을 옮겨도 다시 받아 오지 않는다.
+ * ## 화면과 종이가 다르다
+ *
+ * 계측기가 가진 정보는 전부 이 카드 안에 있다 — 양식에 칸이 없는 것(사용자·비고·
+ * 연결 고정자산·교정 계획·성적서 번호 등)은 카드 안에 이어 붙이되 no-print 로 둔다.
+ * 카드 밖에 따로 표를 만들어 두면 한 계측기를 보는데 두 군데를 오가야 한다
+ * (2026-09-04 요청).
+ *
+ * 그래서 인쇄하면 위 양식 그대로만 나간다. 화면에서 더 보이는 것은 종이에 없다.
  */
 
 /** 양식이 17행짜리 표라, 이력이 적어도 빈 줄로 그 높이를 채운다 */
@@ -63,7 +70,19 @@ const cardDate = (v: IsoDate | null | undefined): string => {
 /** 양식의 금액 표기. 값이 없는 줄은 비워 둔다 — "-" 를 찍으면 손으로 적을 자리가 없다 */
 const cardWon = (v: number | null | undefined): string => (v == null ? '' : `₩${won(v)}`);
 
-export default function InstrumentCard({ instrumentId }: { instrumentId: number }) {
+export default function InstrumentCard({
+  instrumentId,
+  onEditCalibration,
+  onDeleteCalibration,
+  footer,
+}: {
+  instrumentId: number;
+  /** 주면 이력 줄마다 수정·삭제 단추가 붙는다 (인쇄 전용 화면에서는 주지 않는다) */
+  onEditCalibration?: (calibration: Calibration) => void;
+  onDeleteCalibration?: (calibrationId: number) => void;
+  /** 카드 안 맨 아래에 이어 붙일 것(첨부파일 등). 종이에는 나가지 않는다 */
+  footer?: ReactNode;
+}) {
   const instrument = useQuery({
     queryKey: queryKeys.instruments.detail(instrumentId),
     queryFn: () => instrumentsApi.detail(instrumentId),
@@ -84,16 +103,23 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
 
   const d = instrument.data;
 
-  // 양식은 오래된 교정부터 아래로 쌓는다
+  /*
+   * 양식은 오래된 교정부터 아래로 쌓는다.
+   * 아직 실시하지 않은 계획도 화면에서는 보여야 해서 함께 싣고, 종이에서만 뺀다 —
+   * 종이 양식의 이력표는 실시한 것만 적는 칸이다.
+   */
   const rows = useMemo<Calibration[]>(
     () =>
-      [...(calibrations.data ?? [])]
-        .filter((c) => c.performedDate)
-        .sort((a, b) => (a.performedDate ?? '').localeCompare(b.performedDate ?? '')),
+      [...(calibrations.data ?? [])].sort((a, b) =>
+        (a.performedDate ?? a.planDate ?? '').localeCompare(b.performedDate ?? b.planDate ?? ''),
+      ),
     [calibrations.data],
   );
+  const printedCount = rows.filter((c) => c.performedDate).length;
 
   const photo = (photos.data ?? []).find((a) => a.contentType?.startsWith('image/'));
+  /** 이력 줄에 단추를 붙일지. 인쇄 전용 화면에서는 붙이지 않는다 */
+  const editable = !!onEditCalibration || !!onDeleteCalibration;
 
   return (
     <>
@@ -148,6 +174,38 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
             <div className="col-span-2 border-b border-fg px-2 py-1.5 text-center">기타 (&nbsp;)</div>
           </div>
 
+          {/*
+            양식에 칸이 없는 것들. 화면에서는 여기서 다 보이고 종이에는 나가지 않는다.
+            머리와 같은 8칸 격자라 위 줄과 세로선이 맞는다.
+          */}
+          <div className="no-print grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr] border-t border-fg">
+            <CardLabel>사용자</CardLabel>
+            <CardValue>{d.userName}</CardValue>
+            <CardLabel>최근 교정일</CardLabel>
+            <CardValue>{fmtDate(d.lastCalibratedDate)}</CardValue>
+            <CardLabel>차기 교정일</CardLabel>
+            <CardValue>{fmtDate(d.nextDueDate)}</CardValue>
+            <CardLabel>연결 고정자산</CardLabel>
+            <CardValue>{d.assetId != null ? (d.assetName ?? `#${d.assetId}`) : ''}</CardValue>
+
+            <CardLabel>비고</CardLabel>
+            <div className="col-span-7 border-b border-fg px-2 py-1.5">{d.remark ?? ''}</div>
+
+            {/* 폐기한 것만. 사용중인 계측기에 "상태: 사용중" 을 적어 봐야 읽을 것이 늘 뿐이다 */}
+            {d.status === 'DISCARDED' && (
+              <>
+                <CardLabel>폐기</CardLabel>
+                <div className="col-span-7 border-b border-fg px-2 py-1.5">
+                  <Badge tone="muted">{d.statusLabel}</Badge>
+                  <span className="ml-2">
+                    {fmtDate(d.discardedAt)}
+                    {d.discardReason ? ` · ${d.discardReason}` : ''}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* 본문 — 왼쪽 구매 정보와 사진 / 오른쪽 검교정 현황 */}
           <div className="card-body grid grid-cols-1 border-t border-fg lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
             <div className="flex min-w-0 flex-col border-b border-fg lg:border-r lg:border-b-0">
@@ -170,7 +228,7 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
                   />
                 ) : (
                   <span className="no-print text-[18px] text-fg-muted">
-                    등록된 사진이 없습니다. 관리 정보 탭의 첨부에서 사진을 올리면 여기 나옵니다.
+                    등록된 사진이 없습니다. 아래 첨부에서 사진을 올리면 여기 나옵니다.
                   </span>
                 )}
               </div>
@@ -189,12 +247,27 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
                       <th className="border-r border-line px-2 py-1 font-medium">차기교정일</th>
                       <th className="border-r border-line px-2 py-1 font-medium">교정비용</th>
                       <th className="border-r border-line px-2 py-1 font-medium">이상발생 조치</th>
-                      <th className="px-2 py-1 font-medium">비고</th>
+                      <th className="border-r border-line px-2 py-1 font-medium">비고</th>
+                      {/* 여기부터는 양식에 없는 칸. 화면에서만 본다 */}
+                      <th className="no-print border-r border-line px-2 py-1 font-medium">결과</th>
+                      <th className="no-print border-r border-line px-2 py-1 font-medium">
+                        성적서 번호
+                      </th>
+                      <th className="no-print border-r border-line px-2 py-1 font-medium">확인자</th>
+                      <th className="no-print border-r border-line px-2 py-1 font-medium">
+                        계획 연도
+                      </th>
+                      <th className="no-print px-2 py-1 font-medium">계획일</th>
+                      {editable && <th className="no-print px-2 py-1" />}
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((c) => (
-                      <tr key={c.id} className="border-b border-line">
+                      <tr
+                        key={c.id}
+                        /* 실시 전 계획은 종이 양식의 이력표에 적는 것이 아니다 */
+                        className={`border-b border-line ${c.performedDate ? '' : 'no-print'}`}
+                      >
                         <td className="border-r border-line px-2 py-1 text-center">
                           {c.agencyName ?? ''}
                         </td>
@@ -208,18 +281,70 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
                           {cardWon(c.cost)}
                         </td>
                         <td className="border-r border-line px-2 py-1">{c.actionNote ?? ''}</td>
-                        <td className="px-2 py-1">{c.remark ?? ''}</td>
+                        <td className="border-r border-line px-2 py-1">{c.remark ?? ''}</td>
+                        <td className="no-print border-r border-line px-2 py-1 text-center">
+                          {c.performed ? (
+                            <span className={c.result === 'FAIL' ? 'text-danger' : ''}>
+                              {c.resultMark ?? '-'}
+                            </span>
+                          ) : (
+                            <Badge tone="warn">미실시</Badge>
+                          )}
+                        </td>
+                        <td className="no-print border-r border-line px-2 py-1 text-center">
+                          {c.certificateNo ?? ''}
+                        </td>
+                        <td className="no-print border-r border-line px-2 py-1 text-center">
+                          {c.confirmedBy ?? ''}
+                        </td>
+                        <td className="no-print border-r border-line px-2 py-1 text-center tabular-nums">
+                          {c.planYear}
+                        </td>
+                        <td className="no-print px-2 py-1 text-center whitespace-nowrap">
+                          {cardDate(c.planDate)}
+                        </td>
+                        {editable && (
+                          <td className="no-print px-2 py-1 text-right whitespace-nowrap">
+                            {onEditCalibration && (
+                              <button
+                                type="button"
+                                className="mr-2 text-accent hover:underline"
+                                onClick={() => onEditCalibration(c)}
+                              >
+                                수정
+                              </button>
+                            )}
+                            {onDeleteCalibration && (
+                              <button
+                                type="button"
+                                className="text-danger hover:underline"
+                                onClick={() => {
+                                  if (window.confirm('이 교정 이력을 삭제합니다.'))
+                                    onDeleteCalibration(c.id);
+                                }}
+                              >
+                                삭제
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {/* 양식의 빈 줄. 손으로 적어 넣을 자리가 남아 있어야 한다 */}
-                    {Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }, (_, i) => (
+                    {Array.from({ length: Math.max(0, MIN_ROWS - printedCount) }, (_, i) => (
                       <tr key={`blank-${i}`} className="border-b border-line">
                         <td className="border-r border-line px-2 py-1">&nbsp;</td>
                         <td className="border-r border-line px-2 py-1" />
                         <td className="border-r border-line px-2 py-1" />
                         <td className="border-r border-line px-2 py-1" />
                         <td className="border-r border-line px-2 py-1" />
-                        <td className="px-2 py-1" />
+                        <td className="border-r border-line px-2 py-1" />
+                        <td className="no-print border-r border-line px-2 py-1" />
+                        <td className="no-print border-r border-line px-2 py-1" />
+                        <td className="no-print border-r border-line px-2 py-1" />
+                        <td className="no-print border-r border-line px-2 py-1" />
+                        <td className="no-print px-2 py-1" />
+                        {editable && <td className="no-print px-2 py-1" />}
                       </tr>
                     ))}
                   </tbody>
@@ -228,6 +353,9 @@ export default function InstrumentCard({ instrumentId }: { instrumentId: number 
               <QueryState isPending={calibrations.isPending} error={calibrations.error} />
             </div>
           </div>
+
+          {/* 첨부 등. 카드 안에 두어 한 계측기를 한 자리에서 본다 */}
+          {footer && <div className="no-print border-t border-fg">{footer}</div>}
 
           <div className="border-t border-fg px-3 py-1 text-right text-[15px] text-fg-sub">
             A4(297×210)
