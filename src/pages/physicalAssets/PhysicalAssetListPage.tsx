@@ -381,7 +381,7 @@ export default function PhysicalAssetListPage() {
         {rows.length > 0 && (
           <>
             <TableScroll>
-              <table className="w-max text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="text-left whitespace-nowrap text-fg-sub">
                     {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}

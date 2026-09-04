@@ -540,7 +540,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
       />
 
       {rows.length > 0 && (
-        <table className="w-max text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={seqThClass}>No.</th>
@@ -1062,7 +1062,7 @@ function LogSection({ type }: { type: AlertType }) {
       />
       {rows.length > 0 && (
         <>
-          <table className="w-max text-[19px]">
+          <table className="w-max min-w-full text-[19px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={seqThClass}>No.</th>

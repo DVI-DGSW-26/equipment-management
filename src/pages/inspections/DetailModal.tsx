@@ -258,7 +258,7 @@ export default function DetailModal({
           emptyText="검사 이력이 없습니다."
         />
         {(history.data ?? []).length > 0 && (
-          <table className="w-max text-[18px]">
+          <table className="w-max min-w-full text-[18px]">
             <thead>
               <tr className="border-b border-line bg-bg text-left text-fg-sub">
                 <th className={thClass}>검사일</th>

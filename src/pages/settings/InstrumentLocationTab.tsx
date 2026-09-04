@@ -88,7 +88,7 @@ export default function InstrumentLocationTab() {
         emptyText={keyword ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
       />
       {rows.length > 0 && (
-        <table className="w-max text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={seqThClass}>No.</th>

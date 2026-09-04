@@ -69,7 +69,7 @@ export default function AssetAdditionsSection({
         emptyText="등록된 자본적지출이 없습니다."
       />
       {rows.length > 0 && (
-        <table className="w-max text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>발생일</th>

@@ -73,7 +73,7 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
         emptyText={filtering ? '해당 조건의 이력이 없습니다.' : '변경 이력이 없습니다.'}
       />
       {rows.length > 0 && (
-        <table className="w-max text-[19px]">
+        <table className="w-max min-w-full text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>일시</th>

@@ -432,7 +432,7 @@ export default function AssetListPage() {
         {all.length > 0 && (
           <>
             <TableScroll>
-              <table className="w-max text-[19px]">
+              <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="text-left text-fg-sub">
                     {sel.showSelectColumn && (
