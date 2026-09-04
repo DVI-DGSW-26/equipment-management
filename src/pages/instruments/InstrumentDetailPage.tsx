@@ -31,7 +31,6 @@ import {
   inputClass,
   QueryState,
   Section,
-  Tabs,
   thClass,
 } from '@/components/ui';
 
@@ -42,11 +41,14 @@ export default function InstrumentDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   /*
-   * 들어오면 관리 정보부터 보인다. 이력카드는 바로 옆 탭이라 한 번만 누르면 된다 —
-   * 전에는 다른 화면으로 넘어가야 했다(목록 → 상세 → 이력카드).
-   * 수정·교정 이력 등록·삭제는 탭 밖 머리줄에 있어 어느 탭에서든 한 번에 닿는다.
+   * 화면은 이력카드 한 장이다.
+   *
+   * 관리 정보를 탭으로 갈라 두었더니 이력카드를 보려고 한 번 더 눌러야 했고,
+   * 정작 관리 정보 탭은 따로 볼 일이 없었다(2026-09-03 피드백). 탭을 걷고
+   * 이력카드 아래에 관리 정보·교정 이력·첨부를 이어 붙인다.
+   *
+   * 종이·PDF 로는 이력카드 양식만 나간다 — 이어 붙인 것은 모두 no-print 다.
    */
-  const [tab, setTab] = useState<'manage' | 'card'>('manage');
   const [editing, setEditing] = useState(false);
   const [calibrationTarget, setCalibrationTarget] = useState<Calibration | 'new' | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -146,7 +148,7 @@ export default function InstrumentDetailPage() {
 
   return (
     <div className="space-y-3">
-      {/* 카드 탭에서 인쇄하면 종이에는 카드만 나가야 한다 */}
+      {/* 인쇄하면 종이에는 이력카드만 나간다 */}
       <div className="no-print flex flex-wrap items-center gap-2">
         <button type="button" className={btnClass} onClick={() => navigate('/instruments')}>
           ← 목록
@@ -160,16 +162,10 @@ export default function InstrumentDetailPage() {
         )}
         {overdue && <Badge tone="danger">차기 교정일 경과</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {tab === 'card' && (
-            <button
-              type="button"
-              className={btnClass}
-              disabled={!d}
-              onClick={() => window.print()}
-            >
-              이력카드 인쇄
-            </button>
-          )}
+          {/* 종이·PDF 로는 이력카드 양식만 나간다. 아래 관리 정보는 화면에서만 본다 */}
+          <button type="button" className={btnClass} disabled={!d} onClick={() => window.print()}>
+            이력카드 인쇄 · PDF
+          </button>
           <button type="button" className={btnClass} disabled={!d} onClick={() => setEditing(true)}>
             수정
           </button>
@@ -215,23 +211,11 @@ export default function InstrumentDetailPage() {
 
       <QueryState isPending={detail.isPending} error={detail.error} />
 
+      {d && <InstrumentCard instrumentId={instrumentId} />}
+
+      {/* 이력카드에 없는 것까지 한 화면에서 다 본다. 종이에는 나가지 않는다 */}
       {d && (
-        <div className="no-print">
-          <Tabs
-            tabs={[
-              { key: 'manage' as const, label: '관리 정보' },
-              { key: 'card' as const, label: '이력카드' },
-            ]}
-            value={tab}
-            onChange={setTab}
-          />
-        </div>
-      )}
-
-      {d && tab === 'card' && <InstrumentCard instrumentId={instrumentId} />}
-
-      {d && tab === 'manage' && (
-        <div className="space-y-3">
+        <div className="no-print space-y-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <Section title="계측기">
               <Def label="관리번호">
