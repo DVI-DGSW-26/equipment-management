@@ -16,6 +16,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
 import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
+import { printAs } from '@/lib/printTitle';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
@@ -155,8 +156,16 @@ export default function InstrumentDetailPage() {
         )}
         {overdue && <Badge tone="danger">차기 교정일 경과</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* 종이·PDF 로는 이력카드 양식만 나간다. 아래 관리 정보는 화면에서만 본다 */}
-          <button type="button" className={btnClass} disabled={!d} onClick={() => window.print()}>
+          {/*
+            종이·PDF 로는 이력카드 양식만 나간다. 화면에서만 보는 것은 인쇄에서 빠진다.
+            PDF 로 저장하면 파일 이름이 "계측기명(관리번호)" 가 된다.
+          */}
+          <button
+            type="button"
+            className={btnClass}
+            disabled={!d}
+            onClick={() => d && printAs(`${d.name}(${d.mgmtNo})`)}
+          >
             이력카드 인쇄 · PDF
           </button>
           <button type="button" className={btnClass} disabled={!d} onClick={() => setEditing(true)}>

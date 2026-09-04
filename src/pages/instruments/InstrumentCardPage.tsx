@@ -1,4 +1,8 @@
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { instrumentsApi } from '@/api/instruments';
+import { queryKeys } from '@/api/queryKeys';
+import { printAs } from '@/lib/printTitle';
 import InstrumentCard from './InstrumentCard';
 import { btnClass, btnPrimaryClass } from '@/components/ui';
 
@@ -16,6 +20,14 @@ export default function InstrumentCardPage() {
   const navigate = useNavigate();
   const instrumentId = Number(id);
 
+  /* 파일 이름에 쓸 이름·관리번호. 카드가 부르는 것과 같은 조회라 다시 받지 않는다 */
+  const detail = useQuery({
+    queryKey: queryKeys.instruments.detail(instrumentId),
+    queryFn: () => instrumentsApi.detail(instrumentId),
+    enabled: Number.isFinite(instrumentId),
+  });
+  const d = detail.data;
+
   return (
     <div className="space-y-3">
       <div className="no-print flex flex-wrap items-center gap-2">
@@ -30,9 +42,10 @@ export default function InstrumentCardPage() {
         <button
           type="button"
           className={`${btnPrimaryClass} ml-auto`}
-          onClick={() => window.print()}
+          disabled={!d}
+          onClick={() => d && printAs(`${d.name}(${d.mgmtNo})`)}
         >
-          인쇄
+          인쇄 · PDF
         </button>
       </div>
 
