@@ -12,7 +12,7 @@ import { codeText } from '@/domain/assetCode';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
-import { bookValue, won, wonRatio, wonShort, wonSpan, wonTick } from '@/lib/won';
+import { bookValue, chartUnit, chartValue, won, wonRatio, wonShort, wonSpan } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import { rowNo } from '@/lib/paging';
 import {
@@ -1138,8 +1138,12 @@ function MonthlyTrend({ year, amounts }: { year: number; amounts: Won[] }) {
     );
   }
 
-  /* 점이 그림 위아래 끝에 붙어 잘리지 않게 안쪽으로 들여 놓는다 */
-  const posOf = (i: number) => (flat ? 50 : 10 + wonSpan(values[i], min, max) * 80);
+  /*
+   * 점 자리. 위쪽은 금액 라벨이 앉을 만큼 비워 둔다 —
+   * 가장 높은 점의 라벨이 그림 밖으로 넘어가면 잘린다.
+   */
+  const posOf = (i: number) => (flat ? 42 : 12 + wonSpan(values[i], min, max) * 62);
+  const unit = chartUnit(max);
   /* 달마다 한 칸씩 나눠 가운데에 점을 찍는다. 아래 달 이름과 같은 자리 */
   const xOf = (i: number) => ((i + 0.5) / MONTHS.length) * 100;
 
@@ -1159,37 +1163,12 @@ function MonthlyTrend({ year, amounts }: { year: number; amounts: Won[] }) {
             {trough + 1}월 · {won(min)}원
           </b>
         </span>
+        <span className="ml-auto text-fg-muted">그래프 단위 : {unit}</span>
       </div>
 
-      <div className="flex">
-        {/* 눈금 금액은 그림 밖 왼쪽 칸에 둔다 — 그림 안에 얹으면 그 달 점을 가린다 */}
-        <div className="relative h-44 w-24 shrink-0 pr-2 text-right text-[17px] text-fg-muted">
-          {!flat && (
-            <>
-              <span className="absolute right-2 -translate-y-1/2" style={{ bottom: '90%' }}>
-                {wonTick(max)}
-              </span>
-              <span className="absolute right-2 translate-y-1/2" style={{ bottom: '10%' }}>
-                {wonTick(min)}
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="relative h-44 border-y border-line">
-            {!flat && (
-              <>
-                <span
-                  className="absolute inset-x-0 border-t border-dashed border-line"
-                  style={{ bottom: '90%' }}
-                />
-                <span
-                  className="absolute inset-x-0 border-t border-dashed border-line"
-                  style={{ bottom: '10%' }}
-                />
-              </>
-            )}
+      <div>
+        <div className="min-w-0">
+          <div className="relative h-52 border-y border-line">
 
         {/*
           선만 SVG 로 그린다. 폭에 맞춰 늘어나도 굵기가 변하지 않게 non-scaling-stroke 를 준다.
@@ -1215,13 +1194,23 @@ function MonthlyTrend({ year, amounts }: { year: number; amounts: Won[] }) {
             {MONTHS.map((m, i) => {
               const mark = i === peak || i === trough;
               return (
-                <span
-                  key={m}
-                  className={`absolute block translate-x-[-50%] translate-y-1/2 rounded-full bg-accent ${
-                    mark ? 'h-3 w-3 ring-2 ring-surface' : 'h-2 w-2'
-                  }`}
-                  style={{ left: `${xOf(i)}%`, bottom: `${posOf(i)}%` }}
-                />
+                <span key={m}>
+                  {/* 금액은 점 바로 위에. 단위는 그림에 한 번만 적혀 있다 */}
+                  <span
+                    className={`absolute mb-2.5 block translate-x-[-50%] bg-surface px-1 text-[15px] whitespace-nowrap tabular-nums ${
+                      mark ? 'font-semibold text-fg' : 'text-fg-sub'
+                    }`}
+                    style={{ left: `${xOf(i)}%`, bottom: `${posOf(i)}%` }}
+                  >
+                    {chartValue(values[i], unit)}
+                  </span>
+                  <span
+                    className={`absolute block translate-x-[-50%] translate-y-1/2 rounded-full bg-accent ${
+                      mark ? 'h-3 w-3 ring-2 ring-surface' : 'h-2 w-2'
+                    }`}
+                    style={{ left: `${xOf(i)}%`, bottom: `${posOf(i)}%` }}
+                  />
+                </span>
               );
             })}
 
@@ -1255,7 +1244,7 @@ function MonthlyTrend({ year, amounts }: { year: number; amounts: Won[] }) {
       <p className="mt-2 text-[17px] text-fg-muted">
         {flat
           ? '열두 달이 모두 같은 금액입니다.'
-          : '오르내림이 보이도록 세로축을 0원이 아니라 그 해 최소~최대 구간으로 확대해 그렸습니다. 점에 마우스를 올리면 그 달 금액이 뜨고, 열두 달 값은 아래 표에 있습니다.'}
+          : `오르내림이 보이도록 세로축을 0원이 아니라 그 해 최소~최대 구간으로 확대해 그렸습니다. 점 위 숫자는 ${unit} 단위이고, 점에 마우스를 올리면 원 단위 금액이 뜹니다.`}
       </p>
     </div>
   );

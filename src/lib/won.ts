@@ -68,17 +68,21 @@ export const wonSpan = (value: Won, min: Won, max: Won): number => {
 };
 
 /**
- * 그래프 눈금용 금액. 만 단위까지만 줄인다.
+ * 그래프 점에 적을 금액의 단위.
  *
- * wonShort 는 1억이 넘으면 "1.2억" 으로 자르는데, 달마다 몇백만원씩 다른 값이
- * 모두 "1.2억" 이 돼 변동이 지워진다. 눈금에서는 만 자리를 남긴다.
+ * 달마다 몇백만원씩 다른 값을 "1.2억" 으로 줄이면 달라지는 자리가 지워진다.
+ * 그림 전체를 한 단위로 맞춰 놓고(그림에 한 번만 적는다) 숫자만 늘어놓는다 —
+ * 라벨마다 단위가 붙으면 열두 개를 읽는 데 눈이 오래 걸린다.
  */
-export const wonTick = (value: Won | null | undefined): string => {
-  if (value == null || !Number.isFinite(value)) return '-';
-  const n = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  if (n < 10_000) return `${sign}${Math.round(n).toLocaleString('ko-KR')}원`;
-  return `${sign}${Math.round(n / 10_000).toLocaleString('ko-KR')}만원`;
+export type ChartUnit = '만원' | '원';
+
+export const chartUnit = (max: Won): ChartUnit => (Math.abs(max) >= 10_000 ? '만원' : '원');
+
+/** 단위를 뺀 숫자만. 단위는 그림에 따로 적는다 */
+export const chartValue = (value: Won, unit: ChartUnit): string => {
+  if (!Number.isFinite(value)) return '-';
+  const n = unit === '만원' ? value / 10_000 : value;
+  return Math.round(n).toLocaleString('ko-KR');
 };
 
 /**
