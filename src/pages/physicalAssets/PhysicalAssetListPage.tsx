@@ -383,7 +383,7 @@ export default function PhysicalAssetListPage() {
             <TableScroll>
               <table className="w-max min-w-full text-[19px]">
                 <thead>
-                  <tr className="text-left text-fg-sub">
+                  <tr className="text-left whitespace-nowrap text-fg-sub">
                     {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}
                     <th className={`${stickyThClass} w-24`}>
                       <label className="flex w-fit items-center gap-2 whitespace-nowrap">
@@ -402,7 +402,7 @@ export default function PhysicalAssetListPage() {
                         스티커
                       </label>
                     </th>
-                    <th className={`${stickyThClass} w-14 text-right`}>No.</th>
+                    <th className={`${stickyThClass} num w-14`}>No.</th>
                     <th className={stickyThClass}>자산등록</th>
                     <th className={stickyThClass}>자산코드</th>
                     <th className={stickyThClass}>품명</th>
@@ -412,14 +412,19 @@ export default function PhysicalAssetListPage() {
                     <th className={stickyThClass}>구입일</th>
                     <th className={stickyThClass}>모델명</th>
                     <th className={stickyThClass}>제조업체</th>
-                    <th className={`${stickyThClass} text-right`}>구입금액</th>
+                    <th className={`${stickyThClass} num`}>구입금액</th>
                     <th className={stickyThClass}>상태</th>
-                    <th className={stickyThClass} />
+                    {/*
+                      남는 폭을 이 마지막 칸이 다 가져간다. 그러지 않으면 브라우저가
+                      열마다 제 내용 길이에 비례해 나눠 주어 어떤 칸은 넓고 어떤 칸은
+                      붙어 보인다. 여기서 받아 두면 가운데 칸들의 여백이 모두 같아진다.
+                    */}
+                    <th className={`${stickyThClass} w-full`} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={r.id} className="border-b border-line hover:bg-bg">
+                    <tr key={r.id} className="border-b border-line whitespace-nowrap hover:bg-bg">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
