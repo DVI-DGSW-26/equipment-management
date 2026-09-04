@@ -356,7 +356,7 @@ function DepreciationHistory({ assetId }: { assetId: number }) {
         emptyText="계산된 상각 이력이 없습니다. 감가상각 화면에서 해당 연도를 먼저 계산하세요."
       />
       {rows.length > 0 && (
-        <table className="w-max min-w-full text-[19px]">
+        <table className="w-max text-[19px]">
           <thead>
             <tr className="border-b border-line bg-bg text-left text-fg-sub">
               <th className={thClass}>연도</th>

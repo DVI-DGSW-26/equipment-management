@@ -381,7 +381,7 @@ export default function PhysicalAssetListPage() {
         {rows.length > 0 && (
           <>
             <TableScroll>
-              <table className="w-max min-w-full text-[19px]">
+              <table className="w-max text-[19px]">
                 <thead>
                   <tr className="text-left whitespace-nowrap text-fg-sub">
                     {/* 무엇을 위한 선택인지 열 제목으로 알린다 */}
@@ -414,12 +414,7 @@ export default function PhysicalAssetListPage() {
                     <th className={stickyThClass}>제조업체</th>
                     <th className={`${stickyThClass} num`}>구입금액</th>
                     <th className={stickyThClass}>상태</th>
-                    {/*
-                      남는 폭을 이 마지막 칸이 다 가져간다. 그러지 않으면 브라우저가
-                      열마다 제 내용 길이에 비례해 나눠 주어 어떤 칸은 넓고 어떤 칸은
-                      붙어 보인다. 여기서 받아 두면 가운데 칸들의 여백이 모두 같아진다.
-                    */}
-                    <th className={`${stickyThClass} w-full`} />
+                    <th className={stickyThClass} />
                   </tr>
                 </thead>
                 <tbody>

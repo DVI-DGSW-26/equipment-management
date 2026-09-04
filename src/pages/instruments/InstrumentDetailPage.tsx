@@ -279,7 +279,7 @@ export default function InstrumentDetailPage() {
               emptyText="교정 이력이 없습니다."
             />
             {(calibrations.data ?? []).length > 0 && (
-              <table className="w-max min-w-full text-[19px]">
+              <table className="w-max text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     <th className={thClass}>계획 연도</th>
@@ -374,7 +374,7 @@ export default function InstrumentDetailPage() {
               emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
             />
             {(attachments.data ?? []).length > 0 && (
-              <table className="w-max min-w-full text-[19px]">
+              <table className="w-max text-[19px]">
                 <thead>
                   <tr className="border-b border-line bg-bg text-left text-fg-sub">
                     <th className={thClass} />

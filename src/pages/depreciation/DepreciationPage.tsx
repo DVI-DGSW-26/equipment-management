@@ -338,7 +338,7 @@ function ScheduleTab({
       />
       {d && rows.length > 0 && (
         <TableScroll>
-          <table className="w-max min-w-full text-[18px]">
+          <table className="w-max text-[18px]">
             <thead>
               <tr className="text-left text-fg-sub">
                 <th className={`${stickyThClass} w-14 text-right`}>No.</th>
@@ -588,7 +588,7 @@ function YearlyTab({
         />
         {shown.length > 0 && (
           <TableScroll>
-            <table className="w-max min-w-full text-[18px]">
+            <table className="w-max text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
                   <th className={`${stickyThClass} w-14 text-right`}>No.</th>
@@ -710,7 +710,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         />
         {d && rows.length > 0 && (
           <TableScroll>
-            <table className="w-max min-w-full text-[18px]">
+            <table className="w-max text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
                   <th className={`${stickyThClass} w-14 text-right`}>No.</th>
@@ -1011,7 +1011,7 @@ function ForecastTab() {
         />
         {d && shownRows.length > 0 && (
           <TableScroll>
-            <table className="w-max min-w-full text-[18px]">
+            <table className="w-max text-[18px]">
               <thead>
                 <tr className="text-left text-fg-sub">
                   <th className={`${stickyThClass} w-14 text-right`}>No.</th>
