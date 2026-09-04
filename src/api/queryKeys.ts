@@ -42,6 +42,7 @@ export const queryKeys = {
     all: ['inspections'] as const,
     list: (q: SafetyEquipmentQuery) => ['inspections', 'list', q] as const,
     summary: () => ['inspections', 'summary'] as const,
+    upcoming: (days: number) => ['inspections', 'upcoming', days] as const,
     history: (id: number) => ['inspections', 'history', id] as const,
   },
   instruments: {

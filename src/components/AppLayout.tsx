@@ -27,13 +27,22 @@ export default function AppLayout() {
     staleTime: 30 * 60_000,
   });
 
-  // 안전검사 메뉴의 긴급 건수 배지용. 실패해도 화면을 막지 않는다
+  /*
+   * 안전검사 메뉴의 배지.
+   *
+   * 오늘 검사해야 하는 것만 센다 (요청 2026-09-04). 지난 것과 이달 안에 드는 것까지
+   * 더해 놓으니 늘 숫자가 붙어 있어 오늘 할 일이 있는지 없는지를 알 수 없었다.
+   * days=0 이면 서버가 만료일이 오늘인 것만 주고, includeOverdue=false 로 지난 것은 뺀다.
+   *
+   * 실패해도 화면을 막지 않는다.
+   */
   const safety = useQuery({
-    queryKey: queryKeys.inspections.summary(),
-    queryFn: () => inspectionsApi.summary(),
+    queryKey: queryKeys.inspections.upcoming(0),
+    queryFn: () => inspectionsApi.upcoming({ days: 0, includeOverdue: false }),
     staleTime: 5 * 60_000,
   });
-  const urgent = (safety.data?.overdueCount ?? 0) + (safety.data?.within30Count ?? 0);
+  /** 오늘이 검사 기한인 건수. 없으면 배지를 달지 않는다 */
+  const dueToday = (safety.data ?? []).length;
 
   return (
     <ToastProvider>
@@ -62,9 +71,12 @@ export default function AppLayout() {
                   }
                 >
                   {item.label}
-                  {item.to === '/inspections' && urgent > 0 && (
-                    <span className="ml-1 rounded-sm bg-danger px-1 text-[17px] text-white">
-                      {urgent}
+                  {item.to === '/inspections' && dueToday > 0 && (
+                    <span
+                      className="ml-1 rounded-sm bg-danger px-1 text-[17px] text-white"
+                      title={`오늘이 검사 기한인 대상 ${dueToday}건`}
+                    >
+                      {dueToday}
                     </span>
                   )}
                 </NavLink>
