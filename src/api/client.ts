@@ -1,5 +1,5 @@
 import { getToken, handleUnauthorized } from '@/lib/session';
-import { ApiError, type ApiErrorBody, type BaseResponse } from './types';
+import { ApiError, ApprovalPendingError, type ApiErrorBody, type BaseResponse } from './types';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -66,6 +66,30 @@ const doFetch = (method: HttpMethod, path: string, options: RequestOptions): Pro
   });
 
 /**
+ * 202 를 승인 대기로 바꾼다.
+ *
+ * 봉투는 { status: 202, message, data: { approvalRequestId } } 로 온다.
+ * 본문을 못 읽어도 성공으로 흘려보내지 않는다 — 만들어진 것이 없다는 사실은
+ * 본문 모양이 아니라 상태 코드가 말해 준다.
+ */
+function approvalPending(text: string): ApprovalPendingError {
+  let message = '승인 요청이 접수되었습니다. 팀장 승인 후 등록됩니다.';
+  let approvalRequestId: number | null = null;
+
+  try {
+    const json = JSON.parse(text) as BaseResponse<{ approvalRequestId?: number } | null>;
+    if (json?.message) message = json.message;
+    if (typeof json?.data?.approvalRequestId === 'number') {
+      approvalRequestId = json.data.approvalRequestId;
+    }
+  } catch {
+    /* 본문이 비었거나 JSON 이 아니어도 기본 안내로 알린다 */
+  }
+
+  return new ApprovalPendingError({ code: 'APPROVAL_PENDING', message }, approvalRequestId);
+}
+
+/**
  * 서버 경계. 컴포넌트에서 fetch 를 직접 부르지 않는다.
  * 응답 봉투 {status, message, data} 에서 data 만 벗겨 돌려준다.
  */
@@ -79,6 +103,8 @@ export async function request<T>(
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
+  /* 승인 대기. 아직 만들어진 것이 없으므로 성공 경로로 내보내지 않는다 */
+  if (res.status === 202) throw approvalPending(text);
   if (!text) return undefined as T;
   const json = unwrap<T>(text, path);
   // 봉투가 아닌 응답(혹시 모를 예외)은 본문을 그대로 돌려준다

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ALL_ROWS, PAGE_SIZES } from '@/lib/paging';
-import { errorMessage } from '@/api/types';
+import { errorMessage, forbiddenMessage, isForbidden } from '@/api/types';
 
 /* 공통 클래스. 사내 관리 도구 — 정보 밀도 우선, 애니메이션 없음 */
 
@@ -278,9 +278,28 @@ export function QueryState({
   emptyText?: ReactNode;
 }) {
   if (isPending) return <p className="px-3 py-6 text-[19px] text-fg-sub">불러오는 중…</p>;
+  /* 권한 밖은 고장이 아니다. 빨간 글씨로 띄우면 다시 눌러 보게 된다 */
+  if (isForbidden(error)) return <NoPermission message={forbiddenMessage(error)} />;
   if (error) return <p className="px-3 py-6 text-[19px] text-danger">{errorMessage(error)}</p>;
   if (isEmpty) return <p className="px-3 py-6 text-[19px] text-fg-muted">{emptyText}</p>;
   return null;
+}
+
+/**
+ * 권한 밖 안내.
+ *
+ * 서버가 403 을 준 자리와, 메뉴를 감췄는데 주소를 직접 친 자리에 함께 쓴다.
+ * 화면에서 감추는 것은 안내일 뿐이라 두 경우가 같은 문구로 보여야 한다.
+ */
+export function NoPermission({ message }: { message?: string }) {
+  return (
+    <div className="mx-auto max-w-[560px] rounded-sm border border-line bg-surface px-4 py-6 text-center">
+      <p className="text-[19px] text-fg-sub">{message ?? '권한이 없는 화면입니다.'}</p>
+      <p className="mt-1 text-[17px] text-fg-muted">
+        권한이 필요하면 관리팀 담당자에게 문의하세요.
+      </p>
+    </div>
+  );
 }
 
 /**

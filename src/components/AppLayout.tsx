@@ -1,31 +1,34 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi } from '@/api/auth';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
+import { useMe, usePerms } from '@/hooks/useMe';
+import { allows, type Domain } from '@/lib/permissions';
 import { logout } from '@/lib/session';
 import { Badge } from '@/components/ui';
 import { ToastProvider } from '@/components/Toast';
 
-const NAV = [
-  { to: '/assets', label: '고정자산' },
-  { to: '/physical-assets', label: '실물자산' },
-  { to: '/instruments', label: '계측기' },
-  { to: '/depreciation', label: '감가상각' },
-  { to: '/inspections', label: '안전검사' },
-  { to: '/notifications', label: '알림' },
-  { to: '/settings/master', label: '마스터' },
+/**
+ * 차림표. need 는 그 메뉴를 보려면 있어야 하는 롤이다 (백엔드 회신 2026-09-08).
+ * 라우트 쪽 가드는 App.tsx 가 같은 규칙으로 건다 — 주소를 직접 쳐도 막히도록.
+ */
+const NAV: { to: string; label: string; need: Domain }[] = [
+  { to: '/assets', label: '고정자산', need: 'asset' },
+  { to: '/physical-assets', label: '실물자산', need: 'asset' },
+  { to: '/instruments', label: '계측기', need: 'instrument' },
+  { to: '/depreciation', label: '감가상각', need: 'asset' },
+  { to: '/inspections', label: '안전검사', need: 'asset' },
+  { to: '/notifications', label: '알림', need: 'any' },
+  { to: '/settings/master', label: '마스터', need: 'any' },
 ];
 
 export default function AppLayout() {
   const qc = useQueryClient();
 
   // 로그인한 사람. 헤더에 이름과 권한을 띄운다
-  const me = useQuery({
-    queryKey: queryKeys.auth.me,
-    queryFn: () => authApi.me(),
-    staleTime: 30 * 60_000,
-  });
+  const me = useMe();
+  const { perms } = usePerms();
+  const menu = NAV.filter((item) => allows(perms, item.need));
 
   /*
    * 안전검사 메뉴의 배지.
@@ -35,11 +38,14 @@ export default function AppLayout() {
    * days=0 이면 서버가 만료일이 오늘인 것만 주고, includeOverdue=false 로 지난 것은 뺀다.
    *
    * 실패해도 화면을 막지 않는다.
+   * asset 롤이 없으면 안전검사 자체가 권한 밖이라 묻지 않는다 — 물어 봐야 403 이고,
+   * 그 403 이 "API 연결 실패" 로 보인다.
    */
   const safety = useQuery({
     queryKey: queryKeys.inspections.upcoming(0),
     queryFn: () => inspectionsApi.upcoming({ days: 0, includeOverdue: false }),
     staleTime: 5 * 60_000,
+    enabled: perms.asset,
   });
   /** 오늘이 검사 기한인 건수. 없으면 배지를 달지 않는다 */
   const dueToday = (safety.data ?? []).length;
@@ -59,7 +65,7 @@ export default function AppLayout() {
             </NavLink>
 
             <nav className="flex items-center gap-1 overflow-x-auto">
-              {NAV.map((item) => (
+              {menu.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -102,6 +108,8 @@ export default function AppLayout() {
                   {me.data.roles.map((role) => (
                     <Badge key={role}>{role}</Badge>
                   ))}
+                  {/* 등록·수정이 왜 막히는지 헤더에서 바로 알 수 있게 (IT 계정) */}
+                  {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
                   {/* 다른 사람 자료가 남지 않게 캐시까지 비운다 */}
                   <button
                     type="button"
