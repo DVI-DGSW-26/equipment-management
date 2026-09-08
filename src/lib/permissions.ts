@@ -17,6 +17,27 @@
 /** 롤 이름 표기 흔들림 흡수. ROLE_ASSET 도 asset 으로 본다 */
 const normalize = (role: string): string => role.trim().toLowerCase().replace(/^role_/, '');
 
+/**
+ * 헤더에 적을 롤 이름.
+ *
+ * 서버가 주는 문자열(asset·instrument·admin)을 그대로 띄워 두었더니 쓰는 사람이
+ * 무슨 뜻인지 알 수 없었다(2026-09-09 요청). Keycloak 기본 롤(user 등)은 권한과
+ * 상관없어 아예 적지 않는다 — 읽을 것만 는다.
+ */
+const ROLE_LABEL: Record<string, string> = {
+  asset: '자산 담당',
+  instrument: '계측기 담당',
+  admin: '팀장',
+};
+
+/** 헤더용. 아는 롤만 한글로, 차례는 자산 → 계측기 → 팀장 */
+export const roleLabels = (roles: readonly string[] | undefined): string[] => {
+  const set = new Set((roles ?? []).map(normalize));
+  return Object.keys(ROLE_LABEL)
+    .filter((key) => set.has(key))
+    .map((key) => ROLE_LABEL[key]);
+};
+
 export interface Perms {
   /** 고정자산·실물자산·감가상각·안전검사를 볼 수 있는가 */
   asset: boolean;

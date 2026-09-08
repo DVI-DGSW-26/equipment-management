@@ -8,6 +8,7 @@ import {
   type ApprovalStatus,
 } from '@/api/approvals';
 import { queryKeys } from '@/api/queryKeys';
+import { bodyRows, describeRequest, targetNoOf } from '@/domain/approvalText';
 import { useMe, usePerms } from '@/hooks/useMe';
 import { fmtDateTime } from '@/lib/date';
 import Modal from '@/components/Modal';
@@ -55,18 +56,14 @@ const TONE: Record<ApprovalStatus, 'muted' | 'warn' | 'danger' | 'accent'> = {
   FAILED: 'danger',
 };
 
-/** 요청 본문을 읽기 좋게. 서버는 JSON 문자열로 준다 */
-const prettyBody = (body: string | null): string => {
-  if (!body) return '';
-  try {
-    return JSON.stringify(JSON.parse(body), null, 2);
-  } catch {
-    return body;
-  }
-};
-
-/** 표와 확인창에 함께 쓰는 한 줄 요약 */
-const titleOf = (r: ApprovalRequest): string => r.summary || `${r.method} ${r.path}`;
+/**
+ * 표와 확인창에 함께 쓰는 한 줄 요약.
+ *
+ * 주소(POST /asset)를 그대로 적으면 승인하는 사람이 무엇을 하려는 요청인지 알 수 없다
+ * (2026-09-09 요청). 주소를 한글 동작 이름으로 옮긴다. 서버가 요약을 주면 그것을 쓴다 —
+ * 자산명처럼 어느 건인지까지 적혀 있을 수 있다.
+ */
+const titleOf = (r: ApprovalRequest): string => describeRequest(r.method, r.path);
 
 export default function ApprovalListPage() {
   const qc = useQueryClient();
@@ -177,9 +174,14 @@ export default function ApprovalListPage() {
                     >
                       {titleOf(r)}
                     </button>
-                    <div className="code text-[17px] text-fg-muted">
-                      {r.method} {r.path}
-                    </div>
+                    {/* 서버가 준 요약(자산명 등)과 몇 번 대상인지. 둘 다 없으면 줄을 만들지 않는다 */}
+                    {(r.summary || targetNoOf(r.path)) && (
+                      <div className="text-[17px] text-fg-muted">
+                        {r.summary}
+                        {r.summary && targetNoOf(r.path) ? ' · ' : ''}
+                        {targetNoOf(r.path) ? `${targetNoOf(r.path)}번 대상` : ''}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <Badge tone={TONE[r.status]}>{statusLabel(r)}</Badge>
@@ -262,29 +264,57 @@ export default function ApprovalListPage() {
 /* ---------- 요청 내용 보기 ---------- */
 
 function BodyModal({ request, onClose }: { request: ApprovalRequest; onClose: () => void }) {
-  const body = prettyBody(request.body);
+  const rows = bodyRows(request.body);
+  const target = targetNoOf(request.path);
 
   return (
     <Modal title="요청 내용" width={720} onClose={onClose}>
-      <div className="space-y-2 text-[19px]">
-        <div className="code text-[18px] text-fg-sub">
-          {request.method} {request.path}
-          {request.queryString ? `?${request.queryString}` : ''}
+      <div className="space-y-3 text-[19px]">
+        <div>
+          <p className="text-[21px] font-semibold">{describeRequest(request.method, request.path)}</p>
+          <p className="text-[18px] text-fg-muted">
+            {request.requesterName ?? request.requesterUsername} 요청
+            {target ? ` · ${target}번 대상` : ''}
+          </p>
         </div>
-        {request.summary && <p>{request.summary}</p>}
-        {body ? (
-          <pre className="max-h-[50vh] overflow-auto rounded-sm border border-line bg-bg px-3 py-2 text-[17px] whitespace-pre-wrap">
-            {body}
-          </pre>
+
+        {request.summary && <p className="text-fg-sub">{request.summary}</p>}
+
+        {/* 적어 넣은 값. 칸 이름을 한글로 옮겨 표로 보여 준다 */}
+        {rows.length > 0 ? (
+          <table className="w-full text-[18px]">
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.label} className="border-b border-line align-top">
+                  <th className="w-48 bg-bg px-3 py-1.5 text-left font-medium text-fg-sub">
+                    {row.label}
+                    {/* 아직 한글 이름을 붙이지 않은 칸. 값은 그대로 보여 준다 */}
+                    {row.unknown && <span className="ml-1 text-[16px] text-fg-muted">(원문)</span>}
+                  </th>
+                  <td className="px-3 py-1.5">{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <p className="text-fg-muted">본문이 없는 요청입니다 (삭제 등).</p>
-        )}
-        {request.resultMessage && (
-          <p className="text-fg-sub">
-            실행 결과: {request.resultMessage}
-            {request.resultStatus != null && ` (${request.resultStatus})`}
+          <p className="text-fg-muted">
+            따로 적어 넣은 값이 없는 요청입니다 (삭제·폐기처럼 대상만 지정하는 경우).
           </p>
         )}
+
+        {request.resultMessage && (
+          <p className="text-fg-sub">실행 결과: {request.resultMessage}</p>
+        )}
+
+        {/* 문제가 생겼을 때 백엔드에 그대로 옮겨 물어볼 수 있게 원 요청도 남겨 둔다 */}
+        <details className="text-[17px] text-fg-muted">
+          <summary className="cursor-pointer">기술 정보</summary>
+          <div className="code mt-1 break-all">
+            {request.method} {request.path}
+            {request.queryString ? `?${request.queryString}` : ''}
+            {request.resultStatus != null && ` → ${request.resultStatus}`}
+          </div>
+        </details>
       </div>
     </Modal>
   );

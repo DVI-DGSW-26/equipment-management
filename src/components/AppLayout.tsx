@@ -4,7 +4,7 @@ import { approvalsApi } from '@/api/approvals';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
-import { allows, type Domain } from '@/lib/permissions';
+import { allows, roleLabels, type Domain } from '@/lib/permissions';
 import { logout } from '@/lib/session';
 import { Badge } from '@/components/ui';
 import { ToastProvider } from '@/components/Toast';
@@ -129,8 +129,9 @@ export default function AppLayout() {
               {me.data && (
                 <>
                   <span className="whitespace-nowrap text-fg-sub">{me.data.name}</span>
-                  {me.data.roles.map((role) => (
-                    <Badge key={role}>{role}</Badge>
+                  {/* 서버 롤 문자열(asset·admin) 대신 한글 이름만 적는다 */}
+                  {roleLabels(me.data.roles).map((label) => (
+                    <Badge key={label}>{label}</Badge>
                   ))}
                   {/* 등록·수정이 왜 막히는지 헤더에서 바로 알 수 있게 (IT 계정) */}
                   {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
