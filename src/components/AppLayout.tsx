@@ -132,8 +132,6 @@ export default function AppLayout() {
                   {me.data.roles.map((role) => (
                     <Badge key={role}>{role}</Badge>
                   ))}
-                  {/* 등록·수정이 왜 막히는지 헤더에서 바로 알 수 있게 (IT 계정) */}
-                  {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
                   {/* 다른 사람 자료가 남지 않게 캐시까지 비운다 */}
                   <button
                     type="button"
