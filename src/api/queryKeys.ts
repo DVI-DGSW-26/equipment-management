@@ -1,3 +1,4 @@
+import type { ApprovalStatus } from './approvals';
 import type { AssetFilter, AssetListQuery } from './assets';
 import type { ForecastQuery } from './depreciation';
 import type { CodeMasterKind } from './masters';
@@ -10,6 +11,11 @@ import type { PartnerType } from './instrumentMasters';
 export const queryKeys = {
   auth: {
     me: ['auth', 'me'] as const,
+  },
+  approvals: {
+    all: ['approvals'] as const,
+    list: (status?: ApprovalStatus) => ['approvals', 'list', status ?? null] as const,
+    pendingCount: () => ['approvals', 'pending-count'] as const,
   },
   users: {
     all: ['users'] as const,

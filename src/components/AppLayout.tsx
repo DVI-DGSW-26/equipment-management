@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { approvalsApi } from '@/api/approvals';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
@@ -19,6 +20,8 @@ const NAV: { to: string; label: string; need: Domain }[] = [
   { to: '/depreciation', label: '감가상각', need: 'asset' },
   { to: '/inspections', label: '안전검사', need: 'asset' },
   { to: '/notifications', label: '알림', need: 'any' },
+  /* 팀장은 검토하러, 담당자는 자기 요청이 어떻게 됐는지 보러 들어온다 */
+  { to: '/approvals', label: '승인', need: 'any' },
   { to: '/settings/master', label: '마스터', need: 'any' },
 ];
 
@@ -50,6 +53,19 @@ export default function AppLayout() {
   /** 오늘이 검사 기한인 건수. 없으면 배지를 달지 않는다 */
   const dueToday = (safety.data ?? []).length;
 
+  /*
+   * 승인 메뉴의 배지. 서버가 관리자 화면용으로 내려주는 전체 대기 건수라
+   * 팀장에게만 묻는다 — 담당자에게는 남의 요청까지 센 숫자가 붙어 봐야 읽을 것만 는다.
+   * 승인·반려를 하면 목록과 함께 다시 센다(queryKeys.approvals.all 무효화).
+   */
+  const pending = useQuery({
+    queryKey: queryKeys.approvals.pendingCount(),
+    queryFn: () => approvalsApi.pendingCount(),
+    staleTime: 60_000,
+    enabled: perms.admin,
+  });
+  const waiting = pending.data ?? 0;
+
   return (
     <ToastProvider>
       <div className="min-h-screen bg-bg text-fg">
@@ -77,6 +93,14 @@ export default function AppLayout() {
                   }
                 >
                   {item.label}
+                  {item.to === '/approvals' && waiting > 0 && (
+                    <span
+                      className="ml-1 rounded-sm bg-danger px-1 text-[17px] text-white"
+                      title={`승인을 기다리는 요청 ${waiting}건`}
+                    >
+                      {waiting}
+                    </span>
+                  )}
                   {item.to === '/inspections' && dueToday > 0 && (
                     <span
                       className="ml-1 rounded-sm bg-danger px-1 text-[17px] text-white"

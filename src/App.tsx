@@ -17,6 +17,7 @@ import InstrumentCardPage from '@/pages/instruments/InstrumentCardPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 import NotificationPage from '@/pages/notifications/NotificationPage';
+import ApprovalListPage from '@/pages/approvals/ApprovalListPage';
 import MasterPage from '@/pages/settings/MasterPage';
 
 /**
@@ -136,6 +137,14 @@ export default function App() {
           element={
             <Require need="any">
               <NotificationPage />
+            </Require>
+          }
+        />
+        <Route
+          path="/approvals"
+          element={
+            <Require need="any">
+              <ApprovalListPage />
             </Require>
           }
         />
