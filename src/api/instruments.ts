@@ -62,9 +62,12 @@ export interface InstrumentDetail {
   purchasePrice: number | null;
   supplierId: number | null;
   supplierName: string | null;
-  /** 연결된 고정자산 */
-  assetId: number | null;
-  assetName: string | null;
+  /*
+   * 연결된 고정자산은 여기 없다.
+   *
+   * 자산↔계측기 연결은 자산 쪽 instrumentMgmtNo(계측기 관리번호) 하나로 통일했다
+   * (백엔드 회신 2026-09-08). 계측기에서 자산으로 거슬러 올라가는 필드는 서버에 없다.
+   */
   remark: string | null;
   status: InstrumentStatus;
   statusLabel: string;
@@ -111,7 +114,6 @@ export interface CreateInstrumentPayload {
   purchasePrice?: number;
   supplierId?: number;
   supplierName?: string;
-  assetId?: number;
   remark?: string;
 }
 

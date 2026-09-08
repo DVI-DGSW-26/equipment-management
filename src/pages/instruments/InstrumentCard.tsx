@@ -183,10 +183,16 @@ export default function InstrumentCard({
             <CardValue>{d.userName}</CardValue>
             <CardLabel>최근 교정일</CardLabel>
             <CardValue>{fmtDate(d.lastCalibratedDate)}</CardValue>
+            {/*
+              "연결 고정자산" 칸은 뺐다 — 서버가 계측기 응답에 그 값을 주지 않는다
+              (백엔드 회신 2026-09-08). 연결은 고정자산 쪽 "계측기 관리번호" 로만 본다.
+              빈 자리를 그냥 두면 아래 "비고" 줄이 이 줄 뒤에 붙어 격자가 어긋나므로
+              차기 교정일이 남은 세 칸을 먹는다.
+            */}
             <CardLabel>차기 교정일</CardLabel>
-            <CardValue>{fmtDate(d.nextDueDate)}</CardValue>
-            <CardLabel>연결 고정자산</CardLabel>
-            <CardValue>{d.assetId != null ? (d.assetName ?? `#${d.assetId}`) : ''}</CardValue>
+            <div className="col-span-3 border-b border-fg px-2 py-1.5 text-center">
+              {fmtDate(d.nextDueDate)}
+            </div>
 
             <CardLabel>비고</CardLabel>
             <div className="col-span-7 border-b border-fg px-2 py-1.5">{d.remark ?? ''}</div>

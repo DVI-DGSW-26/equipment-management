@@ -45,11 +45,10 @@ export default function InstrumentModal({
     purchaseDate: instrument?.purchaseDate ?? '',
     purchasePrice: instrument?.purchasePrice != null ? String(instrument.purchasePrice) : '',
     /* 구매처는 이름으로 따로 들고 있다가(supplierText) 보낼 때 ID 로 바꾼다 */
-    assetId: instrument?.assetId != null ? String(instrument.assetId) : '',
     remark: instrument?.remark ?? '',
   });
 
-  const locations = useInstrumentLocations();
+  const locations = useInstrumentLocations();
 
   /*
    * 계측기명 후보. 이미 등록된 이름에서 뽑는다 — 같은 물건을 "버니어캘리퍼스" 와
@@ -100,7 +99,6 @@ export default function InstrumentModal({
         purchaseDate: form.purchaseDate || undefined,
         purchasePrice: form.purchasePrice ? Number(form.purchasePrice) : undefined,
         supplierName: supplierText.trim() || undefined,
-        assetId: form.assetId ? Number(form.assetId) : undefined,
         remark: form.remark || undefined,
       };
       if (instrument) return instrumentsApi.update(instrument.id, body);
@@ -266,14 +264,11 @@ export default function InstrumentModal({
             onChange={(e) => setSupplierText(e.target.value)}
           />
         </Field>
-        <Field label="연결 고정자산 ID" hint="고정자산 등록 대상이 아니면 비웁니다.">
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
-            value={form.assetId}
-            onChange={(e) => set('assetId', e.target.value.replace(/[^\d]/g, ''))}
-          />
-        </Field>
+        {/*
+          "연결 고정자산 ID" 칸은 뺐다. 서버가 그 필드를 받지 않는다 — 자산↔계측기
+          연결은 고정자산 쪽 "계측기 관리번호" 한 곳에서만 맺는다 (백엔드 회신 2026-09-08).
+          여기 적은 값은 저장되는 듯 보였지만 실제로는 버려지고 있었다.
+        */}
         <div className="col-span-2">
           <Field label="비고">
             <input
