@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { inspectionsApi, type EquipmentStatus, type SafetyEquipment } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
+import { usePerms } from '@/hooks/useMe';
 import { byDueAsc, DDAY_CLASS, ddayLabel, levelOf } from '@/domain/dday';
 import { fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
@@ -99,6 +100,7 @@ const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
 };
 
 export default function EquipmentTab() {
+  const { perms } = usePerms();
   const toast = useToast();
   const [keyword, setKeyword] = useState('');
   const [team, setTeam] = useState('');
@@ -253,9 +255,11 @@ export default function EquipmentTab() {
             >
               {exporting ? '만드는 중…' : 'Excel'}
             </button>
-            <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
-              대상 등록
-            </button>
+            {perms.canWrite && (
+              <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
+                대상 등록
+              </button>
+            )}
           </>
         }
       >

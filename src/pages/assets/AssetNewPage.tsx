@@ -12,6 +12,7 @@ import {
   type ExpenseType,
 } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
+import { isApprovalPending } from '@/api/types';
 import { useAccounts, useCategories, useDepartments, useItemTypes, useItems, useLocations, useRates } from '@/hooks/useMasters';
 import { isSuppliesItemEnabled, SUPPLIES_CATEGORY } from '@/domain/assetCode';
 import { allowedMethods, defaultMethod, lookupRate } from '@/domain/depreciationMethod';
@@ -146,6 +147,13 @@ export default function AssetNewPage() {
    * 자산 만들기 요청에는 이 항목이 없어, 저장한 뒤 적힌 것이 있을 때만 한 번 더 보낸다.
    */
   const [tax, setTax] = useState<TaxFormState>(emptyTaxForm);
+  /*
+   * 승인 대기로 넘어갔는데 세무 정보를 같이 적어 두었는가.
+   *
+   * 세무 항목은 자산이 생긴 뒤에야 붙일 수 있어(PATCH /asset/{id}/tax-record) 승인
+   * 요청에는 실리지 않는다. 아무 말 없이 사라지면 승인 후 빠진 줄 모르므로 알린다.
+   */
+  const [taxDropped, setTaxDropped] = useState(false);
   const setTaxField = (key: string, v: string | boolean) =>
     setTax((prev) => ({ ...prev, [key]: v }));
 
@@ -190,7 +198,10 @@ export default function AssetNewPage() {
       void qc.invalidateQueries({ queryKey: queryKeys.assets.all });
       navigate(`/assets/${asset.id}`);
     },
-    onError: toast.fail,
+    onError: (e) => {
+      setTaxDropped(isApprovalPending(e) && hasTaxInput(tax));
+      toast.fail(e);
+    },
   });
 
   const valid =
@@ -222,6 +233,14 @@ export default function AssetNewPage() {
         </button>
         <h1 className="text-[24px] font-semibold">자산 등록</h1>
       </div>
+
+      {taxDropped && (
+        <p className="rounded-sm border border-warn/40 bg-warn/10 px-3 py-2 text-[18px] text-fg-sub">
+          승인 대기로 접수됐습니다. 함께 적으신 <b>추가등록사항(세무)</b> 은 이번 요청에 실리지
+          않습니다 — 자산이 만들어진 뒤에야 붙일 수 있는 값입니다. 승인된 다음 자산 상세의
+          "추가등록사항" 탭에서 다시 넣어 주세요.
+        </p>
+      )}
 
       <Section
         title="자산코드"

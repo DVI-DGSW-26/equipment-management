@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { instrumentsApi } from '@/api/instruments';
@@ -9,17 +9,16 @@ import {
   type CalibrationResult,
   type SaveCalibrationPayload,
 } from '@/api/calibrations';
-import { attachmentsApi, fileSizeText } from '@/api/attachments';
-import AuthImage from '@/components/AuthImage';
 import { isAgency } from '@/api/instrumentMasters';
 import { queryKeys } from '@/api/queryKeys';
 import { usePartners } from '@/hooks/useMasters';
-import { saveFile } from '@/api/client';
-import { currentYear, fmtDate, fmtDateTime } from '@/lib/date';
+import { currentYear, fmtDate } from '@/lib/date';
 import { printAs } from '@/lib/printTitle';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
+import AttachmentsSection from '@/components/AttachmentsSection';
+import { usePerms } from '@/hooks/useMe';
 import InstrumentCard from './InstrumentCard';
 import {
   Badge,
@@ -29,8 +28,6 @@ import {
   Field,
   inputClass,
   QueryState,
-  Section,
-  thClass,
 } from '@/components/ui';
 
 export default function InstrumentDetailPage() {
@@ -39,6 +36,7 @@ export default function InstrumentDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const { perms } = usePerms();
   /*
    * 화면은 이력카드 한 장이다.
    *
@@ -50,19 +48,12 @@ export default function InstrumentDetailPage() {
    */
   const [editing, setEditing] = useState(false);
   const [calibrationTarget, setCalibrationTarget] = useState<Calibration | 'new' | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   const detail = useQuery({
     queryKey: queryKeys.instruments.detail(instrumentId),
     queryFn: () => instrumentsApi.detail(instrumentId),
     enabled: Number.isFinite(instrumentId),
   });
-  const attachments = useQuery({
-    queryKey: queryKeys.instruments.attachments(instrumentId),
-    queryFn: () => attachmentsApi.byInstrument(instrumentId),
-    enabled: Number.isFinite(instrumentId),
-  });
-
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: queryKeys.instruments.all });
     void qc.invalidateQueries({ queryKey: queryKeys.calibrations.all });
@@ -110,30 +101,6 @@ export default function InstrumentDetailPage() {
     onError: toast.fail,
   });
 
-  const upload = useMutation({
-    mutationFn: (file: File) => attachmentsApi.upload(instrumentId, file),
-    onSuccess: () => {
-      toast.ok('첨부파일을 올렸습니다.');
-      void qc.invalidateQueries({ queryKey: queryKeys.instruments.attachments(instrumentId) });
-    },
-    onError: toast.fail,
-  });
-
-  const download = useMutation({
-    mutationFn: attachmentsApi.download,
-    onSuccess: saveFile,
-    onError: toast.fail,
-  });
-
-  const removeAttachment = useMutation({
-    mutationFn: (attachmentId: number) => attachmentsApi.remove(attachmentId),
-    onSuccess: () => {
-      toast.ok('첨부파일을 삭제했습니다.');
-      void qc.invalidateQueries({ queryKey: queryKeys.instruments.attachments(instrumentId) });
-    },
-    onError: toast.fail,
-  });
-
   const d = detail.data;
   const gone = d?.status === 'DISCARDED';
   /* 폐기한 것은 교정 기한을 따지지 않는다 */
@@ -168,46 +135,57 @@ export default function InstrumentDetailPage() {
           >
             이력카드 인쇄 · PDF
           </button>
-          <button type="button" className={btnClass} disabled={!d} onClick={() => setEditing(true)}>
-            수정
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={!d}
-            onClick={() => setCalibrationTarget('new')}
-          >
-            교정 이력 등록
-          </button>
-          {gone ? (
-            <button
-              type="button"
-              className={btnClass}
-              disabled={restore.isPending}
-              onClick={() => {
-                if (window.confirm('폐기를 취소하고 사용중으로 되돌립니다.')) restore.mutate();
-              }}
-            >
-              폐기 취소
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={btnDangerClass}
-              disabled={!d || removeInstrument.isPending}
-              title="목록에서 내려갑니다. 교정 이력과 사진은 그대로 남고, 상태를 폐기로 두면 다시 보입니다."
-              onClick={() => {
-                if (
-                  window.confirm(
-                    '이 계측기를 폐기 처리합니다. 목록에서 내려가지만 교정 이력은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
-                  )
-                )
-                  removeInstrument.mutate();
-              }}
-            >
-              삭제
-            </button>
+          {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
+          {perms.canWrite && (
+            <>
+              <button
+                type="button"
+                className={btnClass}
+                disabled={!d}
+                onClick={() => setEditing(true)}
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                className={btnPrimaryClass}
+                disabled={!d}
+                onClick={() => setCalibrationTarget('new')}
+              >
+                교정 이력 등록
+              </button>
+            </>
           )}
+          {perms.canWrite &&
+            (gone ? (
+              <button
+                type="button"
+                className={btnClass}
+                disabled={restore.isPending}
+                onClick={() => {
+                  if (window.confirm('폐기를 취소하고 사용중으로 되돌립니다.')) restore.mutate();
+                }}
+              >
+                폐기 취소
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={btnDangerClass}
+                disabled={!d || removeInstrument.isPending}
+                title="목록에서 내려갑니다. 교정 이력과 사진은 그대로 남고, 상태를 폐기로 두면 다시 보입니다."
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      '이 계측기를 폐기 처리합니다. 목록에서 내려가지만 교정 이력은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
+                    )
+                  )
+                    removeInstrument.mutate();
+                }}
+              >
+                삭제
+              </button>
+            ))}
         </div>
       </div>
 
@@ -223,96 +201,11 @@ export default function InstrumentDetailPage() {
           onEditCalibration={setCalibrationTarget}
           onDeleteCalibration={(id) => removeCalibration.mutate(id)}
           footer={
-            <>
-              <Section
-                title="첨부파일"
-                right={
-                  <>
-                    <input
-                      ref={fileInput}
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) upload.mutate(file);
-                        e.target.value = '';
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className={btnPrimaryClass}
-                      disabled={upload.isPending}
-                      onClick={() => fileInput.current?.click()}
-                    >
-                      {upload.isPending ? '업로드 중…' : '파일 올리기'}
-                    </button>
-                  </>
-                }
-              >
-                <QueryState
-                  isPending={attachments.isPending}
-                  error={attachments.error}
-                  isEmpty={(attachments.data ?? []).length === 0}
-                  emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
-                />
-                {(attachments.data ?? []).length > 0 && (
-                  <table className="w-max min-w-full text-[19px]">
-                    <thead>
-                      <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                        <th className={thClass} />
-                        <th className={thClass}>파일명</th>
-                        <th className={thClass}>형식</th>
-                        <th className={`${thClass} text-right`}>크기</th>
-                        <th className={thClass}>올린 일시</th>
-                        <th className={thClass} />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(attachments.data ?? []).map((f) => (
-                        <tr key={f.id} className="border-b border-line hover:bg-bg">
-                          {/* 사진이면 어느 것인지 열어 보지 않아도 알 수 있게 */}
-                          <td className="px-3 py-2">
-                            {f.contentType?.startsWith('image/') ? (
-                              <AuthImage
-                                path={`/attachment/${f.id}/download`}
-                                alt=""
-                                className="h-12 w-16 rounded-sm border border-line object-cover"
-                              />
-                            ) : (
-                              <span className="text-fg-muted">-</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">{f.originalName}</td>
-                          <td className="px-3 py-2 text-fg-sub">{f.contentType ?? '-'}</td>
-                          <td className="num px-3 py-2">{fileSizeText(f.fileSize)}</td>
-                          <td className="px-3 py-2">{fmtDateTime(f.createdAt)}</td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                              disabled={download.isPending}
-                              onClick={() => download.mutate(f)}
-                            >
-                              내려받기
-                            </button>
-                            <button
-                              type="button"
-                              className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                              onClick={() => {
-                                if (window.confirm(`${f.originalName} 을 삭제합니다.`))
-                                  removeAttachment.mutate(f.id);
-                              }}
-                            >
-                              삭제
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </Section>
-            </>
+            <AttachmentsSection
+              owner={{ kind: 'instrument', id: instrumentId }}
+              emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
+              canWrite={perms.canWrite}
+            />
           }
         />
       )}

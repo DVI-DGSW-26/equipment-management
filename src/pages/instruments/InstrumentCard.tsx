@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { instrumentsApi, type InstrumentDepartment } from '@/api/instruments';
 import { calibrationsApi, type Calibration } from '@/api/calibrations';
-import { attachmentsApi } from '@/api/attachments';
+import { attachmentsApi, type AttachmentOwner } from '@/api/attachments';
 import { queryKeys } from '@/api/queryKeys';
 import type { IsoDate } from '@/api/types';
 import { fmtDate } from '@/lib/date';
@@ -26,7 +26,7 @@ import { Badge, QueryState } from '@/components/ui';
  * ## 화면과 종이가 다르다
  *
  * 계측기가 가진 정보는 전부 이 카드 안에 있다 — 양식에 칸이 없는 것(사용자·비고·
- * 연결 고정자산·교정 계획·성적서 번호 등)은 카드 안에 이어 붙이되 no-print 로 둔다.
+ * 교정 계획·성적서 번호 등)은 카드 안에 이어 붙이되 no-print 로 둔다.
  * 카드 밖에 따로 표를 만들어 두면 한 계측기를 보는데 두 군데를 오가야 한다
  * (2026-09-04 요청).
  *
@@ -95,9 +95,10 @@ export default function InstrumentCard({
     enabled: Number.isFinite(instrumentId),
   });
 
+  const owner: AttachmentOwner = { kind: 'instrument', id: instrumentId };
   const photos = useQuery({
-    queryKey: queryKeys.instruments.attachments(instrumentId),
-    queryFn: () => attachmentsApi.byInstrument(instrumentId),
+    queryKey: queryKeys.attachments.byOwner(owner),
+    queryFn: () => attachmentsApi.list(owner),
     enabled: Number.isFinite(instrumentId),
   });
 

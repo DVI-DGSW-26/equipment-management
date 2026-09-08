@@ -10,6 +10,7 @@ import {
 } from '@/api/assets';
 import { saveFile } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { usePerms } from '@/hooks/useMe';
 import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { useDebounced } from '@/hooks/useDebounced';
 import { appConfig } from '@/config/appConfig';
@@ -109,6 +110,7 @@ const toFilter = (f: FormState): AssetFilter => ({
 });
 
 export default function AssetListPage() {
+  const { perms } = usePerms();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -226,13 +228,16 @@ export default function AssetListPage() {
       */}
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-[24px] font-semibold">고정자산</h1>
-        <button
-          type="button"
-          className={`${btnPrimaryClass} ml-auto`}
-          onClick={() => navigate('/assets/new')}
-        >
-          자산 등록
-        </button>
+        {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
+        {perms.canWrite && (
+          <button
+            type="button"
+            className={`${btnPrimaryClass} ml-auto`}
+            onClick={() => navigate('/assets/new')}
+          >
+            자산 등록
+          </button>
+        )}
       </div>
 
       <StatCards

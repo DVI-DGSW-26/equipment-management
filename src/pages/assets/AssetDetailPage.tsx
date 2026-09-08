@@ -15,12 +15,14 @@ import {
 } from '@/api/assets';
 import { depreciationApi } from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
+import { usePerms } from '@/hooks/useMe';
 import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { codeText, NO_CODE_REASON, SEQUENCE_MISSING_REASON } from '@/domain/assetCode';
 import { allowedMethods } from '@/domain/depreciationMethod';
 import { LOCKED_NOTICE } from '@/domain/editability';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, rateText, won, wonUnit } from '@/lib/won';
+import AttachmentsSection from '@/components/AttachmentsSection';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import {
@@ -44,12 +46,14 @@ import AssetTaxRecordSection from './AssetTaxRecordSection';
  * 탭 구성은 회계 프로그램 고정자산등록화면을 그대로 따른다 —
  * 주요등록사항 / 추가등록사항 / 자산변동사항 (회계팀 회신 2026-09-01).
  */
-type DetailTab = 'main' | 'extra' | 'changes';
+type DetailTab = 'main' | 'extra' | 'changes' | 'files';
 
 const DETAIL_TABS = [
   { key: 'main' as const, label: '주요등록사항' },
   { key: 'extra' as const, label: '추가등록사항' },
   { key: 'changes' as const, label: '자산변동사항' },
+  /* 계측기 이력카드와 같은 첨부 저장소를 쓴다 (백엔드 회신 2026-09-08) */
+  { key: 'files' as const, label: '사진 · 첨부' },
 ];
 
 export default function AssetDetailPage() {
@@ -58,6 +62,7 @@ export default function AssetDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const { perms } = usePerms();
   const [mode, setMode] = useState<'none' | 'edit' | 'correct'>('none');
   const [tab, setTab] = useState<DetailTab>('main');
 
@@ -144,48 +149,61 @@ export default function AssetDetailPage() {
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" className={btnClass} disabled={!a} onClick={() => setMode('edit')}>
-            수정
-          </button>
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={!a}
-            onClick={() => setMode('correct')}
-            title="취득가액·취득일자·내용연수 등 잠금 항목을 고칩니다. 저장하면 감가상각이 다시 계산됩니다."
-          >
-            회계 정정
-          </button>
-          {gone ? (
-            <button
-              type="button"
-              className={btnClass}
-              disabled={restore.isPending}
-              onClick={() => {
-                if (window.confirm('사용중으로 되돌립니다. 적어 둔 양도/폐기일과 금액은 지워집니다.'))
-                  restore.mutate();
-              }}
-            >
-              폐기 취소
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={btnDangerClass}
-              disabled={!a || remove.isPending}
-              title="목록에서 내려갑니다. 감가상각 내역과 변경 이력은 그대로 남고, 상태를 전체로 두면 다시 보입니다."
-              onClick={() => {
-                if (
-                  window.confirm(
-                    '이 자산을 폐기 처리합니다. 목록에서 내려가지만 감가상각 내역은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
-                  )
-                )
-                  remove.mutate();
-              }}
-            >
-              삭제
-            </button>
+          {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
+          {perms.canWrite && (
+            <>
+              <button
+                type="button"
+                className={btnClass}
+                disabled={!a}
+                onClick={() => setMode('edit')}
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                className={btnPrimaryClass}
+                disabled={!a}
+                onClick={() => setMode('correct')}
+                title="취득가액·취득일자·내용연수 등 잠금 항목을 고칩니다. 저장하면 감가상각이 다시 계산됩니다."
+              >
+                회계 정정
+              </button>
+            </>
           )}
+          {perms.canWrite &&
+            (gone ? (
+              <button
+                type="button"
+                className={btnClass}
+                disabled={restore.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm('사용중으로 되돌립니다. 적어 둔 양도/폐기일과 금액은 지워집니다.')
+                  )
+                    restore.mutate();
+                }}
+              >
+                폐기 취소
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={btnDangerClass}
+                disabled={!a || remove.isPending}
+                title="목록에서 내려갑니다. 감가상각 내역과 변경 이력은 그대로 남고, 상태를 전체로 두면 다시 보입니다."
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      '이 자산을 폐기 처리합니다. 목록에서 내려가지만 감가상각 내역은 그대로 남고, 상세에서 [폐기 취소] 로 되돌릴 수 있습니다.',
+                    )
+                  )
+                    remove.mutate();
+                }}
+              >
+                삭제
+              </button>
+            ))}
         </div>
       </div>
 
@@ -308,6 +326,15 @@ export default function AssetDetailPage() {
               />
               <AssetHistorySection assetId={a.id} />
             </div>
+          )}
+
+          {tab === 'files' && (
+            <AttachmentsSection
+              owner={{ kind: 'asset', id: a.id }}
+              title="사진 · 첨부"
+              emptyText="사진이 없습니다. 현품 사진·계산서 스캔본 등을 올립니다."
+              canWrite={perms.canWrite}
+            />
           )}
         </>
       )}

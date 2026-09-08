@@ -7,6 +7,7 @@ import {
 } from '@/api/physicalAssets';
 import { assetsApi, ASSET_STATUS_LABEL, type Asset, type AssetStatus } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
+import { usePerms } from '@/hooks/useMe';
 import { useCategories, useDepartments, useItemTypes, useItems, useLocations } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
@@ -129,6 +130,7 @@ function Pick({
 }
 
 export default function PhysicalAssetListPage() {
+  const { perms } = usePerms();
   const toast = useToast();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [page, setPage] = useState(0);
@@ -349,9 +351,11 @@ export default function PhysicalAssetListPage() {
             >
               스티커 출력
             </button>
-            <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-              실물자산 등록
-            </button>
+            {perms.canWrite && (
+              <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+                실물자산 등록
+              </button>
+            )}
           </>
         }
       >

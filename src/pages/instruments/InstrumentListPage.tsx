@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { instrumentsApi, type Instrument } from '@/api/instruments';
 import { calibrationsApi, type AnnualCalibration } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
+import { usePerms } from '@/hooks/useMe';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
 import { currentYear, daysUntil, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
@@ -172,6 +173,7 @@ const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolea
 };
 
 function ListTab() {
+  const { perms } = usePerms();
   const navigate = useNavigate();
   const toast = useToast();
   const [exporting, setExporting] = useState(false);
@@ -383,9 +385,11 @@ function ListTab() {
             >
               {exporting ? '만드는 중…' : '엑셀 다운로드'}
             </button>
-            <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
-              계측기 등록
-            </button>
+            {perms.canWrite && (
+              <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
+                계측기 등록
+              </button>
+            )}
           </>
         }
       >

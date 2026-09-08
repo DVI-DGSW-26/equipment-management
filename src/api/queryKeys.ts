@@ -1,4 +1,5 @@
 import type { ApprovalStatus } from './approvals';
+import type { AttachmentOwner } from './attachments';
 import type { AssetFilter, AssetListQuery } from './assets';
 import type { ForecastQuery } from './depreciation';
 import type { CodeMasterKind } from './masters';
@@ -16,6 +17,11 @@ export const queryKeys = {
     all: ['approvals'] as const,
     list: (status?: ApprovalStatus) => ['approvals', 'list', status ?? null] as const,
     pendingCount: () => ['approvals', 'pending-count'] as const,
+  },
+  /** 계측기·자산이 같은 저장소를 쓴다 — 대상별로 키를 나눈다 */
+  attachments: {
+    all: ['attachments'] as const,
+    byOwner: (owner: AttachmentOwner) => ['attachments', owner.kind, owner.id] as const,
   },
   users: {
     all: ['users'] as const,
@@ -55,7 +61,6 @@ export const queryKeys = {
     all: ['instruments'] as const,
     list: (q: InstrumentListQuery) => ['instruments', 'list', q] as const,
     detail: (id: number) => ['instruments', 'detail', id] as const,
-    attachments: (id: number) => ['instruments', 'attachments', id] as const,
   },
   calibrations: {
     all: ['calibrations'] as const,
