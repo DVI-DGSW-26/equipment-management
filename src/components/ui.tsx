@@ -58,6 +58,17 @@ export const stickyThClass = `${thClass} sticky top-0 z-10 bg-bg shadow-[inset_0
  * 조회 버튼이 없다 — 입력하는 대로 걸러진다. 지우려고 백스페이스를 열 번 누르지 않도록
  * 글자가 있을 때만 지우기 단추를 띄운다. type 은 search 가 아니라 text 다.
  * search 로 두면 브라우저가 제 지우기 단추를 하나 더 그려서 두 개가 겹친다.
+ *
+ * ## 한글 입력
+ *
+ * 치는 글자를 곧바로 위로 올리면 안 된다. 조건이 주소창에 담기는 화면에서는 글자마다
+ * 주소가 바뀌고, 그 값이 다시 내려와 input 의 value 를 갈아 끼운다. 한글은 자모를
+ * 모아 한 글자를 만드는 동안(조합 중) value 가 바뀌면 IME 가 조합을 처음부터 다시
+ * 하면서 이미 넣은 자모를 또 넣는다 — 치지도 않은 글자가 끼어드는 것으로 보인다
+ * (2026-09-09 계측기 검색에서 확인).
+ *
+ * 그래서 화면에 보이는 값은 이 칸이 직접 들고 있고, 조합이 끝난 뒤에만 위로 올린다.
+ * 영문·숫자는 조합이 없어 예전처럼 글자마다 걸러진다.
  */
 export function SearchBox({
   value,
@@ -71,6 +82,25 @@ export function SearchBox({
   placeholder: string;
   width?: string;
 }) {
+  const [draft, setDraft] = useState(value);
+  /** 한글 자모를 모으는 중인가 */
+  const composing = useRef(false);
+
+  /* 밖에서 값이 바뀌면(초기화 단추 등) 따라간다. 조합 중에는 건드리지 않는다 */
+  useEffect(() => {
+    if (!composing.current) setDraft(value);
+  }, [value]);
+
+  /*
+   * 조합 중에도 걸러는 준다 — 마지막 글자를 다 칠 때까지 결과가 멈춰 있으면
+   * 찾는 맛이 없다. 위로 올려도 안전한 이유는 화면에 보이는 값(draft)을 이 칸이
+   * 직접 들고 있어서다. 위에서 내려온 값은 조합이 끝난 뒤에만 따라간다.
+   */
+  const push = (next: string) => {
+    setDraft(next);
+    onChange(next);
+  };
+
   return (
     <span className={`relative inline-flex shrink-0 items-center ${width}`}>
       <input
@@ -78,13 +108,23 @@ export function SearchBox({
         className={`${inputClass} pr-8`}
         placeholder={placeholder}
         aria-label={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={draft}
+        onChange={(e) => push(e.target.value)}
+        onCompositionStart={() => {
+          composing.current = true;
+        }}
+        onCompositionEnd={(e) => {
+          composing.current = false;
+          push(e.currentTarget.value);
+        }}
       />
-      {value !== '' && (
+      {draft !== '' && (
         <button
           type="button"
-          onClick={() => onChange('')}
+          onClick={() => {
+            composing.current = false;
+            push('');
+          }}
           aria-label="검색어 지우기"
           className="absolute right-1 px-1 text-[17px] text-fg-muted hover:text-fg"
         >

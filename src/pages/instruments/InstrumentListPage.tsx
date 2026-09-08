@@ -369,7 +369,7 @@ function ListTab() {
             <SearchBox
               value={keyword}
               onChange={(v) => setFilter({ keyword: v })}
-              placeholder="관리번호·계측기명·S/NO·규격·사용자"
+              placeholder="관리번호·계측기명·S/NO·규격·사용자·보관장소"
               width="w-72"
             />
             <button
