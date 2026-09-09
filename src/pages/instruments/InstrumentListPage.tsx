@@ -23,6 +23,7 @@ import {
   Pagination,
   QueryState,
   SearchBox,
+  SearchHint,
   Section,
   seqThClass,
   StatCards,
@@ -369,7 +370,7 @@ function ListTab() {
             <SearchBox
               value={keyword}
               onChange={(v) => setFilter({ keyword: v })}
-              placeholder="관리번호·계측기명·S/NO·규격·사용자·보관장소"
+              placeholder="계측기 검색"
               width="w-72"
             />
             <button
@@ -458,6 +459,7 @@ function ListTab() {
             <option value="mgmtNo">관리번호순</option>
           </select>
           <FilterCount shown={rows.length} total={all.length} />
+          <SearchHint fields="관리번호 · 계측기명 · S/NO · 규격 · 사용자 · 보관장소" />
           <button
             type="button"
             className={`${btnClass} ml-auto`}

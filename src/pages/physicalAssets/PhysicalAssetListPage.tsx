@@ -32,6 +32,7 @@ import {
   Pagination,
   QueryState,
   SearchBox,
+  SearchHint,
   Section,
   stickyThClass,
   TableScroll,
@@ -242,7 +243,7 @@ export default function PhysicalAssetListPage() {
           <SearchBox
             value={form.keyword}
             onChange={(v) => set('keyword', v)}
-            placeholder="품명·자산코드·모델명·규격·제조업체"
+            placeholder="실물자산 검색"
             width="w-72"
           />
           <Pick
@@ -312,6 +313,7 @@ export default function PhysicalAssetListPage() {
             렌탈만
           </label>
           <FilterCount shown={filtered.length} total={all.length} />
+          <SearchHint fields="품명 · 자산코드 · 모델명 · 규격 · 제조업체" />
         <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
           초기화
         </button>

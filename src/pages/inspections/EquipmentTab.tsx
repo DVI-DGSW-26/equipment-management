@@ -19,6 +19,7 @@ import {
   FilterCount,
   QueryState,
   SearchBox,
+  SearchHint,
   Section,
   seqThClass,
   StatCards,
@@ -243,7 +244,7 @@ export default function EquipmentTab() {
             <SearchBox
               value={keyword}
               onChange={setKeyword}
-              placeholder="설비명·모델·설치위치·검사기관·합격번호"
+              placeholder="안전검사 대상 검색"
               width="w-72"
             />
             <button
@@ -302,6 +303,7 @@ export default function EquipmentTab() {
             ))}
           </select>
           <FilterCount shown={rows.length} total={all.length} />
+          <SearchHint fields="설비명 · 형식번호 · 설치장소 · 검사기관 · 합격번호" />
           <button
             type="button"
             className={`${btnClass} ml-auto`}
