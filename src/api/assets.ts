@@ -257,7 +257,16 @@ export interface CreateAssetPayload {
   modelName?: string;
   spec?: string;
   disposalDate?: IsoDate;
-  remark?: string;
+  remark?: string;
+  /**
+   * 수량만큼 실물자산을 함께 만든다.
+   *
+   * 의자 열 개를 한 건으로 산 비품은 고정자산 1건에 실물자산 10건이다. 그 열 건을
+   * 손으로 만들던 것을 서버가 대신 만들어 연결해 준다 — 위치·부서가 있으면 코드도
+   * 순번대로 채번한다 (백엔드 회신 2026-09-09). 개당 구입금액은 비워 두므로
+   * 필요하면 실물자산 화면에서 채운다.
+   */
+  createPhysicals?: boolean;
 }
 
 export interface AssetChangeLog {

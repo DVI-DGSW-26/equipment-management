@@ -42,6 +42,8 @@ interface FormState {
   openingAccumulatedDepreciation: string;
   status: AssetStatus;
   excludedFromPrint: boolean;
+  /** 수량만큼 실물자산도 함께 만들지 */
+  createPhysicals: boolean;
   supplier: string;
   assignee: string;
   modelName: string;
@@ -70,6 +72,7 @@ const initialForm = (): FormState => ({
   openingAccumulatedDepreciation: '',
   status: 'IN_USE',
   excludedFromPrint: false,
+  createPhysicals: false,
   supplier: '',
   assignee: '',
   modelName: '',
@@ -97,6 +100,8 @@ export default function AssetNewPage() {
   const items = useItems(form.itemTypeCode || undefined, { enabled: isSuppliesItemEnabled(form.categoryCode) });
 
   const suppliesMode = isSuppliesItemEnabled(form.categoryCode);
+  /** 함께 만들어질 실물자산 수. 수량을 비우면 서버가 1건으로 본다 */
+  const physicalCount = Math.max(1, Number(form.quantity) || 1);
   const accountId = form.accountId ? Number(form.accountId) : null;
   const methods = allowedMethods(accounts.data ?? [], accountId);
   const method = (form.depreciationMethod || defaultMethod(accounts.data ?? [], accountId)) as DepreciationMethod;
@@ -180,6 +185,8 @@ export default function AssetNewPage() {
           : undefined,
         status: form.status,
         excludedFromPrint: form.excludedFromPrint || undefined,
+        /* 비품만 실물자산으로 쪼갠다. 기계장치는 1건이 곧 1대라 만들 것이 없다 */
+        createPhysicals: suppliesMode && form.createPhysicals ? true : undefined,
         supplier: form.supplier || undefined,
         assignee: form.assignee || undefined,
         modelName: form.modelName || undefined,
@@ -194,8 +201,14 @@ export default function AssetNewPage() {
       });
     },
     onSuccess: (asset) => {
-      toast.ok('자산을 등록했습니다.');
+      toast.ok(
+        suppliesMode && form.createPhysicals
+          ? `자산을 등록하고 실물자산 ${physicalCount}건을 함께 만들었습니다.`
+          : '자산을 등록했습니다.',
+      );
       void qc.invalidateQueries({ queryKey: queryKeys.assets.all });
+      /* 함께 만들어진 실물자산이 실물자산 화면에 바로 보이게 */
+      void qc.invalidateQueries({ queryKey: queryKeys.physicalAssets.all });
       navigate(`/assets/${asset.id}`);
     },
     onError: (e) => {
@@ -415,6 +428,30 @@ export default function AssetNewPage() {
                 onChange={(e) => set('quantity', e.target.value.replace(/[^\d]/g, ''))}
               />
             </Field>
+
+            {/*
+              비품만 낸다. 여러 개를 한 건으로 산 비품은 고정자산 1건에 실물자산 여러 건이고,
+              기계장치·시설장치는 1건이 곧 1대라 쪼갤 것이 없다.
+            */}
+            {suppliesMode && (
+              <label className="flex w-fit items-start gap-2 text-[19px]">
+                <input
+                  type="checkbox"
+                  className="mt-1.5"
+                  checked={form.createPhysicals}
+                  onChange={(e) => set('createPhysicals', e.target.checked)}
+                />
+                <span>
+                  수량만큼 실물자산도 함께 만들기
+                  <span className="block text-[17px] text-fg-muted">
+                    {physicalCount > 1
+                      ? `실물자산 ${physicalCount}건이 만들어지고 자산코드가 순번대로 붙습니다. `
+                      : '실물자산 1건이 만들어집니다. '}
+                    개당 구입금액은 비워 두니 필요하면 실물자산 화면에서 채웁니다.
+                  </span>
+                </span>
+              </label>
+            )}
             <Field label="경비구분">
               <select
                 className={inputClass}
