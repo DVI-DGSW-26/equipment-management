@@ -1,4 +1,10 @@
-import { getToken, handleUnauthorized } from '@/lib/session';
+import {
+  getExpiresAt,
+  getRefreshToken,
+  getToken,
+  handleUnauthorized,
+  setSession,
+} from '@/lib/session';
 import { ApiError, ApprovalPendingError, type ApiErrorBody, type BaseResponse } from './types';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -42,7 +48,7 @@ const authHeaders = (extra?: Record<string, string>): Record<string, string> | u
 };
 
 const parseError = async (res: Response): Promise<never> => {
-  // 토큰 만료(수명 30분)면 조용히 다시 받아온다
+  /* 갱신까지 해 봤는데도 401 이면 로그인이 끝난 것이다 */
   if (res.status === 401) handleUnauthorized();
 
   let body: ApiErrorBody = { message: `요청 실패 (${res.status})` };
@@ -64,6 +70,179 @@ const doFetch = (method: HttpMethod, path: string, options: RequestOptions): Pro
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   });
+
+/**
+ * 앱 토큰 갱신.
+ *
+ * 토큰 수명이 30분이라 그때마다 로그인 화면으로 튕기고 작업하던 화면이 날아갔다.
+ * 보관해 둔 갱신 핸들로 새 토큰을 받아 이어 쓴다 (백엔드 회신 2026-09-09).
+ *
+ * ## 핸들은 1회용이다
+ *
+ * 응답으로 온 새 핸들로 반드시 덮어써야 한다. 이미 쓴 핸들을 다시 보내면 서버가
+ * 탈취로 보아 그 로그인을 통째로 끊는다(401 REFRESH_TOKEN_REUSED). 인증 서버 정책이라
+ * 완화할 수 없다. 그래서 갱신은 한 번에 하나만 나가야 한다.
+ *
+ *   같은 탭   진행 중인 약속을 함께 기다린다(single-flight).
+ *   다른 탭   localStorage 에 표시를 걸고, 남이 걸어 두었으면 새 토큰이 올 때까지 기다린다.
+ *
+ * ## 갱신 시점
+ *
+ * 요청을 보내기 전에 만료가 가까우면(1분 남았거나 이미 지났으면) 먼저 갱신한다.
+ * 타이머를 걸지 않아도 되고, 오래 손을 놓았다가 다시 눌러도 첫 요청에서 걸린다.
+ * 그래도 401 이 오면(시계 차이 등) 한 번 갱신하고 원래 요청을 다시 보낸다.
+ */
+
+/** 만료까지 이만큼 남았으면 미리 갱신한다 */
+const RENEW_BEFORE_MS = 60_000;
+
+/** 다른 탭이 갱신 중임을 알리는 표시 */
+const LOCK_KEY = 'jagigo.refreshing';
+/** 표시가 이보다 오래됐으면 그 탭이 죽은 것으로 보고 우리가 한다 */
+const LOCK_STALE_MS = 15_000;
+/** 다른 탭의 갱신을 기다리는 최대 시간 */
+const WAIT_MS = 12_000;
+const WAIT_STEP_MS = 150;
+
+interface RefreshResult {
+  accessToken: string;
+  expiresIn: number;
+  refreshToken: string;
+  refreshExpiresIn: number;
+}
+
+/** 지금 이 탭에서 진행 중인 갱신 */
+let inFlight: Promise<string | null> | null = null;
+
+const lockAt = (): number => {
+  try {
+    return Number(localStorage.getItem(LOCK_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+const setLock = (value: string | null): void => {
+  try {
+    if (value === null) localStorage.removeItem(LOCK_KEY);
+    else localStorage.setItem(LOCK_KEY, value);
+  } catch {
+    /* 저장소가 막힌 브라우저에서는 탭 사이 조율을 포기하고 그냥 갱신한다 */
+  }
+};
+
+const sleep = (ms: number) => new Promise((done) => window.setTimeout(done, ms));
+
+/** 다른 탭이 갱신을 마치고 새 토큰을 넣어 줄 때까지 기다린다 */
+async function waitForOtherTab(before: string | null): Promise<string | null> {
+  for (let waited = 0; waited < WAIT_MS; waited += WAIT_STEP_MS) {
+    await sleep(WAIT_STEP_MS);
+    const now = getToken();
+    if (now && now !== before) return now;
+    /* 남이 손을 놓았으면 우리가 한다 */
+    if (Date.now() - lockAt() > LOCK_STALE_MS) return null;
+  }
+  return null;
+}
+
+/**
+ * 갱신을 한 번만 보낸다. 여러 요청이 동시에 불러도 약속 하나를 함께 기다린다.
+ * 돌려주는 값은 새 앱 토큰이고, 더 이상 갱신할 수 없으면 null 이다.
+ */
+function refreshOnce(): Promise<string | null> {
+  if (inFlight) return inFlight;
+  inFlight = runRefresh().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runRefresh(): Promise<string | null> {
+  const before = getToken();
+
+  /* 다른 탭이 하고 있으면 그 결과를 쓴다 — 낡은 핸들을 두 번 보내면 로그인이 끊긴다 */
+  if (Date.now() - lockAt() <= LOCK_STALE_MS) {
+    const fromOther = await waitForOtherTab(before);
+    if (fromOther) return fromOther;
+  }
+
+  const handle = getRefreshToken();
+  if (!handle) return null;
+
+  setLock(String(Date.now()));
+  try {
+    /* 만료된 뒤에 부르는 자리라 토큰을 붙이지 않는다 — 공개 경로다 */
+    const res = await fetch(buildUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: handle }),
+    });
+
+    if (!res.ok) {
+      await failRefresh(res);
+      return null;
+    }
+
+    const text = await res.text();
+    const json = unwrap<RefreshResult>(text, '/auth/refresh');
+    const data = (json && typeof json === 'object' && 'data' in json ? json.data : null) as
+      | RefreshResult
+      | null;
+    if (!data?.accessToken) {
+      throw new ApiError(502, {
+        code: 'INVALID_RESPONSE',
+        message: '토큰 갱신 응답을 해석할 수 없습니다.',
+      });
+    }
+
+    setSession({ token: data.accessToken, refreshToken: data.refreshToken });
+    return data.accessToken;
+  } finally {
+    setLock(null);
+  }
+}
+
+/**
+ * 갱신이 실패했을 때. 어떻게 실패했는지에 따라 다르게 다뤄야 한다.
+ *
+ *   401  핸들이 못 쓰게 됐다(무효·재사용·SSO 세션 만료) → 저장한 것을 버리고 재로그인
+ *   403  권한이 회수됐다 → 재로그인해도 소용없다. 안내만 하고 세션은 건드리지 않는다
+ *   502  인증 서버가 잠깐 흔들린다 → 로그아웃시키지 않는다. 잠시 뒤 다시 하면 된다
+ *
+ * 502 를 401 처럼 다루면 인증 서버가 한 번 삐끗할 때 쓰는 사람 전원이 로그아웃된다.
+ */
+async function failRefresh(res: Response): Promise<void> {
+  let body: ApiErrorBody = { message: `토큰 갱신 실패 (${res.status})` };
+  try {
+    const json = (await res.json()) as ApiErrorBody;
+    if (json?.message) body = json;
+  } catch {
+    /* 본문이 없거나 JSON 이 아니면 상태 코드로만 가른다 */
+  }
+
+  if (res.status === 401) {
+    handleUnauthorized();
+    return;
+  }
+  throw new ApiError(res.status, body);
+}
+
+/** 요청을 보내기 전에, 만료가 가까우면 먼저 갱신해 둔다 */
+async function ensureFreshToken(path: string): Promise<void> {
+  if (!renewable(path)) return;
+  if (!getToken() || !getRefreshToken()) return;
+  const at = getExpiresAt();
+  if (at === null || at - Date.now() > RENEW_BEFORE_MS) return;
+  await refreshOnce().catch(() => null);
+}
+
+/**
+ * 갱신을 시도해도 되는 경로인가.
+ * 갱신·로그아웃 자체는 갱신으로 되살릴 수 없다 — 부르면 서로를 되부른다.
+ * /auth/me 는 보통 요청이라 여기 들어가지 않는다.
+ */
+const renewable = (path: string): boolean =>
+  path !== '/auth/refresh' && path !== '/auth/logout';
+
 
 /**
  * 202 를 승인 대기로 바꾼다.
@@ -103,7 +282,15 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const res = await doFetch(method, path, options);
+  await ensureFreshToken(path);
+  let res = await doFetch(method, path, options);
+
+  /* 시계 차이 등으로 미리 갱신을 놓쳤을 때. 한 번만 갱신하고 그 요청을 다시 보낸다 */
+  if (res.status === 401 && renewable(path) && getRefreshToken()) {
+    const renewed = await refreshOnce().catch(() => null);
+    if (renewed) res = await doFetch(method, path, options);
+  }
+
   if (!res.ok) await parseError(res);
   if (res.status === 204) return undefined as T;
 
@@ -147,7 +334,14 @@ function unwrap<T>(text: string, path: string): BaseResponse<T> {
 export async function requestUpload<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(buildUrl(path), { method: 'POST', headers: authHeaders(), body: form });
+  await ensureFreshToken(path);
+  const send = () =>
+    fetch(buildUrl(path), { method: 'POST', headers: authHeaders(), body: form });
+  let res = await send();
+  if (res.status === 401 && renewable(path) && getRefreshToken()) {
+    const renewed = await refreshOnce().catch(() => null);
+    if (renewed) res = await send();
+  }
   if (!res.ok) await parseError(res);
 
   const text = await res.text();
@@ -180,7 +374,12 @@ export async function requestFile(
   fallbackName: string,
   options: RequestOptions = {},
 ): Promise<DownloadResult> {
-  const res = await doFetch(method, path, options);
+  await ensureFreshToken(path);
+  let res = await doFetch(method, path, options);
+  if (res.status === 401 && renewable(path) && getRefreshToken()) {
+    const renewed = await refreshOnce().catch(() => null);
+    if (renewed) res = await doFetch(method, path, options);
+  }
   if (!res.ok) await parseError(res);
   return {
     blob: await res.blob(),

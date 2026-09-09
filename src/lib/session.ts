@@ -23,6 +23,18 @@ export const isLoginRequired =
 export const LOGIN_URL = 'https://api.dvi-ind.com/jagigo/oauth2/authorization/keycloak';
 
 const TOKEN_KEY = 'jagigo.token';
+/**
+ * 갱신 핸들. 앱 토큰이 만료되면 이것으로 새 토큰을 받는다 (백엔드 회신 2026-09-09).
+ *
+ * Keycloak 의 진짜 refresh 토큰은 서버가 들고 있고 이것은 그것을 가리키는 값이라,
+ * 이 값만으로 인증 서버를 직접 부를 수는 없다.
+ *
+ * localStorage 에 둔다 — 탭마다 따로 두면 한 탭이 갱신한 뒤 다른 탭이 낡은 핸들을
+ * 보내고, 서버는 그것을 탈취로 보아 로그인을 통째로 끊는다(1회용).
+ */
+const REFRESH_KEY = 'jagigo.refresh';
+/** 앱 토큰이 만료되는 시각(ms). 미리 갱신할 때가 됐는지 보는 데 쓴다 */
+const EXPIRES_KEY = 'jagigo.expiresAt';
 /** 되풀이 로그인 방지용 표시. 탭을 닫으면 사라진다 */
 const RETRY_KEY = 'jagigo.loginAt';
 /** 스스로 로그아웃한 표시. 이게 있으면 자동으로 다시 로그인시키지 않는다 */
@@ -70,12 +82,71 @@ export function setToken(token: string | null): void {
   listeners.forEach((notify) => notify());
 }
 
+export const getRefreshToken = (): string | null => read(localStorage, REFRESH_KEY);
+
+/**
+ * 앱 토큰이 언제까지 쓸 수 있는지.
+ *
+ * 토큰 안(JWT exp)에 적혀 있으니 그것을 읽는다 — 로그인 콜백은 남은 시간을 따로
+ * 주지 않고, 갱신 응답의 expiresIn 만 믿으면 첫 로그인 뒤 만료를 알 수 없다.
+ * 못 읽으면 null 이고, 그때는 미리 갱신하지 않고 401 을 받은 뒤에 갱신한다.
+ */
+const expiryOf = (token: string): number | null => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      exp?: number;
+    };
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+export const getExpiresAt = (): number | null => {
+  const raw = read(localStorage, EXPIRES_KEY);
+  const at = Number(raw);
+  return raw && Number.isFinite(at) ? at : null;
+};
+
+/**
+ * 로그인·갱신으로 받은 것을 한 번에 갈아 끼운다.
+ *
+ * 토큰과 핸들을 따로 저장하면 그 사이에 다른 탭이 낡은 짝을 집어 갈 수 있다.
+ */
+export function setSession(next: { token: string; refreshToken?: string | null }): void {
+  if (next.refreshToken !== undefined) write(localStorage, REFRESH_KEY, next.refreshToken);
+  const at = expiryOf(next.token);
+  write(localStorage, EXPIRES_KEY, at === null ? null : String(at));
+  setToken(next.token);
+}
+
+/** 로그인 자체가 끝났을 때. 토큰·핸들·만료를 모두 버린다 */
+export function clearSession(): void {
+  write(localStorage, REFRESH_KEY, null);
+  write(localStorage, EXPIRES_KEY, null);
+  setToken(null);
+}
+
 /** useSyncExternalStore 용. 토큰이 바뀌면 화면이 따라 바뀐다 */
 export function subscribeToken(notify: Listener): () => void {
   listeners.add(notify);
   return () => {
     listeners.delete(notify);
   };
+}
+
+/*
+ * 다른 탭이 갱신하거나 로그아웃하면 이 탭도 따라간다.
+ * 낡은 토큰을 들고 있다가 401 을 받고, 그 김에 이미 쓴 핸들을 보내는 것을 막는다.
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== TOKEN_KEY) return;
+    memoryToken = e.newValue;
+    listeners.forEach((notify) => notify());
+  });
 }
 
 export function startLogin(): void {
@@ -114,7 +185,7 @@ export const shouldAutoLogin = (): boolean =>
  */
 export function handleUnauthorized(): void {
   const hadToken = getToken() !== null;
-  setToken(null);
+  clearSession();
   /* 개발 중에는 보내지 않는다. 콜백이 운영 도메인이라 작업하던 localhost 를 떠나게 된다 */
   if (!isLoginRequired) return;
   if (!hadToken || !shouldAutoLogin()) return;
@@ -122,7 +193,7 @@ export function handleUnauthorized(): void {
 }
 
 export function logout(): void {
-  setToken(null);
+  clearSession();
   write(sessionStorage, RETRY_KEY, null);
   write(sessionStorage, RETURN_KEY, null);
   write(sessionStorage, MANUAL_LOGOUT_KEY, '1');

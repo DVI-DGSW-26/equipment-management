@@ -108,8 +108,19 @@ export const isForbidden = (e: unknown): boolean => e instanceof ApiError && e.s
 /** 서버가 사유를 안 적어 보냈을 때 쓸 안내 */
 export const FORBIDDEN_TEXT = '권한이 없는 항목입니다. 관리팀에 문의하세요.';
 
+/**
+ * 권한이 회수된 계정.
+ *
+ * 다시 로그인해도 열리지 않으므로 로그인으로 보내지 않는다 — 보내면 로그인만
+ * 되풀이한다 (백엔드 회신 2026-09-09).
+ */
+const ACCESS_REVOKED_TEXT =
+  '접근 권한이 회수되었습니다. 다시 로그인해도 열리지 않습니다 — 관리팀에 문의하세요.';
+
 /** 403 안내. 서버 문구가 있으면 그것을 쓴다 */
 export const forbiddenMessage = (e: unknown): string => {
   const message = e instanceof ApiError ? e.body.message?.trim() : '';
-  return message ? message : FORBIDDEN_TEXT;
+  if (message) return message;
+  const code = e instanceof ApiError ? e.body.code : undefined;
+  return code === 'ACCESS_REVOKED' ? ACCESS_REVOKED_TEXT : FORBIDDEN_TEXT;
 };

@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { approvalsApi } from '@/api/approvals';
+import { authApi } from '@/api/auth';
 import { inspectionsApi } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
 import { allows, roleLabels, type Domain } from '@/lib/permissions';
-import { logout } from '@/lib/session';
+import { getRefreshToken, logout } from '@/lib/session';
 import { Badge } from '@/components/ui';
 import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
@@ -143,6 +144,12 @@ export default function AppLayout() {
                     type="button"
                     className="whitespace-nowrap text-accent hover:underline"
                     onClick={() => {
+                      /*
+                        서버에도 알려 갱신 핸들과 인증 서버 세션을 닫는다. 부르지 않으면
+                        핸들이 살아 있어 그 값만으로 다시 토큰을 받을 수 있다.
+                        응답을 기다리지 않는다 — 로그아웃은 눌렀을 때 바로 끝나야 한다.
+                      */
+                      void authApi.logout(getRefreshToken()).catch(() => undefined);
                       logout();
                       qc.clear();
                     }}
