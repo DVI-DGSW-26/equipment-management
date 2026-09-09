@@ -245,7 +245,7 @@ export default function EquipmentTab() {
             <SearchBox
               value={keyword}
               onChange={setKeyword}
-              placeholder="안전검사 대상 검색"
+              placeholder="통합 검색"
               width="w-72"
             />
             <button

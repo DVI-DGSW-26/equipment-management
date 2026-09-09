@@ -244,7 +244,7 @@ export default function PhysicalAssetListPage() {
           <SearchBox
             value={form.keyword}
             onChange={(v) => set('keyword', v)}
-            placeholder="실물자산 검색"
+            placeholder="통합 검색"
             width="w-72"
           />
           <Pick

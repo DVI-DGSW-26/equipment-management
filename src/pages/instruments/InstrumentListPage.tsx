@@ -371,7 +371,7 @@ function ListTab() {
             <SearchBox
               value={keyword}
               onChange={(v) => setFilter({ keyword: v })}
-              placeholder="계측기 검색"
+              placeholder="통합 검색"
               width="w-72"
             />
             <button
@@ -638,10 +638,11 @@ function AnnualTab() {
       }
       right={
         <>
+          <SearchHint fields="관리번호 · 계측기명 · S/NO · 사용위치 · 사용자" />
           <SearchBox
             value={keyword}
             onChange={setKeyword}
-            placeholder="관리번호·계측기명·S/NO·위치"
+            placeholder="통합 검색"
             width="w-64"
           />
           <select
