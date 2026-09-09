@@ -367,6 +367,7 @@ function ListTab() {
         title="계측기 목록"
         right={
           <>
+            <SearchHint fields="관리번호 · 계측기명 · S/NO · 규격 · 사용자 · 보관장소" />
             <SearchBox
               value={keyword}
               onChange={(v) => setFilter({ keyword: v })}
@@ -459,7 +460,6 @@ function ListTab() {
             <option value="mgmtNo">관리번호순</option>
           </select>
           <FilterCount shown={rows.length} total={all.length} />
-          <SearchHint fields="관리번호 · 계측기명 · S/NO · 규격 · 사용자 · 보관장소" />
           <button
             type="button"
             className={`${btnClass} ml-auto`}

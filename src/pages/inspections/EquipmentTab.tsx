@@ -241,6 +241,7 @@ export default function EquipmentTab() {
         }
         right={
           <>
+            <SearchHint fields="설비명 · 형식번호 · 설치장소 · 검사기관 · 합격번호" />
             <SearchBox
               value={keyword}
               onChange={setKeyword}
@@ -303,7 +304,6 @@ export default function EquipmentTab() {
             ))}
           </select>
           <FilterCount shown={rows.length} total={all.length} />
-          <SearchHint fields="설비명 · 형식번호 · 설치장소 · 검사기관 · 합격번호" />
           <button
             type="button"
             className={`${btnClass} ml-auto`}

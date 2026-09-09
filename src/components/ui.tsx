@@ -138,13 +138,12 @@ export function SearchBox({
 /**
  * 검색칸이 어느 칸들을 함께 보는지 알린다.
  *
- * 칸 안 안내문에 다 적으면 글자가 잘려 무엇으로 찾을 수 있는지 알 수가 없다
- * (2026-09-09). 조건줄 빈자리에 한 줄로 적어 둔다 — 줄이 늘지 않고 늘 보인다.
+ * 칸 안 안내문에 다 적으면 글자가 잘려 무엇으로 찾을 수 있는지 알 수가 없다.
+ * 검색칸 바로 왼쪽에 라벨처럼 붙인다 — 멀리 떼어 놓으면 그것이 검색칸 설명인 줄
+ * 모른다(2026-09-09). 머리줄 왼쪽은 비어 있어 줄이 늘지 않는다.
  */
 export function SearchHint({ fields }: { fields: string }) {
-  return (
-    <span className="ml-3 text-[17px] whitespace-nowrap text-fg-muted">검색 : {fields}</span>
-  );
+  return <span className="text-[17px] whitespace-nowrap text-fg-muted">검색 : {fields}</span>;
 }
 
 /** 걸러낸 건수 표시. 필터가 걸려 있을 때만 전체 건수를 함께 보여 준다 */

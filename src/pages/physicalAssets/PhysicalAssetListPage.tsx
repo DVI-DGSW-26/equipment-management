@@ -240,6 +240,7 @@ export default function PhysicalAssetListPage() {
         "조회 조건" 제목줄도 걷어냈다 — 무엇을 하는 줄인지는 칸만 봐도 안다.
       */}
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
+          <SearchHint fields="품명 · 자산코드 · 모델명 · 규격 · 제조업체" />
           <SearchBox
             value={form.keyword}
             onChange={(v) => set('keyword', v)}
@@ -313,7 +314,6 @@ export default function PhysicalAssetListPage() {
             렌탈만
           </label>
           <FilterCount shown={filtered.length} total={all.length} />
-          <SearchHint fields="품명 · 자산코드 · 모델명 · 규격 · 제조업체" />
         <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
           초기화
         </button>
