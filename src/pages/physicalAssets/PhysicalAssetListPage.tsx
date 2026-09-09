@@ -662,6 +662,7 @@ function PhysicalAssetModal({
        담당자는 목록의 O/X 를 그대로 고치고 싶어 하므로 화면에서는 독립된 칸으로 둔다 */
     registered: item?.registered ?? false,
     assetId: item?.assetId != null ? String(item.assetId) : '',
+    assetCode: item?.assetCode ?? '',
     name: item?.name ?? '',
     categoryCode: item?.categoryCode ?? '',
     itemTypeCode: item?.itemTypeCode ?? '',
@@ -702,6 +703,8 @@ function PhysicalAssetModal({
         // 자산등록 X 로 내릴 때는 null 을 보내야 서버가 연결을 지운다.
         // undefined 로 두면 JSON 에서 키가 통째로 빠져 PATCH 가 예전 연결을 그대로 남긴다
         assetId: form.registered && form.assetId ? Number(form.assetId) : null,
+        /* 빈 칸은 "지금 코드를 그대로" 라는 뜻이다. 위치·부서로 채번하는 규칙은 그대로 산다 */
+        assetCode: form.assetCode.trim() || undefined,
         name: form.name.trim(),
         categoryCode: form.categoryCode || undefined,
         itemTypeCode: suppliesMode ? form.itemTypeCode || undefined : undefined,
@@ -780,6 +783,18 @@ function PhysicalAssetModal({
             className={inputClass}
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
+          />
+        </Field>
+        {/*
+          자산코드는 위치·부서로 서버가 채번하지만, 기존 자료의 코드를 맞춰 넣어야 하는
+          일이 있어 손으로도 바꾼다 (백엔드 회신 2026-09-09). 비워 두면 그대로 둔다.
+        */}
+        <Field label="자산코드" hint="비워 두면 채번 규칙을 그대로 따릅니다.">
+          <input
+            className={`${inputClass} code`}
+            placeholder="DV-24-P05-2-10-C13-MA-01"
+            value={form.assetCode}
+            onChange={(e) => set('assetCode', e.target.value.trim())}
           />
         </Field>
         <Field

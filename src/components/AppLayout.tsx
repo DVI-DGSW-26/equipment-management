@@ -7,6 +7,7 @@ import { useMe, usePerms } from '@/hooks/useMe';
 import { allows, roleLabels, type Domain } from '@/lib/permissions';
 import { logout } from '@/lib/session';
 import { Badge } from '@/components/ui';
+import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
 
 /**
@@ -68,6 +69,8 @@ export default function AppLayout() {
 
   return (
     <ToastProvider>
+      {/* 뒤로 왔을 때 내려 두었던 자리로 돌려놓는다 */}
+      <ScrollMemory />
       <div className="min-h-screen bg-bg text-fg">
         <header className="no-print border-b border-line bg-surface">
           <div className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 sm:h-28 sm:flex-nowrap sm:px-8 sm:py-0">

@@ -426,6 +426,7 @@ function EditModal({
 }) {
   const toast = useToast();
   const [form, setForm] = useState<UpdateAssetPayload>({
+    assetCode: asset.assetCode ?? '',
     name: asset.name,
     status: asset.status,
     supplier: asset.supplier ?? '',
@@ -459,6 +460,8 @@ function EditModal({
     mutationFn: () =>
       assetsApi.update(asset.id, {
         ...form,
+        /* 빈 칸은 "지금 코드를 그대로" 라는 뜻이다. '' 를 보내면 형식 오류가 난다 */
+        assetCode: form.assetCode ? form.assetCode : undefined,
         disposalDate: form.disposalDate ? form.disposalDate : null,
         disposalAmount: toAmount(disposalAmount),
         partialDisposalAmount: toAmount(partialDisposalAmount),
@@ -497,6 +500,22 @@ function EditModal({
         고칩니다.
       </p>
       <div className="form-lg grid grid-cols-1 gap-3 md:grid-cols-2">
+        {/*
+          자산코드는 위치·부서로 서버가 채번하지만, 기존 자료에서 옮겨 온 코드를 맞춰
+          넣어야 하는 일이 있어 손으로도 바꾼다 (백엔드 회신 2026-09-09).
+          비워 두면 지금 코드를 그대로 둔다 — 지우는 것이 아니다.
+        */}
+        <Field
+          label="자산코드"
+          hint="8단 완성형으로 넣습니다. 비워 두면 지금 코드를 그대로 둡니다."
+        >
+          <input
+            className={`${inputClass} code`}
+            placeholder="DV-24-P05-2-10-C13-MA-01"
+            value={form.assetCode ?? ''}
+            onChange={(e) => set('assetCode', e.target.value.trim())}
+          />
+        </Field>
         <Field label="자산명">
           <input
             className={inputClass}

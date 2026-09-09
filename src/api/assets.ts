@@ -192,6 +192,14 @@ export interface AssetSummary {
 
 /** 회계 영향 없는 수정 */
 export interface UpdateAssetPayload {
+  /**
+   * 자산코드를 손으로 바꾼다 (백엔드 회신 2026-09-09).
+   *
+   * 비우거나 null 이면 지금 코드를 그대로 둔다 — 자동 채번도 그대로다.
+   * 넣을 때는 8단 완성형이어야 하고(최대 40자), 형식이 틀리면 400,
+   * 이미 쓰는 코드면 409 가 온다. 그 안내는 서버 문구를 그대로 띄운다.
+   */
+  assetCode?: string | null;
   name?: string;
   status?: AssetStatus;
   supplier?: string;

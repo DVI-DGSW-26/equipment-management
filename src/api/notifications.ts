@@ -42,6 +42,9 @@ export interface VerificationCodeSent {
   expiresAt: IsoDateTime;
 }
 
+/**
+ * 담당자가 구독하는 알림. 수신 명단(notification-email)에 이 유형만 넣을 수 있다.
+ */
 export type AlertType = 'CALIBRATION' | 'SAFETY';
 
 export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
@@ -49,10 +52,24 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
   SAFETY: '안전검사',
 };
 
+/**
+ * 발송 이력에 실려 오는 유형.
+ *
+ * CHANGE(등록·수정 알림)는 구독 명단이 아니라 상위권한에게 자동으로 가는 것이라
+ * 수신 설정에서는 고를 수 없다 — 넣어 보내면 서버가 400 으로 막는다
+ * (백엔드 회신 2026-09-09). 그래서 구독용 AlertType 과 갈라 둔다.
+ */
+export type LogAlertType = AlertType | 'CHANGE';
+
+export const LOG_ALERT_TYPE_LABEL: Record<LogAlertType, string> = {
+  ...ALERT_TYPE_LABEL,
+  CHANGE: '등록·수정 알림',
+};
+
 /** 알림 발송 이력 (30일 보관) */
 export interface NotificationLog {
   id: number;
-  alertType: AlertType;
+  alertType: LogAlertType;
   instrumentId: number | null;
   safetyEquipmentId: number | null;
   recipientEmail: string;

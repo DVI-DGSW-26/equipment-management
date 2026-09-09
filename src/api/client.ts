@@ -71,9 +71,14 @@ const doFetch = (method: HttpMethod, path: string, options: RequestOptions): Pro
  * 봉투는 { status: 202, message, data: { approvalRequestId } } 로 온다.
  * 본문을 못 읽어도 성공으로 흘려보내지 않는다 — 만들어진 것이 없다는 사실은
  * 본문 모양이 아니라 상태 코드가 말해 준다.
+ *
+ * 이제 202 는 지우는 일에만 온다 — 삭제 전부와 계측기 폐기
+ * (PATCH /instrument/{id}/discard). 등록·수정은 하위권한도 곧바로 200 이다
+ * (백엔드 회신 2026-09-09). 분기는 그대로 둔다 — 응답 형태가 같고, 어느 경로가
+ * 승인을 거치는지는 서버가 정한다. 화면이 짐작해 갈라 두면 규칙이 바뀔 때 틀린다.
  */
 function approvalPending(text: string): ApprovalPendingError {
-  let message = '승인 요청이 접수되었습니다. 팀장 승인 후 등록됩니다.';
+  let message = '승인 요청이 접수되었습니다. 팀장 승인 후 처리됩니다.';
   let approvalRequestId: number | null = null;
 
   try {

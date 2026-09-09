@@ -49,7 +49,7 @@ export interface Perms {
   readOnly: boolean;
   /** 등록·수정·삭제 단추를 보여도 되는가 */
   canWrite: boolean;
-  /** 쓰기가 곧바로가 아니라 승인 대기로 넘어가는가 */
+  /** 삭제·폐기가 곧바로가 아니라 승인 대기로 넘어가는가. 등록·수정은 곧바로 된다 */
   needsApproval: boolean;
   /**
    * roles 에서 아는 이름을 하나도 못 찾았는가.
