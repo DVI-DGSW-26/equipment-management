@@ -49,14 +49,19 @@ export default function MyPage() {
         <>
           <section className="rounded-sm border border-line bg-surface px-5 py-6">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-              {/* 벌집에 앉은 벌. 이 화면에서 제일 먼저 보이는 것 */}
-              <div className="hex shrink-0 bg-honey-soft p-3">
+              {/*
+                벌집에 앉은 벌. 이 화면에서 제일 먼저 보이는 것.
+                육각형은 뒤에 깔고 벌은 그 위에 얹는다 — 벌을 육각형으로 오려내면
+                더듬이와 날개가 잘린다.
+              */}
+              <div className="relative h-36 w-36 shrink-0">
+                <span aria-hidden className="hex absolute inset-0 bg-honey-soft" />
                 <img
                   src="/favicon.svg"
                   alt=""
-                  width={112}
-                  height={112}
-                  className="h-28 w-28 object-contain"
+                  width={96}
+                  height={96}
+                  className="absolute inset-0 m-auto h-24 w-24 object-contain"
                 />
               </div>
 
