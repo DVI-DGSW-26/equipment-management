@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications';
 import {
@@ -7,6 +7,7 @@ import {
   forgetPushToken,
   getSavedPushToken,
   pushPermission,
+  subscribePushToken,
   type PushPermission,
 } from '@/lib/push';
 import { useToast } from '@/components/toastContext';
@@ -26,7 +27,8 @@ export default function BrowserPushSection() {
   const toast = useToast();
   /* 브라우저에 물어보는 값이라 첫 렌더에서 한 번만 읽는다 */
   const [permission, setPermission] = useState<PushPermission>(pushPermission);
-  const [registered, setRegistered] = useState(() => getSavedPushToken() !== null);
+  /* 켜고 끄는 것은 이 화면 밖(PushBridge)에서도 본다 — 한 곳을 같이 본다 */
+  const registered = useSyncExternalStore(subscribePushToken, getSavedPushToken) !== null;
 
   const turnOn = useMutation({
     mutationFn: async () => {
@@ -37,8 +39,8 @@ export default function BrowserPushSection() {
     },
     onSuccess: (token) => {
       setPermission(pushPermission());
-      setRegistered(token !== null);
-      if (token) toast.ok('이 브라우저로 알림을 받습니다.');
+      if (token) toast.ok('이 브라우저로 알림을 받습니다. [테스트 알림] 으로 확인해 보세요.');
+      else toast.ok('알림을 허용하지 않아 켜지 않았습니다.');
     },
     onError: toast.fail,
   });
@@ -50,7 +52,6 @@ export default function BrowserPushSection() {
     },
     onSuccess: () => {
       forgetPushToken();
-      setRegistered(false);
       toast.ok('이 브라우저로는 알림을 보내지 않습니다.');
     },
     onError: toast.fail,
@@ -59,7 +60,11 @@ export default function BrowserPushSection() {
   const test = useMutation({
     mutationFn: () => notificationsApi.sendPushTest(),
     onSuccess: () => toast.ok('한 통 보냈습니다. 잠시 뒤 알림이 뜹니다.'),
-    onError: toast.fail,
+    /* 등록된 기기가 없으면 400 이다 — 그때는 다시 켜라고 알린다 */
+    onError: (e) => {
+      forgetPushToken();
+      toast.fail(e);
+    },
   });
 
   const busy = turnOn.isPending || turnOff.isPending || test.isPending;

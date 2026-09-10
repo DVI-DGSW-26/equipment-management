@@ -1,8 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsApi } from '@/api/notifications';
 import { useMe } from '@/hooks/useMe';
-import { currentPushToken, onPushMessage, pushPermission, routeOfPush } from '@/lib/push';
+import {
+  currentPushToken,
+  getSavedPushToken,
+  onPushMessage,
+  pushPermission,
+  routeOfPush,
+  showLocalNotification,
+  subscribePushToken,
+} from '@/lib/push';
 import { useToast } from '@/components/toastContext';
 
 /**
@@ -15,6 +23,8 @@ import { useToast } from '@/components/toastContext';
  *    화면 주소로 바꿔 옮긴다.
  *
  * 알림을 켜고 끄는 것은 알림 화면에서 한다 — 물어보는 것은 사람이 눌렀을 때만이다.
+ * 켠 순간을 지켜보다가 곧바로 수신 처리기를 붙인다. 붙여 두고 기다리면, 켜기 전에
+ * 붙은 처리기는 허락이 없어 아무것도 안 하고 끝나 그 뒤 알림이 아무 데도 뜨지 않는다.
  */
 export default function PushBridge() {
   const navigate = useNavigate();
@@ -22,9 +32,13 @@ export default function PushBridge() {
   const me = useMe();
   const signedIn = !!me.data;
 
+  /* 알림을 켜고 끄면 곧바로 바뀐다 */
+  const savedToken = useSyncExternalStore(subscribePushToken, getSavedPushToken);
+  const on = signedIn && pushPermission() === 'granted';
+
   /* 이미 켜 둔 사람은 로그인할 때마다 조용히 다시 등록한다 */
   useEffect(() => {
-    if (!signedIn || pushPermission() !== 'granted') return;
+    if (!on) return;
     let alive = true;
     void (async () => {
       try {
@@ -37,24 +51,30 @@ export default function PushBridge() {
     return () => {
       alive = false;
     };
-  }, [signedIn]);
+  }, [on]);
 
   /* 탭이 떠 있는 동안 온 알림 */
   useEffect(() => {
-    if (!signedIn || pushPermission() !== 'granted') return;
+    if (!on) return;
     let off: (() => void) | undefined;
     let alive = true;
-    void onPushMessage(({ title, body }) => {
-      toast.ok(body ? `${title} — ${body}` : title);
+
+    void onPushMessage((message) => {
+      /* 창 밖에 뜨는 그 알림이 사람이 기다리는 것이다. 못 띄우면 화면 안에서라도 알린다 */
+      void showLocalNotification(message).then((shown) => {
+        if (!shown) toast.ok(message.body ? `${message.title} — ${message.body}` : message.title);
+      });
     }).then((unsubscribe) => {
       if (alive) off = unsubscribe;
       else unsubscribe();
     });
+
     return () => {
       alive = false;
       off?.();
     };
-  }, [signedIn, toast]);
+    /* savedToken 이 바뀌면(켜짐·꺼짐) 다시 붙인다 */
+  }, [on, savedToken, toast]);
 
   /* 알림을 눌러 창이 살아난 경우. 어디로 갈지는 서비스워커가 아니라 여기서 정한다 */
   useEffect(() => {

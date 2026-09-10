@@ -52,6 +52,22 @@ export const getSavedPushToken = (): string | null => {
   }
 };
 
+/**
+ * 켜고 끄는 것을 지켜보는 쪽.
+ *
+ * 알림을 켠 순간 화면이 곧바로 따라붙어야 한다. 켜기 전에 붙여 둔 수신 처리기는
+ * 그때 허락이 없어 아무것도 안 하고 끝났고, 그 뒤에 온 알림은 아무 데도 뜨지 않는다
+ * (2026-09-10 확인 — 켜고 테스트를 눌렀는데 아무 일도 없었다).
+ */
+const watchers = new Set<() => void>();
+
+export function subscribePushToken(notify: () => void): () => void {
+  watchers.add(notify);
+  return () => {
+    watchers.delete(notify);
+  };
+}
+
 const savePushToken = (token: string | null): void => {
   try {
     if (token === null) localStorage.removeItem(TOKEN_KEY);
@@ -59,6 +75,7 @@ const savePushToken = (token: string | null): void => {
   } catch {
     /* 저장소가 막혀 있어도 이번 세션의 알림은 받는다 */
   }
+  watchers.forEach((notify) => notify());
 };
 
 /**
@@ -132,6 +149,34 @@ export async function askPushPermission(): Promise<string | null> {
 
 /** 서버에서 지웠으면 이쪽 기억도 지운다 */
 export const forgetPushToken = (): void => savePushToken(null);
+
+/**
+ * 앞에 떠 있는 동안 온 알림을 진짜 알림으로 띄운다.
+ *
+ * 탭이 떠 있으면 브라우저가 스스로 띄우지 않는다. 화면 안 토스트로만 알리면
+ * "알림이 안 온다" 로 읽힌다 — 사람이 기다리는 것은 창 밖에 뜨는 그 알림이다.
+ * 서비스워커로 띄워야 눌렀을 때 이동까지 이어진다.
+ */
+export async function showLocalNotification(message: {
+  title: string;
+  body: string;
+  linkUrl?: string;
+  type?: string;
+}): Promise<boolean> {
+  if (pushPermission() !== 'granted') return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return false;
+    await registration.showNotification(message.title, {
+      body: message.body,
+      icon: '/favicon.svg',
+      data: { linkUrl: message.linkUrl, type: message.type },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** 탭이 떠 있는 동안 오는 알림. 브라우저가 스스로 띄우지 않아 화면이 직접 보여 준다 */
 export async function onPushMessage(
