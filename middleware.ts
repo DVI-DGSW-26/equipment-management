@@ -34,9 +34,12 @@ import { next } from '@vercel/edge';
  *
  * 가릴 것은 화면과 API 지 번들 파일이 아니다. 파일 이름에 해시가 붙어 주소를
  * 알아낼 수도 없고, 안에 든 것은 어차피 브라우저로 나가는 코드다.
+ *
+ * 폴더 주소(/assets, /assets/)는 일부러 남겨 둔다 — assets/. 은 뒤에 글자가 하나는
+ * 있어야 맞는다. 아래에서 첫 화면으로 돌려보내야 하기 때문이다.
  */
 export const config = {
-  matcher: '/((?!_vercel|assets/|firebase-messaging-sw|favicon\.svg|logo\.svg|icons\.svg|robots\.txt).*)',
+  matcher: '/((?!_vercel|assets/.|firebase-messaging-sw|favicon\.svg|logo\.svg|icons\.svg|robots\.txt).*)',
 };
 
 const COOKIE = 'site_auth';
@@ -59,6 +62,7 @@ async function tokenOf(password: string): Promise<string> {
  */
 const safePath = (path: string): string => {
   if (!path.startsWith('/') || path.startsWith('//')) return '/';
+  if (path === '/assets' || path.startsWith('/assets/')) return '/';
   const [pathname] = path.split('?');
   const last = pathname.split('/').pop() ?? '';
   return last.includes('.') ? '/' : path;
@@ -126,13 +130,24 @@ function loginPage(nextPath: string, error?: string): Response {
 }
 
 export default async function middleware(request: Request) {
+  const here = new URL(request.url);
+
+  /*
+   * /assets 는 파일이 아니라 빌드 결과물이 담긴 폴더다. 그 주소로 들어오면 Vercel 이
+   * 안에 있는 파일 하나를 그대로 내려보내, 자바스크립트 원문이 글자로 뿌려진다
+   * (2026-09-10 확인). 첫 화면으로 돌린다.
+   */
+  if (here.pathname === '/assets' || here.pathname === '/assets/') {
+    return new Response(null, { status: 302, headers: { Location: '/' } });
+  }
+
   const password = process.env.SITE_PASSWORD || process.env.BASIC_AUTH_PASSWORD;
 
   // 미들웨어가 도는지, 비밀번호가 잡히는지 응답 헤더(x-site-guard)로 확인한다
   if (!password) return next({ headers: { 'x-site-guard': 'off-no-password' } });
 
   const expected = await tokenOf(password);
-  const url = new URL(request.url);
+  const url = here;
 
   // 이미 통과한 방문자
   const cookie = request.headers.get('cookie') ?? '';
