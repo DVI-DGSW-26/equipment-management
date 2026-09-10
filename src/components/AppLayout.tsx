@@ -3,11 +3,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { approvalsApi } from '@/api/approvals';
 import { authApi } from '@/api/auth';
 import { inspectionsApi } from '@/api/inspections';
+import { notificationsApi } from '@/api/notifications';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
 import { allows, roleLabels, type Domain } from '@/lib/permissions';
 import { getRefreshToken, logout } from '@/lib/session';
+import { forgetPushToken, getSavedPushToken } from '@/lib/push';
 import { Badge } from '@/components/ui';
+import PushBridge from '@/components/PushBridge';
 import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
 
@@ -72,6 +75,8 @@ export default function AppLayout() {
     <ToastProvider>
       {/* 뒤로 왔을 때 내려 두었던 자리로 돌려놓는다 */}
       <ScrollMemory />
+      {/* 브라우저 알림 — 조용히 재등록, 떠 있는 동안 온 알림, 눌렀을 때 이동 */}
+      <PushBridge />
       <div className="min-h-screen bg-bg text-fg">
         <header className="no-print border-b border-line bg-surface">
           <div className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 sm:h-28 sm:flex-nowrap sm:px-8 sm:py-0">
@@ -149,6 +154,16 @@ export default function AppLayout() {
                         핸들이 살아 있어 그 값만으로 다시 토큰을 받을 수 있다.
                         응답을 기다리지 않는다 — 로그아웃은 눌렀을 때 바로 끝나야 한다.
                       */
+                      /*
+                        이 기기 알림도 거둬들인다. 해제는 토큰과 사용자가 모두 맞을 때만
+                        되므로 나가기 전에 불러야 한다 — 안 부르면 나간 사람의 기기로
+                        다음에 로그인한 사람 알림이 간다(공용 PC).
+                      */
+                      const pushToken = getSavedPushToken();
+                      if (pushToken) {
+                        void notificationsApi.removePushToken(pushToken).catch(() => undefined);
+                        forgetPushToken();
+                      }
                       void authApi.logout(getRefreshToken()).catch(() => undefined);
                       logout();
                       qc.clear();

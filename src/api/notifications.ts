@@ -145,6 +145,19 @@ export const notificationsApi = {
     request<AlertSettings>('PATCH', '/notification/settings', { body }),
 
   /** alertType 으로 유형별, team 으로 안전검사 팀별로 거른다 (서버가 걸러 준다) */
+  /**
+   * 브라우저 푸시 기기 등록 (백엔드 회신 2026-09-10).
+   *
+   * 같은 기기 토큰을 다른 계정이 등록하면 그 계정 것이 된다(공용 PC). 해제는 토큰과
+   * 사용자가 모두 맞을 때만 지우므로, 로그아웃할 때 반드시 지워 달라고 보내야 한다 —
+   * 그러지 않으면 나간 사람의 기기로 다음 사람 알림이 간다.
+   */
+  addPushToken: (token: string) => request<void>('POST', '/notification/push/token', { body: { token } }),
+  removePushToken: (token: string) =>
+    request<void>('DELETE', '/notification/push/token', { body: { token } }),
+  /** 본인 기기로 한 통 보내 본다. 등록된 기기가 없으면 400 */
+  sendPushTest: () => request<void>('POST', '/notification/push/test'),
+
   logs: (query: { page?: number; size?: number; alertType?: AlertType; team?: string } = {}) =>
     request<SpringPage<NotificationLog>>('GET', '/notification/log', { query }).then(
       toPage,
