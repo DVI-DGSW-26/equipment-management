@@ -10,6 +10,7 @@ import {
 import { queryKeys } from '@/api/queryKeys';
 import { bodyRows, describeRequest, targetNoOf } from '@/domain/approvalText';
 import { useMe, usePerms } from '@/hooks/useMe';
+import { personName } from '@/lib/koreanName';
 import { fmtDateTime } from '@/lib/date';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
@@ -162,7 +163,7 @@ export default function ApprovalListPage() {
                 <tr key={r.id} className="border-b border-line align-top hover:bg-bg">
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    {r.requesterName ?? r.requesterUsername}
+                    {personName(r.requesterName) || r.requesterUsername}
                     {isMine(r) && <span className="ml-1 text-[17px] text-fg-muted">(나)</span>}
                   </td>
                   <td className="px-3 py-2">
@@ -189,7 +190,7 @@ export default function ApprovalListPage() {
                   <td className="px-3 py-2 whitespace-nowrap text-fg-sub">
                     {r.reviewedAt ? (
                       <>
-                        {r.reviewerName ?? r.reviewerUsername ?? ''}
+                        {personName(r.reviewerName) || r.reviewerUsername || ''}
                         <div className="text-[17px] text-fg-muted">{fmtDateTime(r.reviewedAt)}</div>
                       </>
                     ) : (
@@ -273,7 +274,7 @@ function BodyModal({ request, onClose }: { request: ApprovalRequest; onClose: ()
         <div>
           <p className="text-[21px] font-semibold">{describeRequest(request.method, request.path)}</p>
           <p className="text-[18px] text-fg-muted">
-            {request.requesterName ?? request.requesterUsername} 요청
+            {personName(request.requesterName) || request.requesterUsername} 요청
             {target ? ` · ${target}번 대상` : ''}
           </p>
         </div>

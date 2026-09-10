@@ -11,6 +11,7 @@ import {
   subscribePushToken,
   type PushPermission,
 } from '@/lib/push';
+import { personName } from '@/lib/koreanName';
 import { roleLabels } from '@/lib/permissions';
 import { useToast } from '@/components/toastContext';
 import {
@@ -42,7 +43,7 @@ export default function MyPage() {
       {me.data && (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Section title="내 계정">
-            <Def label="이름">{me.data.name}</Def>
+            <Def label="이름">{personName(me.data.name)}</Def>
             <Def label="아이디">{me.data.username}</Def>
             <Def label="이메일">{me.data.email || '-'}</Def>
             <Def label="권한">

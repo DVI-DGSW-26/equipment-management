@@ -33,6 +33,7 @@ import {
   thClass,
 } from '@/components/ui';
 import { searchIn } from '@/lib/search';
+import { personName } from '@/lib/koreanName';
 
 /**
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
@@ -239,7 +240,9 @@ function DirectoryPicker({ onPick }: { onPick: (user: DirectoryUser) => void }) 
   const matched = useMemo(() => {
     if (k === '') return people;
     const hit = searchIn(k);
-    const found = people.filter((u) => hit(u.name, u.email, u.username, u.department));
+    const found = people.filter((u) =>
+      hit(u.name, personName(u.name), u.email, u.username, u.department),
+    );
     /* 이름 첫머리가 걸린 사람을 위로. sort 가 안정적이라 그 안의 가나다 순은 그대로다 */
     const first = (u: DirectoryUser) => Number(u.name.toLowerCase().startsWith(k));
     return found.sort((a, b) => first(b) - first(a));
@@ -313,7 +316,7 @@ function DirectoryPicker({ onPick }: { onPick: (user: DirectoryUser) => void }) 
                   pick(u);
                 }}
               >
-                {u.name} <span className="text-fg-sub">{u.email}</span>
+                {personName(u.name)} <span className="text-fg-sub">{u.email}</span>
                 {u.department && <span className="ml-1 text-fg-muted">· {u.department}</span>}
               </button>
             </li>
@@ -373,7 +376,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
     const matched = u.department && master.includes(u.department) ? u.department : '';
     setDraft((prev) => ({
       email: u.email,
-      name: u.name,
+      name: personName(u.name),
       department: matched || prev.department,
     }));
   };
@@ -681,7 +684,7 @@ function RecipientModal({ email, onClose }: { email: NotificationEmail; onClose:
 
   return (
     <Modal
-      title={`${email.name ? `${email.name} · ` : ''}${email.email}`}
+      title={`${email.name ? `${personName(email.name)} · ` : ''}${email.email}`}
       width={560}
       onClose={onClose}
       footer={
@@ -1100,7 +1103,7 @@ function LogSection({ type }: { type: AlertType }) {
                       <td className="px-3 py-2 text-fg-sub">{target.team ?? '-'}</td>
                     )}
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {l.recipientName ?? <span className="text-fg-muted">-</span>}
+                      {personName(l.recipientName) || <span className="text-fg-muted">-</span>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-fg-sub">
                       {l.recipientDepartment ?? <span className="text-fg-muted">-</span>}

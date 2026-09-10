@@ -7,6 +7,7 @@ import { notificationsApi } from '@/api/notifications';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
 import { allows, roleLabels, type Domain } from '@/lib/permissions';
+import { personName } from '@/lib/koreanName';
 import { getRefreshToken, logout } from '@/lib/session';
 import { forgetPushToken, getSavedPushToken } from '@/lib/push';
 import { Badge } from '@/components/ui';
@@ -139,7 +140,7 @@ export default function AppLayout() {
               )}
               {me.data && (
                 <>
-                  <span className="whitespace-nowrap text-fg-sub">{me.data.name}</span>
+                  <span className="whitespace-nowrap text-fg-sub">{personName(me.data.name)}</span>
                   {/* 서버 롤 문자열(asset·admin) 대신 한글 이름만 적는다 */}
                   {roleLabels(me.data.roles).map((label) => (
                     <Badge key={label}>{label}</Badge>
