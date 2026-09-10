@@ -18,6 +18,7 @@ import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 import NotificationPage from '@/pages/notifications/NotificationPage';
 import ApprovalListPage from '@/pages/approvals/ApprovalListPage';
+import MyPage from '@/pages/me/MyPage';
 import MasterPage from '@/pages/settings/MasterPage';
 
 /**
@@ -148,6 +149,8 @@ export default function App() {
             </Require>
           }
         />
+        {/* 내 계정에 딸린 것. 도메인 권한과 상관없이 들어온 사람은 누구나 본다 */}
+        <Route path="/me" element={<MyPage />} />
         <Route
           path="/settings/master"
           element={
