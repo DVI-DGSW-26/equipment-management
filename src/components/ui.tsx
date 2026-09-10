@@ -136,6 +136,60 @@ export function SearchBox({
 }
 
 /**
+ * 조건줄의 글자 칸.
+ *
+ * 값이 주소창에서 내려오는 칸은 그냥 <input> 으로 두면 한글이 깨진다 — 글자마다
+ * 주소가 바뀌고 그 값이 다시 내려와 value 를 갈아 끼우는데, 자모를 모으는 중에
+ * 그러면 IME 가 조합을 처음부터 다시 하면서 이미 넣은 자모를 또 넣는다
+ * (2026-09-10 고정자산 자산명 칸에서 확인. SearchBox 와 같은 까닭이다).
+ *
+ * 그래서 화면에 보이는 값은 이 칸이 직접 들고, 밖에서 내려온 값은 조합이 끝난
+ * 뒤에만 따라간다. 거르는 것은 조합 중에도 그대로 이어진다.
+ */
+export function FilterInput({
+  value,
+  onChange,
+  placeholder,
+  width = 'w-40',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  /** 라벨을 겸한다 */
+  placeholder: string;
+  width?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const composing = useRef(false);
+
+  useEffect(() => {
+    if (!composing.current) setDraft(value);
+  }, [value]);
+
+  const push = (next: string) => {
+    setDraft(next);
+    onChange(next);
+  };
+
+  return (
+    <input
+      type="text"
+      className={`${filterClass} ${width}`}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      value={draft}
+      onChange={(e) => push(e.target.value)}
+      onCompositionStart={() => {
+        composing.current = true;
+      }}
+      onCompositionEnd={(e) => {
+        composing.current = false;
+        push(e.currentTarget.value);
+      }}
+    />
+  );
+}
+
+/**
  * 검색칸이 어느 칸들을 함께 보는지 알린다.
  *
  * 칸 안 안내문에 다 적으면 글자가 잘려 무엇으로 찾을 수 있는지 알 수가 없다.

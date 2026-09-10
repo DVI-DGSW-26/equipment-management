@@ -28,6 +28,7 @@ import {
   btnClass,
   btnPrimaryClass,
   filterClass,
+  FilterInput,
   Pagination,
   QueryState,
   Section,
@@ -258,19 +259,16 @@ export default function AssetListPage() {
         placeholder 로 알린다. 날짜·금액처럼 두 칸이 한 쌍인 것만 앞에 짧은 말을 붙인다.
       */}
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
-          <input
-            className={`${filterClass} w-40`}
+          <FilterInput
             placeholder="자산명"
-            aria-label="자산명"
             value={form.name}
-            onChange={(e) => set('name', e.target.value)}
+            onChange={(v) => set('name', v)}
           />
-          <input
-            className={`${filterClass} w-36`}
+          <FilterInput
             placeholder="자산코드"
-            aria-label="자산코드"
+            width="w-36"
             value={form.assetCode}
-            onChange={(e) => set('assetCode', e.target.value)}
+            onChange={(v) => set('assetCode', v)}
           />
           <select
             className={`${filterClass} w-40`}
