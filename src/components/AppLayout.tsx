@@ -28,6 +28,8 @@ const NAV: { to: string; label: string; need: Domain }[] = [
   /* 팀장은 검토하러, 담당자는 자기 요청이 어떻게 됐는지 보러 들어온다 */
   { to: '/approvals', label: '승인', need: 'any' },
   { to: '/settings/master', label: '마스터', need: 'any' },
+  /* 내 계정과 이 기기 알림. 도메인 권한과 상관없이 누구나 본다 */
+  { to: '/me', label: '마이페이지', need: 'any' },
 ];
 
 export default function AppLayout() {
@@ -144,10 +146,7 @@ export default function AppLayout() {
                   ))}
                   {/* 등록·수정이 왜 막히는지 헤더에서 바로 알 수 있게 (IT 계정) */}
                   {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
-                  {/* 알림 켜기·내 권한은 마이페이지에서 본다 */}
-                  <NavLink to="/me" className="whitespace-nowrap text-accent hover:underline">
-                    마이페이지
-                  </NavLink>
+
                   {/* 다른 사람 자료가 남지 않게 캐시까지 비운다 */}
                   <button
                     type="button"
