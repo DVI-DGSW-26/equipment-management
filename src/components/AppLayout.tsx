@@ -11,6 +11,8 @@ import { getRefreshToken, logout } from '@/lib/session';
 import { forgetPushToken, getSavedPushToken } from '@/lib/push';
 import { Badge } from '@/components/ui';
 import PushBridge from '@/components/PushBridge';
+import PushInvite from '@/components/PushInvite';
+import PushToggle from '@/components/PushToggle';
 import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
 
@@ -144,6 +146,8 @@ export default function AppLayout() {
                   ))}
                   {/* 등록·수정이 왜 막히는지 헤더에서 바로 알 수 있게 (IT 계정) */}
                   {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
+                  {/* 알림은 기기마다 켠다. 알림 화면은 수신자 명단을 다루는 자리라 여기 둔다 */}
+                  <PushToggle />
                   {/* 다른 사람 자료가 남지 않게 캐시까지 비운다 */}
                   <button
                     type="button"
@@ -176,6 +180,9 @@ export default function AppLayout() {
             </div>
           </div>
         </header>
+
+        {/* 로그인하고 처음 들어왔을 때 한 번만. 닫으면 다시 내밀지 않는다 */}
+        <PushInvite />
 
         <main className="px-3 py-3 sm:px-8">
           <Outlet />

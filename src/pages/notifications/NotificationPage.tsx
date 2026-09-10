@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { AlertType } from '@/api/notifications';
 import { Tabs } from '@/components/ui';
 import AlertTab from './AlertTab';
-import BrowserPushSection from './BrowserPushSection';
 
 /**
  * 알림 화면.
@@ -20,8 +19,6 @@ export default function NotificationPage() {
     <div className="space-y-3">
       <h1 className="text-[24px] font-semibold">알림</h1>
 
-      {/* 기기마다 켜는 것이라 유형 탭 밖에 둔다 — 한 번 켜면 세 유형이 다 온다 */}
-      <BrowserPushSection />
       <Tabs
         tabs={[
           { key: 'SAFETY' as const, label: '안전검사' },
