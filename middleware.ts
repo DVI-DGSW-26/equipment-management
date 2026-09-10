@@ -25,8 +25,18 @@ import { next } from '@vercel/edge';
  *
  * 안에 든 것은 Firebase 웹 설정뿐이고, 그것은 어차피 브라우저 번들에 실려 나간다.
  */
+/*
+ * 빌드 결과물(/assets/…)과 루트의 정적 파일은 잠그지 않는다.
+ *
+ * 잠가 두면 쿠키가 만료된 순간 JS·CSS 요청에까지 로그인 화면(HTML)이 돌아간다.
+ * 브라우저는 그것을 스크립트로 읽으려다 깨지고, 그 주소로 넘어가면 자바스크립트
+ * 원문이 글자로 그대로 보인다(2026-09-10 확인).
+ *
+ * 가릴 것은 화면과 API 지 번들 파일이 아니다. 파일 이름에 해시가 붙어 주소를
+ * 알아낼 수도 없고, 안에 든 것은 어차피 브라우저로 나가는 코드다.
+ */
 export const config = {
-  matcher: '/((?!_vercel|firebase-messaging-sw).*)',
+  matcher: '/((?!_vercel|assets/|firebase-messaging-sw|favicon\.svg|logo\.svg|icons\.svg|robots\.txt).*)',
 };
 
 const COOKIE = 'site_auth';
@@ -40,8 +50,22 @@ async function tokenOf(password: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * 로그인한 뒤 돌아갈 자리.
+ *
+ * 화면 주소만 받는다. 파일 주소(.js·.css·.svg)를 그대로 두면 로그인 직후 그 파일로
+ * 넘어가 자바스크립트 원문이 글자로 보인다 — 쿠키가 만료된 채 파일을 부르다 막힌
+ * 요청이 로그인 화면으로 바뀌었을 때 그렇게 된다.
+ */
+const safePath = (path: string): string => {
+  if (!path.startsWith('/') || path.startsWith('//')) return '/';
+  const [pathname] = path.split('?');
+  const last = pathname.split('/').pop() ?? '';
+  return last.includes('.') ? '/' : path;
+};
+
 function loginPage(nextPath: string, error?: string): Response {
-  const safeNext = nextPath.startsWith('/') ? nextPath : '/';
+  const safeNext = safePath(nextPath);
   const html = `<!doctype html>
 <html lang="ko">
 <head>
@@ -118,12 +142,12 @@ export default async function middleware(request: Request) {
   // 로그인 제출
   if (request.method === 'POST' && url.pathname === LOGIN_PATH) {
     const form = await request.formData();
-    const target = String(form.get('next') || '/');
+    const target = safePath(String(form.get('next') || '/'));
     if (String(form.get('password')) === password) {
       return new Response(null, {
         status: 303,
         headers: {
-          Location: target.startsWith('/') ? target : '/',
+          Location: target,
           'Set-Cookie': `${COOKIE}=${expected}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${MAX_AGE}`,
         },
       });
