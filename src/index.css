@@ -20,6 +20,13 @@
   --color-danger: #9e3b2a;   /* 벽돌 레드 — 30일 이내·기한 경과 */
   --color-ok: #4f6b3a;       /* 올리브 그린 — 여유 */
 
+  /*
+   * 꿀색. 로고의 벌에게서 그대로 가져온 것이라 마스코트가 나오는 자리에만 쓴다
+   * (마이페이지). 표·단추에까지 번지면 경고색(골드)과 헷갈린다.
+   */
+  --color-honey: #f2b705;
+  --color-honey-soft: #fbe6a8;
+
   --font-sans: "Pretendard Variable", "Pretendard", "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "D2Coding", "Consolas", monospace;
 
@@ -222,6 +229,16 @@
 
   .form-lg label > span:not(:first-child) {
     font-size: 18px;
+  }
+}
+
+/*
+ * 벌집 육각형. 로고의 벌에게서 온 모양이라 마스코트 테두리에만 쓴다.
+ * clip-path 라 안쪽 그림도 함께 잘린다.
+ */
+@layer components {
+  .hex {
+    clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
   }
 }
 

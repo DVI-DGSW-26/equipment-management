@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { notificationsApi } from '@/api/notifications';
 import { useMe, usePerms } from '@/hooks/useMe';
 import {
@@ -14,65 +15,102 @@ import {
 import { personName } from '@/lib/koreanName';
 import { roleLabels } from '@/lib/permissions';
 import { useToast } from '@/components/toastContext';
-import {
-  Badge,
-  btnClass,
-  btnPrimaryClass,
-  Def,
-  QueryState,
-  Section,
-} from '@/components/ui';
+import { btnClass, btnPrimaryClass, QueryState } from '@/components/ui';
 
 /**
  * 마이페이지.
  *
  * 내 계정에 딸린 것만 모은다 — 내가 누구로 들어와 있고 무엇을 할 수 있는지,
- * 이 기기로 알림을 받을지. 알림 화면은 안전검사·교정 수신자 명단을 다루는 자리라
- * 성격이 다르고, 머리줄에 두기에는 설명할 것이 많다(2026-09-10 요청).
+ * 이 컴퓨터로 알림을 받을지.
+ *
+ * 다른 화면은 표를 빽빽하게 채우는 자리지만 여기는 한 사람의 자리다. 로고의 벌을
+ * 크게 세우고 벌집(육각형)을 테두리로 쓴다. 꿀색과 육각형은 이 화면에만 둔다 —
+ * 표·단추에까지 번지면 경고색(골드)과 헷갈리고, 아무 데나 있는 장식이 된다
+ * (2026-09-10 요청).
  */
 export default function MyPage() {
   const me = useMe();
   const { perms } = usePerms();
 
+  /** 벌이 건네는 말. 롤 이름만으로는 무엇을 할 수 있는지 알 수 없다 */
+  const canDo = perms.readOnly
+    ? '보기만 되는 계정이에요. 등록이나 수정이 필요하면 관리팀에 말씀해 주세요.'
+    : perms.admin
+      ? '등록·수정은 바로 반영돼요. 다른 분이 올린 삭제·폐기는 승인해 주셔야 합니다.'
+      : '등록·수정은 바로 반영돼요. 삭제·폐기만 팀장님 승인을 거칩니다.';
+
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-4xl space-y-3">
       <h1 className="text-[24px] font-semibold">마이페이지</h1>
 
       <QueryState isPending={me.isPending} error={me.error} />
 
       {me.data && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Section title="내 계정">
-            <Def label="이름">{personName(me.data.name)}</Def>
-            <Def label="아이디">{me.data.username}</Def>
-            <Def label="이메일">{me.data.email || '-'}</Def>
-            <Def label="권한">
-              <span className="flex flex-wrap items-center gap-1">
-                {roleLabels(me.data.roles).map((label) => (
-                  <Badge key={label}>{label}</Badge>
-                ))}
-                {roleLabels(me.data.roles).length === 0 && '-'}
-                {perms.readOnly && <Badge tone="muted">조회 전용</Badge>}
-              </span>
-            </Def>
-            <Def label="할 수 있는 일">
-              {perms.readOnly
-                ? '보기만 됩니다. 등록·수정·삭제는 담당자 계정으로 해야 합니다.'
-                : perms.admin
-                  ? '등록·수정은 바로 반영되고, 남이 올린 삭제·폐기를 승인합니다.'
-                  : '등록·수정은 바로 반영됩니다. 삭제·폐기는 팀장 승인을 거칩니다.'}
-            </Def>
-          </Section>
+        <>
+          <section className="rounded-sm border border-line bg-surface px-5 py-6">
+            <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+              {/* 벌집에 앉은 벌. 이 화면에서 제일 먼저 보이는 것 */}
+              <div className="hex shrink-0 bg-honey-soft p-3">
+                <img
+                  src="/favicon.svg"
+                  alt=""
+                  width={112}
+                  height={112}
+                  className="h-28 w-28 object-contain"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <p className="text-[30px] leading-tight font-bold">{personName(me.data.name)}</p>
+
+                <p className="mt-1 text-[18px] text-fg-muted">
+                  {me.data.username}
+                  {me.data.email && <span className="ml-2">{me.data.email}</span>}
+                </p>
+
+                <div className="mt-3 flex flex-wrap justify-center gap-1.5 sm:justify-start">
+                  {roleLabels(me.data.roles).map((label) => (
+                    <span
+                      key={label}
+                      className="rounded-full border border-honey bg-honey-soft px-3 py-0.5 text-[17px]"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                  {perms.readOnly && (
+                    <span className="rounded-full border border-line bg-bg px-3 py-0.5 text-[17px] text-fg-sub">
+                      조회 전용
+                    </span>
+                  )}
+                </div>
+
+                {/* 벌이 건네는 말 — 왼쪽 꼬리가 벌을 가리킨다 */}
+                <div className="relative mt-4 rounded-sm border border-line bg-bg px-4 py-3 text-[18px] text-fg-sub">
+                  <span
+                    aria-hidden
+                    className="absolute top-4 -left-[7px] hidden h-3 w-3 rotate-45 border-b border-l border-line bg-bg sm:block"
+                  />
+                  {canDo}
+                </div>
+
+                <p className="mt-3 text-[17px]">
+                  <Link to="/approvals" className="text-accent hover:underline">
+                    내가 올린 승인 요청 보기
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </section>
 
           <BrowserPush />
-        </div>
+        </>
       )}
     </div>
   );
 }
 
 /**
- * 이 브라우저로 알림 받기.
+ * 이 컴퓨터로 알림 받기.
  *
  * 켜고 끄는 것은 기기마다 따로다 — 사무실 PC 에서 켜도 노트북에는 켜지지 않는다.
  * 허락은 사람이 단추를 눌렀을 때만 묻는다. 화면에 들어오자마자 물으면 무슨 알림인지
@@ -97,7 +135,7 @@ function BrowserPush() {
       setPermission(pushPermission());
       toast.ok(
         done
-          ? '이 브라우저로 알림을 받습니다. 확인 알림이 한 통 갑니다.'
+          ? '이 컴퓨터로 알림을 받습니다. 확인 알림이 한 통 갑니다.'
           : '알림을 허용하지 않아 켜지 않았습니다.',
       );
     },
@@ -111,7 +149,7 @@ function BrowserPush() {
     },
     onSuccess: () => {
       forgetPushToken();
-      toast.ok('이 브라우저로는 알림을 보내지 않습니다.');
+      toast.ok('이 컴퓨터로는 알림을 보내지 않습니다.');
     },
     onError: toast.fail,
   });
@@ -127,67 +165,79 @@ function BrowserPush() {
   });
 
   const busy = turnOn.isPending || turnOff.isPending || test.isPending;
+  const usable = permission !== 'unsupported' && permission !== 'denied';
 
   return (
-    <Section
-      title="이 브라우저로 알림 받기"
-      right={
-        on ? (
-          <>
-            <Badge tone="accent">켜짐</Badge>
-            <button type="button" className={btnClass} disabled={busy} onClick={() => test.mutate()}>
-              {test.isPending ? '보내는 중…' : '테스트'}
-            </button>
-            <button
-              type="button"
-              className={btnClass}
-              disabled={busy}
-              onClick={() => turnOff.mutate()}
-            >
-              끄기
-            </button>
-          </>
-        ) : (
-          permission === 'default' && (
-            <button
-              type="button"
-              className={btnPrimaryClass}
-              disabled={busy}
-              onClick={() => turnOn.mutate()}
-            >
-              {turnOn.isPending ? '켜는 중…' : '알림 켜기'}
-            </button>
-          )
-        )
-      }
-    >
-      <div className="space-y-1 px-3 py-3 text-[18px] text-fg-sub">
-        {permission === 'unsupported' && (
-          <p>
-            이 브라우저에서는 알림을 받을 수 없습니다. 아이폰·아이패드는{' '}
-            <b>사파리에서 홈 화면에 추가</b>한 뒤 그 아이콘으로 열면 받을 수 있습니다.
-          </p>
+    <section className="rounded-sm border border-line bg-surface px-5 py-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="text-[20px] font-semibold">이 컴퓨터로 알림 받기</h2>
+        {on && (
+          <span className="rounded-full bg-honey px-3 py-0.5 text-[16px] font-medium">받는 중</span>
         )}
-        {permission === 'denied' && (
-          <p>
-            이 브라우저에서 알림을 차단해 두었습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 알림을
-            허용으로 바꾼 뒤 이 화면을 새로고침해 주세요.
-          </p>
-        )}
-        {permission !== 'unsupported' && permission !== 'denied' && (
-          <>
-            <p>메일과 별개로 아래 세 가지가 이 브라우저 알림으로도 뜹니다.</p>
-            <ul className="ml-1 space-y-0.5 text-[17px]">
-              <li>· 계측기 차기 교정일이 다가올 때</li>
-              <li>· 안전검사 유효기간이 끝나갈 때</li>
-              <li>· 자산·계측기를 누가 등록하거나 고쳤을 때 (팀장 계정)</li>
-            </ul>
-          </>
-        )}
-        <p className="text-[17px] text-fg-muted">
-          기기마다 따로 켭니다. 공용 PC 라면 로그아웃할 때 이 기기 알림도 함께 꺼집니다.
-        </p>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {on ? (
+            <>
+              <button
+                type="button"
+                className={btnClass}
+                disabled={busy}
+                onClick={() => test.mutate()}
+              >
+                {test.isPending ? '보내는 중…' : '한 통 보내 보기'}
+              </button>
+              <button
+                type="button"
+                className={btnClass}
+                disabled={busy}
+                onClick={() => turnOff.mutate()}
+              >
+                끄기
+              </button>
+            </>
+          ) : (
+            usable && (
+              <button
+                type="button"
+                className={btnPrimaryClass}
+                disabled={busy}
+                onClick={() => turnOn.mutate()}
+              >
+                {turnOn.isPending ? '켜는 중…' : '알림 켜기'}
+              </button>
+            )
+          )}
+        </div>
       </div>
-    </Section>
+
+      {usable ? (
+        <>
+          <p className="mt-3 text-[18px] text-fg-sub">
+            메일과 별개로, 아래 세 가지가 이 컴퓨터 화면에도 뜹니다.
+          </p>
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {[
+              '계측기 교정일이 다가올 때',
+              '안전검사 기한이 끝나갈 때',
+              '자산·계측기를 누가 고쳤을 때',
+            ].map((text) => (
+              <li key={text} className="flex items-start gap-2 text-[18px] text-fg-sub">
+                <span aria-hidden className="hex mt-1.5 h-3 w-3 shrink-0 bg-honey" />
+                {text}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[17px] text-fg-muted">
+            컴퓨터마다 따로 켭니다. 여럿이 쓰는 PC 라면 로그아웃할 때 함께 꺼집니다.
+          </p>
+        </>
+      ) : (
+        <p className="mt-3 text-[18px] text-fg-sub">
+          {permission === 'denied'
+            ? '이 브라우저에서 알림을 차단해 두었습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 알림을 허용으로 바꾼 뒤 새로고침해 주세요.'
+            : '이 브라우저에서는 알림을 받을 수 없습니다. 아이폰·아이패드는 사파리에서 홈 화면에 추가한 뒤 그 아이콘으로 열면 받을 수 있습니다.'}
+        </p>
+      )}
+    </section>
   );
 }
