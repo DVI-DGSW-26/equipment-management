@@ -115,12 +115,38 @@ export default function MyPage() {
 }
 
 /**
+ * 알림 종. 아이콘 묶음을 따로 두지 않는 프로젝트라 쓰는 자리에 그려 둔다.
+ * 꺼져 있으면 사선을 그어 종이 울지 않는다는 것을 모양으로 보인다.
+ */
+function BellIcon({ muted }: { muted?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-7 w-7"
+      aria-hidden
+    >
+      <path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 4.2 1.6 5.3 2 6.2H4.5c.4-.9 2-2 2-6.2Z" />
+      <path d="M10 19.2a2.3 2.3 0 0 0 4 0" />
+      {muted && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
+
+/**
  * 이 컴퓨터로 알림 받기.
  *
  * 켜고 끄는 것은 기기마다 따로다 — 사무실 PC 에서 켜도 노트북에는 켜지지 않는다.
  * 허락은 사람이 단추를 눌렀을 때만 묻는다. 화면에 들어오자마자 물으면 무슨 알림인지
  * 모르는 채로 거절하게 되고, 한 번 거절하면 브라우저 설정에서 직접 풀어야 한다.
  * 아이폰은 아예 사람 동작 없이 묻지 못한다.
+ *
+ * 켜면 확인 알림이 한 통 자동으로 간다 — 켜졌는지는 알림이 와 봐야 알기 때문에,
+ * 따로 눌러 보는 단추를 두지 않는다.
  */
 function BrowserPush() {
   const toast = useToast();
@@ -132,7 +158,6 @@ function BrowserPush() {
       const token = await askPushPermission();
       if (!token) return false;
       await notificationsApi.addPushToken(token);
-      /* 켠 자리에서 한 통 보내 본다 — 켜졌는지는 알림이 와 봐야 안다 */
       await notificationsApi.sendPushTest().catch(() => undefined);
       return true;
     },
@@ -159,90 +184,89 @@ function BrowserPush() {
     onError: toast.fail,
   });
 
-  const test = useMutation({
-    mutationFn: () => notificationsApi.sendPushTest(),
-    onSuccess: () => toast.ok('한 통 보냈습니다. 잠시 뒤 알림이 뜹니다.'),
-    /* 등록된 기기가 없으면 400 이다. 켜진 것처럼 보이는데 서버에는 없는 상태로 두지 않는다 */
-    onError: (e) => {
-      forgetPushToken();
-      toast.fail(e);
-    },
-  });
-
-  const busy = turnOn.isPending || turnOff.isPending || test.isPending;
+  const busy = turnOn.isPending || turnOff.isPending;
   const usable = permission !== 'unsupported' && permission !== 'denied';
 
   return (
     <section className="rounded-sm border border-line bg-surface px-5 py-5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="text-[20px] font-semibold">이 컴퓨터로 알림 받기</h2>
-        {on && (
-          <span className="rounded-full bg-honey px-3 py-0.5 text-[16px] font-medium">받는 중</span>
-        )}
+      <div className="flex flex-wrap items-start gap-4">
+        {/* 종 하나로 무슨 구역인지 먼저 보인다. 벌집 모양은 위 카드와 짝이다 */}
+        <div className="relative h-14 w-14 shrink-0">
+          <span
+            aria-hidden
+            className={`hex absolute inset-0 ${on ? 'bg-honey' : 'bg-bg'}`}
+          />
+          <span
+            className={`absolute inset-0 flex items-center justify-center ${
+              on ? 'text-fg' : 'text-fg-muted'
+            }`}
+          >
+            <BellIcon muted={!on} />
+          </span>
+        </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {on ? (
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-[20px] font-semibold">이 컴퓨터로 알림 받기</h2>
+            <span className="text-[17px] text-fg-muted">
+              {on ? '받는 중' : usable ? '꺼져 있음' : ''}
+            </span>
+
+            <div className="ml-auto">
+              {on ? (
+                <button
+                  type="button"
+                  className={btnClass}
+                  disabled={busy}
+                  onClick={() => turnOff.mutate()}
+                >
+                  {turnOff.isPending ? '끄는 중…' : '끄기'}
+                </button>
+              ) : (
+                usable && (
+                  <button
+                    type="button"
+                    className={btnPrimaryClass}
+                    disabled={busy}
+                    onClick={() => turnOn.mutate()}
+                  >
+                    {turnOn.isPending ? '켜는 중…' : '알림 켜기'}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          {usable ? (
             <>
-              <button
-                type="button"
-                className={btnClass}
-                disabled={busy}
-                onClick={() => test.mutate()}
-              >
-                {test.isPending ? '보내는 중…' : '한 통 보내 보기'}
-              </button>
-              <button
-                type="button"
-                className={btnClass}
-                disabled={busy}
-                onClick={() => turnOff.mutate()}
-              >
-                끄기
-              </button>
+              <p className="mt-2 text-[18px] text-fg-sub">
+                메일과 별개로, 아래 세 가지가 이 컴퓨터 화면에도 뜹니다.
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                {[
+                  '계측기 교정일이 다가올 때',
+                  '안전검사 기한이 끝나갈 때',
+                  '자산·계측기를 누가 고쳤을 때',
+                ].map((text) => (
+                  <li key={text} className="flex items-center gap-2 text-[18px] whitespace-nowrap text-fg-sub">
+                    <span aria-hidden className="hex h-3 w-3 shrink-0 bg-honey" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-[17px] text-fg-muted">
+                컴퓨터마다 따로 켭니다. 여럿이 쓰는 PC 라면 로그아웃할 때 함께 꺼집니다.
+              </p>
             </>
           ) : (
-            usable && (
-              <button
-                type="button"
-                className={btnPrimaryClass}
-                disabled={busy}
-                onClick={() => turnOn.mutate()}
-              >
-                {turnOn.isPending ? '켜는 중…' : '알림 켜기'}
-              </button>
-            )
+            <p className="mt-2 text-[18px] text-fg-sub">
+              {permission === 'denied'
+                ? '이 브라우저에서 알림을 차단해 두었습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 알림을 허용으로 바꾼 뒤 새로고침해 주세요.'
+                : '이 브라우저에서는 알림을 받을 수 없습니다. 아이폰·아이패드는 사파리에서 홈 화면에 추가한 뒤 그 아이콘으로 열면 받을 수 있습니다.'}
+            </p>
           )}
         </div>
       </div>
-
-      {usable ? (
-        <>
-          <p className="mt-3 text-[18px] text-fg-sub">
-            메일과 별개로, 아래 세 가지가 이 컴퓨터 화면에도 뜹니다.
-          </p>
-          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {[
-              '계측기 교정일이 다가올 때',
-              '안전검사 기한이 끝나갈 때',
-              '자산·계측기를 누가 고쳤을 때',
-            ].map((text) => (
-              <li key={text} className="flex items-start gap-2 text-[18px] text-fg-sub">
-                <span aria-hidden className="hex mt-1.5 h-3 w-3 shrink-0 bg-honey" />
-                {text}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[17px] text-fg-muted">
-            컴퓨터마다 따로 켭니다. 여럿이 쓰는 PC 라면 로그아웃할 때 함께 꺼집니다.
-          </p>
-        </>
-      ) : (
-        <p className="mt-3 text-[18px] text-fg-sub">
-          {permission === 'denied'
-            ? '이 브라우저에서 알림을 차단해 두었습니다. 주소창 왼쪽 자물쇠(또는 ⓘ)를 눌러 알림을 허용으로 바꾼 뒤 새로고침해 주세요.'
-            : '이 브라우저에서는 알림을 받을 수 없습니다. 아이폰·아이패드는 사파리에서 홈 화면에 추가한 뒤 그 아이콘으로 열면 받을 수 있습니다.'}
-        </p>
-      )}
     </section>
   );
 }
