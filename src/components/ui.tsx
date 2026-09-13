@@ -603,6 +603,23 @@ export function Pagination({
   );
 }
 
+/**
+ * 탭 단추 모양. Tabs 와 TabGroups 가 같이 쓴다 — 두 곳이 다르게 생기면 같은 것으로
+ * 읽히지 않는다.
+ *
+ * 고른 탭이 눈에 잘 안 띈다는 얘기가 있었다(2026-09-02). 흰 카드 위 흰 탭이라
+ * 테두리 선 하나로만 갈렸다. 고른 쪽에 액센트 색 윗줄과 글자색·굵기를 주고,
+ * 안 고른 쪽은 바탕을 한 톤 눌러 탭처럼 보이게 한다.
+ * 윗줄 두께 때문에 높이가 달라지지 않도록 안 고른 쪽도 같은 두께를 투명으로 둔다.
+ */
+const tabButtonClass = (active: boolean): string =>
+  [
+    'shrink-0 whitespace-nowrap rounded-t-sm border border-t-2 border-b-0 px-4 py-2 text-[19px]',
+    active
+      ? 'border-line border-t-accent bg-surface font-semibold text-accent'
+      : 'border-transparent bg-bg/70 text-fg-sub hover:bg-surface/80 hover:text-fg',
+  ].join(' ');
+
 export function Tabs<T extends string>({
   tabs,
   value,
@@ -612,12 +629,6 @@ export function Tabs<T extends string>({
   value: T;
   onChange: (key: T) => void;
 }) {
-  /*
-   * 고른 탭이 눈에 잘 안 띈다는 얘기가 있었다(2026-09-02). 흰 카드 위 흰 탭이라
-   * 테두리 선 하나로만 갈렸다. 고른 쪽에 액센트 색 윗줄과 글자색·굵기를 주고,
-   * 안 고른 쪽은 바탕을 한 톤 눌러 탭처럼 보이게 한다.
-   * 윗줄 두께 때문에 높이가 달라지지 않도록 안 고른 쪽도 같은 두께를 투명으로 둔다.
-   */
   return (
     <div className="flex items-center gap-1 border-b border-line">
       {tabs.map((t) => {
@@ -628,17 +639,64 @@ export function Tabs<T extends string>({
             type="button"
             onClick={() => onChange(t.key)}
             aria-current={active ? 'page' : undefined}
-            className={[
-              'shrink-0 whitespace-nowrap rounded-t-sm border border-t-2 border-b-0 px-4 py-2 text-[19px]',
-              active
-                ? 'border-line border-t-accent bg-surface font-semibold text-accent'
-                : 'border-transparent bg-bg/70 text-fg-sub hover:bg-surface/80 hover:text-fg',
-            ].join(' ')}
+            className={tabButtonClass(active)}
           >
             {t.label}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * 담당별로 묶은 탭.
+ *
+ * 탭은 누구에게나 다 보인다 — 숨기면 다른 담당이 무엇을 관리하는지조차 모른다.
+ * 대신 어느 탭이 어느 담당 것인지 묶음 이름으로 갈라 보이고, 내 담당 묶음에는
+ * 표시를 단다(2026-09-14 요청). 두 담당을 다 가진 사람(팀장·IT)에게는 표시가
+ * 양쪽에 붙어 봐야 뜻이 없어 달지 않는다 — 그 판단은 부르는 쪽이 mine 으로 넘긴다.
+ */
+export function TabGroups<T extends string>({
+  groups,
+  value,
+  onChange,
+}: {
+  groups: { label: string; mine?: boolean; tabs: { key: T; label: string }[] }[];
+  value: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-y-2 border-b border-line">
+      {groups.map((group, i) => (
+        <div
+          key={group.label}
+          className={`flex items-end gap-1 ${i > 0 ? 'ml-4 border-l border-line pl-4' : ''}`}
+        >
+          <span className="mr-1 flex items-center gap-1.5 self-center text-[17px] whitespace-nowrap text-fg-muted">
+            {group.label}
+            {group.mine && (
+              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[15px] text-accent">
+                내 담당
+              </span>
+            )}
+          </span>
+          {group.tabs.map((t) => {
+            const active = value === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => onChange(t.key)}
+                aria-current={active ? 'page' : undefined}
+                className={tabButtonClass(active)}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
