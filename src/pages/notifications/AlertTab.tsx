@@ -35,7 +35,7 @@ import {
 } from '@/components/ui';
 import { searchIn } from '@/lib/search';
 import { personName } from '@/lib/koreanName';
-import { useCanEdit } from '@/hooks/useMe';
+import { useCanEdit, usePerms } from '@/hooks/useMe';
 
 /**
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
@@ -48,8 +48,13 @@ import { useCanEdit } from '@/hooks/useMe';
 export default function AlertTab({ type }: { type: AlertType }) {
   const [sending, setSending] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
-  /* 안전검사는 자산 담당, 교정은 계측기 담당이 고친다. 수신 해지는 메일 받는 본인 일이라 누구나 */
-  const edit = useCanEdit(type === 'SAFETY' ? 'asset' : 'instrument');
+  /*
+   * 발송 시점·수신자는 안전검사/교정이 한 목록이라 담당 하나만 있으면 고친다.
+   * 수동 발송만 안전검사=asset, 교정=instrument 로 갈린다. 수신 해지는 누구나
+   * (백엔드 회신 2026-09-14).
+   */
+  const edit = usePerms().perms.canWrite;
+  const canSend = useCanEdit(type === 'SAFETY' ? 'asset' : 'instrument');
 
   return (
     <div className="space-y-3">
@@ -60,7 +65,7 @@ export default function AlertTab({ type }: { type: AlertType }) {
             <button type="button" className={btnClass} onClick={() => setUnsubscribing(true)}>
               본인 인증 해지
             </button>
-            {edit ? (
+            {canSend ? (
               <button type="button" className={btnClass} onClick={() => setSending(true)}>
                 수동 발송
               </button>
@@ -76,7 +81,7 @@ export default function AlertTab({ type }: { type: AlertType }) {
 
       <LogSection type={type} />
 
-      {edit && sending && <SendModal type={type} onClose={() => setSending(false)} />}
+      {canSend && sending && <SendModal type={type} onClose={() => setSending(false)} />}
       {unsubscribing && <UnsubscribeModal onClose={() => setUnsubscribing(false)} />}
     </div>
   );

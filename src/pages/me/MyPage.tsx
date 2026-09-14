@@ -35,13 +35,16 @@ export default function MyPage() {
   /** 벌이 건네는 말. 롤 이름만으로는 무엇을 할 수 있는지 알 수 없다 */
   const canDo = perms.readOnly
     ? '보기만 되는 계정이에요. 등록이나 수정이 필요하면 관리팀에 말씀해 주세요.'
-    : perms.admin
-      ? '등록·수정은 바로 반영돼요. 다른 분이 올린 삭제·폐기는 승인해 주셔야 합니다.'
-      : perms.asset && !perms.instrument
-        ? '자산 쪽 등록·수정은 바로 반영돼요. 삭제·폐기만 팀장님 승인을 거치고, 계측기는 보기만 됩니다.'
-        : perms.instrument && !perms.asset
-          ? '계측기 등록·수정은 바로 반영돼요. 삭제·폐기만 팀장님 승인을 거치고, 자산 쪽은 보기만 됩니다.'
-          : '등록·수정은 바로 반영돼요. 삭제·폐기만 팀장님 승인을 거칩니다.';
+    : [
+        perms.asset && !perms.instrument
+          ? '자산 쪽 등록·수정은 바로 반영돼요. 계측기는 보기만 됩니다.'
+          : perms.instrument && !perms.asset
+            ? '계측기 등록·수정은 바로 반영돼요. 자산 쪽은 보기만 됩니다.'
+            : '등록·수정은 바로 반영돼요.',
+        perms.admin
+          ? '삭제·폐기도 바로 되고, 팀에서 올린 승인 요청은 직접 처리해 주셔야 합니다.'
+          : '삭제·폐기만 팀장님 승인을 거칩니다.',
+      ].join(' ');
 
   return (
     <div className="mx-auto max-w-4xl space-y-3">

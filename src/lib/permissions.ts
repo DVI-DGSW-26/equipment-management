@@ -9,7 +9,7 @@
  * 달라 말이 안 통한다.
  *
  *   보기        로그인했으면 모두
- *   고치기      canEdit(perms, 영역) — 자기 영역만, 팀장은 전부, 조회 전용은 없음
+ *   고치기      canEdit(perms, 영역) — 자기 영역만(팀장도 같다), 조회 전용은 없음
  *
  * 여기서 막는 것은 안내다. 최종 판단은 서버가 하고, 어긋나면 지금처럼 403 이 온다.
  *
@@ -17,7 +17,7 @@
  *
  *   asset       고정자산·실물자산·감가상각·안전검사
  *   instrument  계측기·교정
- *   admin       등록·수정·삭제가 승인 없이 바로 되는 계정 (팀장)
+ *   admin       승인·반려, 삭제·폐기가 승인 없이 바로 되는 계정 (팀장). 고칠 수 있는 영역은 넓히지 않는다
  *
  * admin 이 아닌 담당자가 등록하면 서버가 승인 대기로 받는다 — api/client.ts 의 202 처리.
  * asset 과 instrument 를 둘 다 가졌는데 admin 이 없으면 IT 계정이라 조회만 된다.
@@ -115,13 +115,16 @@ export type Domain = 'asset' | 'instrument' | 'any';
 /**
  * 이 영역의 자료를 고칠 수 있는가 (등록·수정·삭제 단추를 낼지).
  *
- *   자산 담당    자산 영역만
- *   계측기 담당  계측기 영역만
- *   팀장         전부
- *   조회 전용    없음
+ *   asset       고정자산·실물자산·감가상각 계산·안전검사·자산 마스터·자산 사진
+ *   instrument  계측기·교정 이력·계측기 사용위치·거래처·계측기 사진
+ *   조회 전용    없음 (서버 403 READ_ONLY_ACCOUNT)
+ *
+ * admin 은 영역을 넓히지 않는다. 관리팀 관리자는 asset+admin 이라 계측기는 못 고친다
+ * (서버 403 DOMAIN_ACCESS_DENIED). admin 이 바꾸는 것은 승인·반려 단추와, 삭제·폐기가
+ * 202 없이 바로 된다는 것 두 가지뿐이다 (백엔드 회신 2026-09-14).
  *
  * 삭제·폐기가 승인을 거치는 것은 그대로다 — 단추는 내고, 누르면 서버가 승인 요청으로
  * 받는다(needsApproval). 롤을 못 알아본 계정은 permsOf 가 열어 두므로 여기서도 연다.
  */
 export const canEdit = (perms: Perms, domain: Exclude<Domain, 'any'>): boolean =>
-  !perms.readOnly && (perms.admin || perms[domain]);
+  !perms.readOnly && perms[domain];
