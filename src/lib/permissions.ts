@@ -1,6 +1,18 @@
 /**
  * 화면 권한.
  *
+ * ## 보는 것과 고치는 것은 다른 권한이다 (2026-09-14)
+ *
+ * 역할에 따라 화면이나 탭을 숨기지 않는다. 누구나 같은 차림표·같은 탭을 보고,
+ * 역할에 따라 달라지는 것은 그 자리에서 할 수 있는 일(등록·수정·삭제·승인)뿐이다.
+ * 역할마다 다른 사이트가 되면 서로 무엇을 관리하는지 모르고, 설명할 때도 화면이
+ * 달라 말이 안 통한다.
+ *
+ *   보기        로그인했으면 모두
+ *   고치기      canEdit(perms, 영역) — 자기 영역만, 팀장은 전부, 조회 전용은 없음
+ *
+ * 여기서 막는 것은 안내다. 최종 판단은 서버가 하고, 어긋나면 지금처럼 403 이 온다.
+ *
  * /auth/me 의 roles 로 갈린다 (백엔드 회신 2026-09-08).
  *
  *   asset       고정자산·실물자산·감가상각·안전검사
@@ -100,5 +112,16 @@ export function permsOf(roles: readonly string[] | undefined): Perms {
  */
 export type Domain = 'asset' | 'instrument' | 'any';
 
-export const allows = (perms: Perms, domain: Domain): boolean =>
-  domain === 'any' ? perms.asset || perms.instrument : perms[domain];
+/**
+ * 이 영역의 자료를 고칠 수 있는가 (등록·수정·삭제 단추를 낼지).
+ *
+ *   자산 담당    자산 영역만
+ *   계측기 담당  계측기 영역만
+ *   팀장         전부
+ *   조회 전용    없음
+ *
+ * 삭제·폐기가 승인을 거치는 것은 그대로다 — 단추는 내고, 누르면 서버가 승인 요청으로
+ * 받는다(needsApproval). 롤을 못 알아본 계정은 permsOf 가 열어 두므로 여기서도 연다.
+ */
+export const canEdit = (perms: Perms, domain: Exclude<Domain, 'any'>): boolean =>
+  !perms.readOnly && (perms.admin || perms[domain]);

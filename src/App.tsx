@@ -1,7 +1,6 @@
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { getToken, isLoginRequired, subscribeToken } from '@/lib/session';
-import { allows, type Domain } from '@/lib/permissions';
 import { usePerms } from '@/hooks/useMe';
 import { NoPermission } from '@/components/ui';
 import AppLayout from '@/components/AppLayout';
@@ -21,21 +20,11 @@ import ApprovalListPage from '@/pages/approvals/ApprovalListPage';
 import MyPage from '@/pages/me/MyPage';
 import MasterPage from '@/pages/settings/MasterPage';
 
-/**
- * 권한 가드.
- *
- * 메뉴를 감추는 것만으로는 주소를 직접 친 사람을 막지 못한다. 서버도 403 으로
- * 막지만, 그 전에 화면이 무엇을 요구하는지 알려 주는 편이 낫다 — 403 은 화면을
- * 반쯤 그린 뒤에야 온다.
+/*
+ * 경로마다 영역 권한으로 막던 가드(Require)는 걷었다 (2026-09-14).
+ * 누구나 같은 화면을 보고, 고칠 수 있는지만 화면 안에서 canEdit 으로 가른다.
+ * 서버가 조회까지 막는 영역이면 그 화면의 QueryState 가 403 을 받아 안내한다.
  */
-function Require({ need, children }: { need: Domain; children: ReactNode }) {
-  const { perms, isPending } = usePerms();
-  /* /auth/me 를 기다리는 동안 "권한 없음" 을 깜빡이지 않는다 */
-  if (isPending) return null;
-  if (!allows(perms, need)) return <NoPermission />;
-  return <>{children}</>;
-}
-
 /**
  * 첫 화면.
  *
@@ -63,90 +52,68 @@ export default function App() {
         <Route
           path="/assets"
           element={
-            <Require need="asset">
-              <AssetListPage />
-            </Require>
+            <AssetListPage />
           }
         />
         {/* /assets/new 가 /assets/:id 보다 먼저 와야 한다 */}
         <Route
           path="/assets/new"
           element={
-            <Require need="asset">
-              <AssetNewPage />
-            </Require>
+            <AssetNewPage />
           }
         />
         <Route
           path="/assets/:id"
           element={
-            <Require need="asset">
-              <AssetDetailPage />
-            </Require>
+            <AssetDetailPage />
           }
         />
         <Route
           path="/physical-assets"
           element={
-            <Require need="asset">
-              <PhysicalAssetListPage />
-            </Require>
+            <PhysicalAssetListPage />
           }
         />
         <Route
           path="/instruments"
           element={
-            <Require need="instrument">
-              <InstrumentListPage />
-            </Require>
+            <InstrumentListPage />
           }
         />
         <Route
           path="/instruments/:id"
           element={
-            <Require need="instrument">
-              <InstrumentDetailPage />
-            </Require>
+            <InstrumentDetailPage />
           }
         />
         <Route
           path="/instruments/:id/card"
           element={
-            <Require need="instrument">
-              <InstrumentCardPage />
-            </Require>
+            <InstrumentCardPage />
           }
         />
         <Route
           path="/depreciation"
           element={
-            <Require need="asset">
-              <DepreciationPage />
-            </Require>
+            <DepreciationPage />
           }
         />
         <Route
           path="/inspections"
           element={
-            <Require need="asset">
-              <InspectionListPage />
-            </Require>
+            <InspectionListPage />
           }
         />
         <Route
           path="/notifications"
           element={
-            <Require need="any">
-              <NotificationPage />
-            </Require>
+            <NotificationPage />
           }
         />
         <Route
           path="/approvals"
           element={
-            <Require need="any">
-              <ApprovalListPage />
-            </Require>
+            <ApprovalListPage />
           }
         />
         {/* 내 계정에 딸린 것. 도메인 권한과 상관없이 들어온 사람은 누구나 본다 */}
@@ -154,9 +121,7 @@ export default function App() {
         <Route
           path="/settings/master"
           element={
-            <Require need="any">
-              <MasterPage />
-            </Require>
+            <MasterPage />
           }
         />
         <Route path="*" element={<Home />} />

@@ -56,7 +56,7 @@ export default function MasterPage() {
             label: '계측기',
             mine: perms.instrument && !both,
             tabs: [
-              { key: 'instrument-location' as TabKey, label: '사용위치' },
+              { key: 'instrument-location' as TabKey, label: '계측기 사용위치' },
               { key: 'partner' as TabKey, label: '거래처' },
             ],
           },

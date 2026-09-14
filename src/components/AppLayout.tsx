@@ -6,7 +6,7 @@ import { inspectionsApi } from '@/api/inspections';
 import { notificationsApi } from '@/api/notifications';
 import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
-import { allows, roleLabels, type Domain } from '@/lib/permissions';
+import { roleLabels } from '@/lib/permissions';
 import { personName } from '@/lib/koreanName';
 import { getRefreshToken, logout } from '@/lib/session';
 import { forgetPushToken, getSavedPushToken } from '@/lib/push';
@@ -16,21 +16,20 @@ import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
 
 /**
- * 차림표. need 는 그 메뉴를 보려면 있어야 하는 롤이다 (백엔드 회신 2026-09-08).
- * 라우트 쪽 가드는 App.tsx 가 같은 규칙으로 건다 — 주소를 직접 쳐도 막히도록.
+ * 차림표. 누구에게나 같다 — 역할에 따라 달라지는 것은 화면 안에서 할 수 있는 일뿐이다.
  */
-const NAV: { to: string; label: string; need: Domain }[] = [
-  { to: '/assets', label: '고정자산', need: 'asset' },
-  { to: '/physical-assets', label: '실물자산', need: 'asset' },
-  { to: '/instruments', label: '계측기', need: 'instrument' },
-  { to: '/depreciation', label: '감가상각', need: 'asset' },
-  { to: '/inspections', label: '안전검사', need: 'asset' },
-  { to: '/notifications', label: '알림', need: 'any' },
+const NAV: { to: string; label: string }[] = [
+  { to: '/assets', label: '고정자산' },
+  { to: '/physical-assets', label: '실물자산' },
+  { to: '/instruments', label: '계측기' },
+  { to: '/depreciation', label: '감가상각' },
+  { to: '/inspections', label: '안전검사' },
+  { to: '/notifications', label: '알림' },
   /* 팀장은 검토하러, 담당자는 자기 요청이 어떻게 됐는지 보러 들어온다 */
-  { to: '/approvals', label: '승인', need: 'any' },
-  { to: '/settings/master', label: '마스터', need: 'any' },
+  { to: '/approvals', label: '승인' },
+  { to: '/settings/master', label: '마스터' },
   /* 내 계정과 이 기기 알림. 도메인 권한과 상관없이 누구나 본다 */
-  { to: '/me', label: '마이페이지', need: 'any' },
+  { to: '/me', label: '마이페이지' },
 ];
 
 export default function AppLayout() {
@@ -39,7 +38,12 @@ export default function AppLayout() {
   // 로그인한 사람. 헤더에 이름과 권한을 띄운다
   const me = useMe();
   const { perms } = usePerms();
-  const menu = NAV.filter((item) => allows(perms, item.need));
+  /*
+   * 차림표는 누구에게나 같다. 역할마다 메뉴가 달라지면 서로 무엇을 관리하는지 모르고,
+   * 설명할 때도 화면이 달라 말이 안 통한다. 고칠 수 있는지는 화면 안에서 가른다
+   * (2026-09-14).
+   */
+  const menu = NAV;
 
   /*
    * 안전검사 메뉴의 배지.

@@ -7,10 +7,12 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { useCanEdit } from '@/hooks/useMe';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function ItemTab() {
   const qc = useQueryClient();
+  const edit = useCanEdit('asset');
   const [itemTypeCode, setItemTypeCode] = useState('');
   const [keyword, setKeyword] = useState('');
   const [editing, setEditing] = useState<AssetItem | null | 'new'>(null);
@@ -42,9 +44,13 @@ export default function ItemTab() {
           </select>
           <SearchBox value={keyword} onChange={setKeyword} placeholder="품목코드·품목명·비고" />
           <FilterCount shown={rows.length} total={all.length} />
-          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-            품목 추가
-          </button>
+          {edit ? (
+            <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+              품목 추가
+            </button>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </>
       }
     >
@@ -75,13 +81,15 @@ export default function ItemTab() {
                 <td className="px-3 py-2">{i.name}</td>
                 <td className="px-3 py-2 text-fg-sub">{i.remark ?? '-'}</td>
                 <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    className="whitespace-nowrap text-[18px] text-accent hover:underline"
-                    onClick={() => setEditing(i)}
-                  >
-                    수정
-                  </button>
+                  {edit && (
+                    <button
+                      type="button"
+                      className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                      onClick={() => setEditing(i)}
+                    >
+                      수정
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

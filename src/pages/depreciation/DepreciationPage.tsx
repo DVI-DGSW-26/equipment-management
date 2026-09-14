@@ -14,6 +14,7 @@ import { searchIn } from '@/lib/search';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { bookValue, chartUnit, chartValue, won, wonRatio, wonShort, wonSpan } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
+import { useCanEdit } from '@/hooks/useMe';
 import { rowNo } from '@/lib/paging';
 import {
   Badge,
@@ -28,6 +29,7 @@ import {
   stickyThClass,
   TableScroll,
   Tabs,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 type TabKey = 'schedule' | 'yearly' | 'ledger' | 'forecast';
@@ -45,6 +47,8 @@ export default function DepreciationPage() {
   const [fiscalYear, setFiscalYear] = useState(currentYear());
   const qc = useQueryClient();
   const toast = useToast();
+  /* 상각 계산은 자산 영역의 일이다. 보는 것은 누구나 */
+  const canEditAsset = useCanEdit('asset');
 
   const calculate = useMutation({
     mutationFn: () => depreciationApi.calculate(fiscalYear),
@@ -84,14 +88,18 @@ export default function DepreciationPage() {
           ))}
         </select>
         <div className="ml-auto">
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={calculate.isPending}
-            onClick={runCalculate}
-          >
-            {calculate.isPending ? '계산 중…' : `${fiscalYear}년 상각 계산`}
-          </button>
+          {canEditAsset ? (
+            <button
+              type="button"
+              className={btnPrimaryClass}
+              disabled={calculate.isPending}
+              onClick={runCalculate}
+            >
+              {calculate.isPending ? '계산 중…' : `${fiscalYear}년 상각 계산`}
+            </button>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </div>
       </div>
 

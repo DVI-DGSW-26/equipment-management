@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { inspectionsApi, type EquipmentStatus, type SafetyEquipment } from '@/api/inspections';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import { byDueAsc, DDAY_CLASS, ddayLabel, levelOf } from '@/domain/dday';
 import { fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
@@ -24,6 +25,7 @@ import {
   seqThClass,
   StatCards,
   thClass,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 /**
@@ -102,6 +104,8 @@ const matchesDue = (e: SafetyEquipment, f: DueFilter): boolean => {
 
 export default function EquipmentTab() {
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 자산 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'asset');
   const toast = useToast();
   const [keyword, setKeyword] = useState('');
   const [team, setTeam] = useState('');
@@ -257,11 +261,13 @@ export default function EquipmentTab() {
             >
               {exporting ? '만드는 중…' : 'Excel'}
             </button>
-            {perms.canWrite && (
+            {edit ? (
               <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
                 대상 등록
               </button>
-            )}
+            ) : (
+          <ReadOnlyChip />
+        )}
           </>
         }
       >

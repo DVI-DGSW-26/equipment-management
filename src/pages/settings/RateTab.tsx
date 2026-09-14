@@ -9,10 +9,12 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { useCanEdit } from '@/hooks/useMe';
+import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function RateTab() {
   const qc = useQueryClient();
+  const edit = useCanEdit('asset');
   const [editing, setEditing] = useState<DepreciationRate | null | 'new'>(null);
   const [keyword, setKeyword] = useState('');
 
@@ -35,9 +37,13 @@ export default function RateTab() {
           )}
           <SearchBox value={keyword} onChange={setKeyword} placeholder="내용연수" width="w-32" />
           <FilterCount shown={rows.length} total={all.length} />
-          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-            상각률 추가
-          </button>
+          {edit ? (
+            <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+              상각률 추가
+            </button>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </>
       }
     >
@@ -74,13 +80,15 @@ export default function RateTab() {
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    className="whitespace-nowrap text-[18px] text-accent hover:underline"
-                    onClick={() => setEditing(r)}
-                  >
-                    수정
-                  </button>
+                  {edit && (
+                    <button
+                      type="button"
+                      className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                      onClick={() => setEditing(r)}
+                    >
+                      수정
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

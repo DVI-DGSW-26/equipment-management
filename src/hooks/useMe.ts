@@ -1,7 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { authApi, type Me } from '@/api/auth';
 import { queryKeys } from '@/api/queryKeys';
-import { permsOf, type Perms } from '@/lib/permissions';
+import { canEdit, permsOf, type Domain, type Perms } from '@/lib/permissions';
 
 /**
  * 로그인한 사람과 그 권한.
@@ -36,4 +36,13 @@ export function usePerms(): PermsState {
    * permsOf(undefined) 가 그 "알 수 없음 = 열어 둠" 을 만든다.
    */
   return { perms: permsOf(me.data?.roles), isPending: me.isPending };
+}
+
+/**
+ * 이 영역을 고칠 수 있는가. 화면마다 같은 물음을 같은 답으로 받게 한 곳에서 묻는다.
+ * /auth/me 를 기다리는 동안은 permsOf 가 열어 두므로 단추가 깜빡이지 않는다.
+ */
+export function useCanEdit(domain: Exclude<Domain, 'any'>): boolean {
+  const { perms } = usePerms();
+  return canEdit(perms, domain);
 }

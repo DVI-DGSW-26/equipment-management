@@ -8,11 +8,13 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { useCanEdit } from '@/hooks/useMe';
+import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function AccountTab() {
   const qc = useQueryClient();
   const toast = useToast();
+  const edit = useCanEdit('asset');
   const [editing, setEditing] = useState<AssetAccount | null | 'new'>(null);
   const [keyword, setKeyword] = useState('');
 
@@ -41,9 +43,13 @@ export default function AccountTab() {
         <>
           <SearchBox value={keyword} onChange={setKeyword} placeholder="코드·계정과목명" />
           <FilterCount shown={rows.length} total={all.length} />
-          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-            계정과목 추가
-          </button>
+          {edit ? (
+            <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+              계정과목 추가
+            </button>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </>
       }
     >
@@ -78,22 +84,26 @@ export default function AccountTab() {
                     .join(' · ') || '-'}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                    onClick={() => setEditing(a)}
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                    onClick={() => {
-                      if (window.confirm(`${a.name} 계정과목을 삭제합니다.`)) remove.mutate(a.id);
-                    }}
-                  >
-                    삭제
-                  </button>
+                  {edit && (
+                    <>
+                      <button
+                        type="button"
+                        className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
+                        onClick={() => setEditing(a)}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="whitespace-nowrap text-[18px] text-danger hover:underline"
+                        onClick={() => {
+                          if (window.confirm(`${a.name} 계정과목을 삭제합니다.`)) remove.mutate(a.id);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

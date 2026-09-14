@@ -200,6 +200,42 @@ export function SearchHint({ fields }: { fields: string }) {
   return <span className="text-[17px] whitespace-nowrap text-fg-muted">검색 : {fields}</span>;
 }
 
+/**
+ * 조회 전용 표시.
+ *
+ * 고칠 수 없는 영역에서 [등록] 단추가 있던 자리에 둔다. 단추를 그냥 없애면 원래
+ * 여기서 무엇을 할 수 있는지조차 모르고, 크게 경고문을 띄우면 화면이 지저분해진다.
+ * 한 화면에 한 번, 단추 자리에만 작게 둔다 — 줄마다 붙이지 않는다 (2026-09-14).
+ * 왜 안 되는지는 마우스를 올리면 나온다.
+ */
+export function ReadOnlyChip({
+  reason = '현재 역할에서는 이 영역을 조회만 할 수 있습니다.',
+}: {
+  reason?: string;
+}) {
+  return (
+    <span
+      title={reason}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-bg px-3 py-1 text-[16px] whitespace-nowrap text-fg-muted"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+        aria-hidden
+      >
+        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" />
+        <circle cx="12" cy="12" r="2.8" />
+      </svg>
+      조회 전용
+    </span>
+  );
+}
+
 /** 걸러낸 건수 표시. 필터가 걸려 있을 때만 전체 건수를 함께 보여 준다 */
 export function FilterCount({ shown, total }: { shown: number; total: number }) {
   return (

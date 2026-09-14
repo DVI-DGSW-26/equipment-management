@@ -12,11 +12,13 @@ import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { useCanEdit } from '@/hooks/useMe';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function PartnerTab() {
   const qc = useQueryClient();
   const toast = useToast();
+  const edit = useCanEdit('instrument');
   const [editing, setEditing] = useState<Partner | 'new' | null>(null);
   const [keyword, setKeyword] = useState('');
   /* 거르는 기준은 두 갈래뿐이다. BOTH 는 골라야 할 값이 아니라 양쪽 다 하는 거래처다 */
@@ -58,9 +60,13 @@ export default function PartnerTab() {
             <option value="CALIBRATION_AGENCY">{PARTNER_TYPE_LABEL.CALIBRATION_AGENCY}</option>
           </select>
           <FilterCount shown={rows.length} total={all.length} />
-          <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-            거래처 추가
-          </button>
+          {edit ? (
+            <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+              거래처 추가
+            </button>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </>
       }
     >
@@ -87,22 +93,26 @@ export default function PartnerTab() {
                 <td className="px-3 py-2">{p.name}</td>
                 <td className="px-3 py-2">{p.partnerTypeLabel}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                    onClick={() => setEditing(p)}
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                    onClick={() => {
-                      if (window.confirm(`${p.name} 을 삭제합니다.`)) remove.mutate(p.id);
-                    }}
-                  >
-                    삭제
-                  </button>
+                  {edit && (
+                    <>
+                      <button
+                        type="button"
+                        className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
+                        onClick={() => setEditing(p)}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="whitespace-nowrap text-[18px] text-danger hover:underline"
+                        onClick={() => {
+                          if (window.confirm(`${p.name} 을 삭제합니다.`)) remove.mutate(p.id);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

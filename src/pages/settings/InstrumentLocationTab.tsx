@@ -6,11 +6,13 @@ import { useInstrumentLocations } from '@/hooks/useMasters';
 import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
-import { btnPrimaryClass, FilterCount, filterClass, QueryState, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { useCanEdit } from '@/hooks/useMe';
+import { btnPrimaryClass, FilterCount, filterClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function InstrumentLocationTab() {
   const qc = useQueryClient();
   const toast = useToast();
+  const edit = useCanEdit('instrument');
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<InstrumentLocation | null>(null);
   const [editName, setEditName] = useState('');
@@ -60,21 +62,27 @@ export default function InstrumentLocationTab() {
         <>
           <SearchBox value={keyword} onChange={setKeyword} placeholder="위치 검색" width="w-40" />
           <FilterCount shown={rows.length} total={all.length} />
-          <input
-            className={`${filterClass} w-40`}
-            placeholder="추가할 사용위치명"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && draft.trim() && create.mutate()}
-          />
-          <button
-            type="button"
-            className={btnPrimaryClass}
-            disabled={create.isPending || draft.trim() === ''}
-            onClick={() => create.mutate()}
-          >
-            추가
-          </button>
+          {edit ? (
+            <>
+              <input
+                className={`${filterClass} w-40`}
+                placeholder="추가할 사용위치명"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && draft.trim() && create.mutate()}
+              />
+              <button
+                type="button"
+                className={btnPrimaryClass}
+                disabled={create.isPending || draft.trim() === ''}
+                onClick={() => create.mutate()}
+              >
+                추가
+              </button>
+            </>
+          ) : (
+            <ReadOnlyChip />
+          )}
         </>
       }
     >
@@ -133,27 +141,29 @@ export default function InstrumentLocationTab() {
                       </button>
                     </>
                   ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
-                        onClick={() => {
-                          setEditing(l);
-                          setEditName(l.name);
-                        }}
-                      >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        className="whitespace-nowrap text-[18px] text-danger hover:underline"
-                        onClick={() => {
-                          if (window.confirm(`${l.name} 을 삭제합니다.`)) remove.mutate(l.id);
-                        }}
-                      >
-                        삭제
-                      </button>
-                    </>
+                    edit && (
+                      <>
+                        <button
+                          type="button"
+                          className="mr-2 whitespace-nowrap text-[18px] text-accent hover:underline"
+                          onClick={() => {
+                            setEditing(l);
+                            setEditName(l.name);
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          className="whitespace-nowrap text-[18px] text-danger hover:underline"
+                          onClick={() => {
+                            if (window.confirm(`${l.name} 을 삭제합니다.`)) remove.mutate(l.id);
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </>
+                    )
                   )}
                 </td>
               </tr>

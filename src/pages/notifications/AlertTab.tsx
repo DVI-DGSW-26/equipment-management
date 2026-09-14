@@ -27,6 +27,7 @@ import {
   inputClass,
   Pagination,
   QueryState,
+  ReadOnlyChip,
   SearchBox,
   Section,
   seqThClass,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui';
 import { searchIn } from '@/lib/search';
 import { personName } from '@/lib/koreanName';
+import { useCanEdit } from '@/hooks/useMe';
 
 /**
  * 교정·안전검사 알림 화면. 유형만 다르고 구성이 같아 한 컴포넌트로 두고,
@@ -46,6 +48,8 @@ import { personName } from '@/lib/koreanName';
 export default function AlertTab({ type }: { type: AlertType }) {
   const [sending, setSending] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
+  /* 안전검사는 자산 담당, 교정은 계측기 담당이 고친다. 수신 해지는 메일 받는 본인 일이라 누구나 */
+  const edit = useCanEdit(type === 'SAFETY' ? 'asset' : 'instrument');
 
   return (
     <div className="space-y-3">
@@ -56,19 +60,23 @@ export default function AlertTab({ type }: { type: AlertType }) {
             <button type="button" className={btnClass} onClick={() => setUnsubscribing(true)}>
               본인 인증 해지
             </button>
-            <button type="button" className={btnClass} onClick={() => setSending(true)}>
-              수동 발송
-            </button>
+            {edit ? (
+              <button type="button" className={btnClass} onClick={() => setSending(true)}>
+                수동 발송
+              </button>
+            ) : (
+              <ReadOnlyChip />
+            )}
           </>
         }
       >
-        <ScheduleRow type={type} />
-        <RecipientBlock type={type} />
+        <ScheduleRow type={type} edit={edit} />
+        <RecipientBlock type={type} edit={edit} />
       </Section>
 
       <LogSection type={type} />
 
-      {sending && <SendModal type={type} onClose={() => setSending(false)} />}
+      {edit && sending && <SendModal type={type} onClose={() => setSending(false)} />}
       {unsubscribing && <UnsubscribeModal onClose={() => setUnsubscribing(false)} />}
     </div>
   );
@@ -89,7 +97,7 @@ const parseDays = (text: string): number[] =>
     .map(Number)
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 365);
 
-function ScheduleRow({ type }: { type: AlertType }) {
+function ScheduleRow({ type, edit }: { type: AlertType; edit: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<string | null>(null);
@@ -157,13 +165,15 @@ function ScheduleRow({ type }: { type: AlertType }) {
               ))
             )}
             <span className="text-[18px] text-fg-muted">{basis} 기준 · 매일 아침 자동 발송</span>
-            <button
-              type="button"
-              className={`${btnClass} ml-auto`}
-              onClick={() => setDraft((days ?? []).join(', '))}
-            >
-              수정
-            </button>
+            {edit && (
+              <button
+                type="button"
+                className={`${btnClass} ml-auto`}
+                onClick={() => setDraft((days ?? []).join(', '))}
+              >
+                수정
+              </button>
+            )}
           </>
         )
       )}
@@ -351,7 +361,7 @@ function useTeamOptions(): string[] {
 const calibrationBlocked = (e: { alertTypes: AlertType[]; teams: string[] }): boolean =>
   e.alertTypes.includes('CALIBRATION') && e.teams.length > 0;
 
-function RecipientBlock({ type }: { type: AlertType }) {
+function RecipientBlock({ type, edit }: { type: AlertType; edit: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
   /** 빠른 등록칸. 이메일만 필수고 이름·부서는 나중에 채워도 된다 */
@@ -494,7 +504,8 @@ function RecipientBlock({ type }: { type: AlertType }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg/40 px-3 py-2">
+      {edit && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg/40 px-3 py-2">
         <span className="text-[18px] text-fg-sub">수신자 추가</span>
         <DirectoryPicker onPick={pickPerson} />
         <input
@@ -529,7 +540,8 @@ function RecipientBlock({ type }: { type: AlertType }) {
           등록
         </button>
         <span className="text-[18px] text-fg-muted">이메일만 넣어도 됩니다.</span>
-      </div>
+        </div>
+      )}
 
       <QueryState
         isPending={q.isPending}
@@ -538,7 +550,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         emptyText={
           keyword
             ? '검색 결과가 없습니다.'
-            : `${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다. 위에 주소를 넣으면 바로 받습니다.`
+            : `${ALERT_TYPE_LABEL[type]} 알림을 받는 사람이 없습니다.${edit ? ' 위에 주소를 넣으면 바로 받습니다.' : ''}`
         }
       />
 
@@ -590,6 +602,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
                     {calibrationBlocked(e) ? (
                       <span className="flex flex-wrap items-center gap-2">
                         <Badge tone="danger">받지 못함</Badge>
+                        {edit && (
                         <button
                           type="button"
                           className="whitespace-nowrap text-[18px] text-accent hover:underline"
@@ -599,6 +612,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
                         >
                           담당반 비우고 받기
                         </button>
+                        )}
                       </span>
                     ) : (
                       <span className="text-fg-muted">정상</span>
@@ -617,6 +631,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
                   {fmtDateTime(e.createdAt)}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  {edit && (
                   <div className="flex justify-end gap-3">
                     <button
                       type="button"
@@ -640,6 +655,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
                       제거
                     </button>
                   </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -647,7 +663,7 @@ function RecipientBlock({ type }: { type: AlertType }) {
         </table>
       )}
 
-      {editing && <RecipientModal email={editing} onClose={() => setEditing(null)} />}
+      {edit && editing && <RecipientModal email={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }

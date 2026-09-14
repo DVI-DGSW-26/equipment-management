@@ -12,6 +12,7 @@ import {
 import Modal from '@/components/Modal';
 import TaxRecordFields from '@/components/TaxRecordFields';
 import { useToast } from '@/components/toastContext';
+import { useCanEdit } from '@/hooks/useMe';
 import { btnClass, btnPrimaryClass, Def, Section } from '@/components/ui';
 
 /** 빈 칸으로 둔 항목은 서버가 건드리지 않는다(부분 수정). 값을 지울 수는 없다 */
@@ -25,14 +26,18 @@ export default function AssetTaxRecordSection({
   onDone: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  /* 조회 전용 안내는 상세 머리줄에 한 번 있다. 여기서는 단추만 뺀다 */
+  const canEditAsset = useCanEdit('asset');
 
   return (
     <Section
       title="추가등록사항 (세무 기록)"
       right={
-        <button type="button" className={btnPrimaryClass} onClick={() => setEditing(true)}>
-          수정
-        </button>
+        canEditAsset ? (
+          <button type="button" className={btnPrimaryClass} onClick={() => setEditing(true)}>
+            수정
+          </button>
+        ) : undefined
       }
     >
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">{TAX_NOTE}</p>

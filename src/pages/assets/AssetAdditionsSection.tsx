@@ -6,6 +6,7 @@ import { fmtDate, toIsoDate, getToday } from '@/lib/date';
 import { won, wonUnit } from '@/lib/won';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
+import { useCanEdit } from '@/hooks/useMe';
 import {
   btnClass,
   btnDangerClass,
@@ -38,6 +39,8 @@ export default function AssetAdditionsSection({
   onChanged: () => void;
 }) {
   const [adding, setAdding] = useState(false);
+  /* 조회 전용 안내는 상세 머리줄에 한 번 있다. 여기서는 단추만 뺀다 */
+  const canEditAsset = useCanEdit('asset');
 
   const q = useQuery({
     queryKey: queryKeys.assets.additions(assetId),
@@ -54,9 +57,11 @@ export default function AssetAdditionsSection({
           <span className="text-[18px] text-fg-sub">
             증가 누계 <span className="num">{wonUnit(additionTotal)}</span>
           </span>
-          <button type="button" className={btnPrimaryClass} onClick={() => setAdding(true)}>
-            등록
-          </button>
+          {canEditAsset && (
+            <button type="button" className={btnPrimaryClass} onClick={() => setAdding(true)}>
+              등록
+            </button>
+          )}
         </>
       }
     >
@@ -80,7 +85,13 @@ export default function AssetAdditionsSection({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <AdditionRow key={r.id} assetId={assetId} row={r} onChanged={onChanged} />
+              <AdditionRow
+                key={r.id}
+                assetId={assetId}
+                row={r}
+                onChanged={onChanged}
+                canDelete={canEditAsset}
+              />
             ))}
           </tbody>
         </table>
@@ -97,10 +108,12 @@ function AdditionRow({
   assetId,
   row,
   onChanged,
+  canDelete,
 }: {
   assetId: number;
   row: AssetAddition;
   onChanged: () => void;
+  canDelete: boolean;
 }) {
   const toast = useToast();
   const qc = useQueryClient();
@@ -121,6 +134,7 @@ function AdditionRow({
       <td className="num px-3 py-2">{won(row.amount)}</td>
       <td className="px-3 py-2 text-fg-sub">{row.note ?? '-'}</td>
       <td className="px-3 py-2 text-right">
+        {canDelete && (
         <button
           type="button"
           className={btnDangerClass}
@@ -136,6 +150,7 @@ function AdditionRow({
         >
           삭제
         </button>
+        )}
       </td>
     </tr>
   );

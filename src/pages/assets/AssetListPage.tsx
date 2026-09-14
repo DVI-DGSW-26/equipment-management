@@ -11,6 +11,7 @@ import {
 import { saveFile } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { useDebounced } from '@/hooks/useDebounced';
 import { appConfig } from '@/config/appConfig';
@@ -35,6 +36,7 @@ import {
   StatCards,
   stickyThClass,
   TableScroll,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 /** 화면 입력값. select 는 전부 문자열로 다루고 요청 직전에 숫자로 바꾼다 */
@@ -112,6 +114,8 @@ const toFilter = (f: FormState): AssetFilter => ({
 
 export default function AssetListPage() {
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 자산 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'asset');
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -230,7 +234,7 @@ export default function AssetListPage() {
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-[24px] font-semibold">고정자산</h1>
         {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
-        {perms.canWrite && (
+        {edit ? (
           <button
             type="button"
             className={`${btnPrimaryClass} ml-auto`}
@@ -238,6 +242,8 @@ export default function AssetListPage() {
           >
             자산 등록
           </button>
+        ) : (
+          <span className="ml-auto"><ReadOnlyChip /></span>
         )}
       </div>
 

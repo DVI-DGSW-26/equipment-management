@@ -11,6 +11,7 @@ import { DDAY_CLASS, ddayLabel, levelOf, notificationSchedule } from '@/domain/d
 import { fmtDate, toIsoDate } from '@/lib/date';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
+import { useCanEdit } from '@/hooks/useMe';
 import {
   btnClass,
   btnDangerClass,
@@ -20,6 +21,7 @@ import {
   inputClass,
   QueryState,
   thClass,
+  ReadOnlyChip,
 } from '@/components/ui';
 import EquipmentModal from './EquipmentModal';
 
@@ -34,6 +36,8 @@ export default function DetailModal({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
+  /* 보는 것은 누구나. 검사 완료 입력·대상 수정·삭제는 자산 영역 담당과 팀장만 */
+  const canEditAsset = useCanEdit('asset');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<SaveInspectionPayload>({
     inspectedAt: toIsoDate(new Date()),
@@ -120,6 +124,7 @@ export default function DetailModal({
       width={940}
       onClose={onClose}
       footer={
+        canEditAsset ? (
         <>
           <button
             type="button"
@@ -147,6 +152,14 @@ export default function DetailModal({
             검사 완료 등록
           </button>
         </>
+        ) : (
+          <>
+            <ReadOnlyChip />
+            <button type="button" className={btnClass} onClick={onClose}>
+              닫기
+            </button>
+          </>
+        )
       }
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -201,6 +214,7 @@ export default function DetailModal({
             )}
           </div>
 
+          {canEditAsset && (
           <div className="rounded-sm border border-line px-3 py-2">
             <div className="mb-2 text-[18px] font-medium">검사 완료 입력</div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -246,6 +260,7 @@ export default function DetailModal({
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -278,6 +293,7 @@ export default function DetailModal({
                   <td className="px-3 py-1.5">{h.certificateNo ?? '-'}</td>
                   <td className="px-3 py-1.5 text-fg-sub">{h.remark ?? '-'}</td>
                   <td className="px-3 py-1.5 text-right">
+                    {canEditAsset && (
                     <button
                       type="button"
                       className="text-[17px] text-danger hover:underline"
@@ -288,6 +304,7 @@ export default function DetailModal({
                     >
                       삭제
                     </button>
+                    )}
                   </td>
                 </tr>
               ))}

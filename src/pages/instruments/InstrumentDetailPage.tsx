@@ -19,6 +19,7 @@ import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
 import AttachmentsSection from '@/components/AttachmentsSection';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import InstrumentCard from './InstrumentCard';
 import {
   Badge,
@@ -28,6 +29,7 @@ import {
   Field,
   inputClass,
   QueryState,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 export default function InstrumentDetailPage() {
@@ -37,6 +39,8 @@ export default function InstrumentDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 계측기 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'instrument');
   /*
    * 화면은 이력카드 한 장이다.
    *
@@ -123,6 +127,7 @@ export default function InstrumentDetailPage() {
         )}
         {overdue && <Badge tone="danger">차기 교정일 경과</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {!edit && <ReadOnlyChip />}
           {/*
             종이·PDF 로는 이력카드 양식만 나간다. 화면에서만 보는 것은 인쇄에서 빠진다.
             PDF 로 저장하면 파일 이름이 "계측기명(관리번호)" 가 된다.
@@ -136,7 +141,7 @@ export default function InstrumentDetailPage() {
             이력카드 인쇄 · PDF
           </button>
           {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
-          {perms.canWrite && (
+          {edit && (
             <>
               <button
                 type="button"
@@ -156,7 +161,7 @@ export default function InstrumentDetailPage() {
               </button>
             </>
           )}
-          {perms.canWrite &&
+          {edit &&
             (gone ? (
               <button
                 type="button"
@@ -198,13 +203,14 @@ export default function InstrumentDetailPage() {
       {d && (
         <InstrumentCard
           instrumentId={instrumentId}
-          onEditCalibration={setCalibrationTarget}
-          onDeleteCalibration={(id) => removeCalibration.mutate(id)}
+          /* 넘기지 않으면 카드가 줄마다 단추를 달지 않는다 */
+          onEditCalibration={edit ? setCalibrationTarget : undefined}
+          onDeleteCalibration={edit ? (id) => removeCalibration.mutate(id) : undefined}
           footer={
             <AttachmentsSection
               owner={{ kind: 'instrument', id: instrumentId }}
               emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
-              canWrite={perms.canWrite}
+              canWrite={edit}
             />
           }
         />

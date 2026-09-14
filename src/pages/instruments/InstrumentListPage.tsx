@@ -5,6 +5,7 @@ import { instrumentsApi, type Instrument } from '@/api/instruments';
 import { calibrationsApi, type AnnualCalibration } from '@/api/calibrations';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import { DDAY_CLASS, ddayLabel, levelOfDays } from '@/domain/dday';
 import { currentYear, daysUntil, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
@@ -29,6 +30,7 @@ import {
   StatCards,
   Tabs,
   thClass,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 type TabKey = 'list' | 'annual';
@@ -175,6 +177,8 @@ const matchesDue = (days: number | null, overdue: boolean, f: DueFilter): boolea
 
 function ListTab() {
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 계측기 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'instrument');
   const navigate = useNavigate();
   const toast = useToast();
   const [exporting, setExporting] = useState(false);
@@ -387,11 +391,13 @@ function ListTab() {
             >
               {exporting ? '만드는 중…' : '엑셀 다운로드'}
             </button>
-            {perms.canWrite && (
+            {edit ? (
               <button type="button" className={btnPrimaryClass} onClick={() => setCreating(true)}>
                 계측기 등록
               </button>
-            )}
+            ) : (
+          <ReadOnlyChip />
+        )}
           </>
         }
       >

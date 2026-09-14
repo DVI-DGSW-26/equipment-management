@@ -16,6 +16,7 @@ import {
 import { depreciationApi } from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
 import { codeText, NO_CODE_REASON, SEQUENCE_MISSING_REASON } from '@/domain/assetCode';
 import { allowedMethods } from '@/domain/depreciationMethod';
@@ -37,6 +38,7 @@ import {
   Section,
   Tabs,
   thClass,
+  ReadOnlyChip,
 } from '@/components/ui';
 import AssetAdditionsSection from './AssetAdditionsSection';
 import AssetHistorySection from './AssetHistorySection';
@@ -63,6 +65,8 @@ export default function AssetDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 자산 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'asset');
   const [mode, setMode] = useState<'none' | 'edit' | 'correct'>('none');
   const [tab, setTab] = useState<DetailTab>('main');
 
@@ -149,8 +153,9 @@ export default function AssetDetailPage() {
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {!edit && <ReadOnlyChip />}
           {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
-          {perms.canWrite && (
+          {edit && (
             <>
               <button
                 type="button"
@@ -171,7 +176,7 @@ export default function AssetDetailPage() {
               </button>
             </>
           )}
-          {perms.canWrite &&
+          {edit &&
             (gone ? (
               <button
                 type="button"
@@ -333,7 +338,7 @@ export default function AssetDetailPage() {
               owner={{ kind: 'asset', id: a.id }}
               title="사진 · 첨부"
               emptyText="사진이 없습니다. 현품 사진·계산서 스캔본 등을 올립니다."
-              canWrite={perms.canWrite}
+              canWrite={edit}
             />
           )}
         </>

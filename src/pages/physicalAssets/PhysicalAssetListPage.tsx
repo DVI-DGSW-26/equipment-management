@@ -8,6 +8,7 @@ import {
 import { assetsApi, ASSET_STATUS_LABEL, type Asset, type AssetStatus } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
+import { canEdit } from '@/lib/permissions';
 import { useCategories, useDepartments, useItemTypes, useItems, useLocations } from '@/hooks/useMasters';
 import { saveFile } from '@/api/client';
 import { codeText, isSuppliesItemEnabled } from '@/domain/assetCode';
@@ -36,6 +37,7 @@ import {
   Section,
   stickyThClass,
   TableScroll,
+  ReadOnlyChip,
 } from '@/components/ui';
 
 /**
@@ -132,6 +134,8 @@ function Pick({
 
 export default function PhysicalAssetListPage() {
   const { perms } = usePerms();
+  /* 보는 것은 누구나, 고치는 것은 자산 영역을 맡은 사람과 팀장만 (2026-09-14) */
+  const edit = canEdit(perms, 'asset');
   const toast = useToast();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [page, setPage] = useState(0);
@@ -353,11 +357,13 @@ export default function PhysicalAssetListPage() {
             >
               스티커 출력
             </button>
-            {perms.canWrite && (
+            {edit ? (
               <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
                 실물자산 등록
               </button>
-            )}
+            ) : (
+          <ReadOnlyChip />
+        )}
           </>
         }
       >
@@ -470,13 +476,16 @@ export default function PhysicalAssetListPage() {
                       <td className="num px-3 py-2">{won(r.purchasePrice)}</td>
                       <td className="px-3 py-2">{r.statusLabel}</td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          className="whitespace-nowrap text-[18px] text-accent hover:underline"
-                          onClick={() => setEditing(r)}
-                        >
-                          수정
-                        </button>
+                        {/* 고칠 수 없으면 줄마다 안내하지 않는다 — 머리의 "조회 전용" 하나로 충분하다 */}
+                        {edit && (
+                          <button
+                            type="button"
+                            className="whitespace-nowrap text-[18px] text-accent hover:underline"
+                            onClick={() => setEditing(r)}
+                          >
+                            수정
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
