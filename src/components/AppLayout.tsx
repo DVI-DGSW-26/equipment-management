@@ -27,7 +27,7 @@ const NAV: { to: string; label: string }[] = [
   { to: '/notifications', label: '알림' },
   /* 팀장은 검토하러, 담당자는 자기 요청이 어떻게 됐는지 보러 들어온다 */
   { to: '/approvals', label: '승인' },
-  { to: '/settings/master', label: '마스터' },
+  { to: '/settings/master', label: '기본설정' },
   /* 내 계정과 이 기기 알림. 도메인 권한과 상관없이 누구나 본다 */
   { to: '/me', label: '마이페이지' },
 ];
@@ -131,7 +131,7 @@ export default function AppLayout() {
 
             {/*
               미확정 설정 개수는 개발용 표시라 헤더에서 뺐다.
-              항목별 확정 여부는 마스터 화면의 "미확정 설정" 탭에서 본다.
+              항목별 확정 여부는 기본설정 화면의 "미확정 설정" 탭에서 본다.
             */}
             <div className="ml-auto flex items-center gap-2 text-[18px]">
               {safety.isError && (

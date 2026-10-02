@@ -87,7 +87,7 @@ export default function InstrumentLocationTab() {
       }
     >
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
-        고정자산의 위치 코드 마스터(A01 · 압출동 …)와는 별개 목록입니다.
+        고정자산의 위치 코드(A01 · 압출동 …)와는 별개 목록입니다.
       </p>
       <QueryState
         isPending={q.isPending}

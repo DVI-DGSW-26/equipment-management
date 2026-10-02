@@ -478,8 +478,8 @@ export default function AssetNewPage() {
               label="상각률"
               hint={
                 rate == null
-                  ? '마스터에 등록되지 않은 조합입니다. 저장 시 서버 기본값이 적용됩니다.'
-                  : '내용연수 × 상각방법으로 마스터에서 조회한 값 (읽기 전용)'
+                  ? '기본설정에 등록되지 않은 조합입니다. 저장 시 서버 기본값이 적용됩니다.'
+                  : '내용연수 × 상각방법으로 기본설정에서 조회한 값 (읽기 전용)'
               }
             >
               <input className={`${inputClass} num`} value={rateText(rate)} readOnly disabled />

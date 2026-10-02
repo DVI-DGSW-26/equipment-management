@@ -38,7 +38,7 @@ export default function MasterPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">코드·상각률 마스터</h1>
+      <h1 className="text-[24px] font-semibold">기본설정</h1>
 
       <TabGroups
         groups={[

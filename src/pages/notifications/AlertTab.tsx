@@ -734,7 +734,7 @@ function RecipientModal({ email, onClose }: { email: NotificationEmail; onClose:
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
-          <Field label="부서" hint="마스터 화면의 부서 목록에서 고릅니다.">
+          <Field label="부서" hint="기본설정 화면의 부서 목록에서 고릅니다.">
             <DepartmentPicker value={department} onChange={setDepartment} className="w-full" />
           </Field>
         </div>

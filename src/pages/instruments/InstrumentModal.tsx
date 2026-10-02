@@ -215,7 +215,7 @@ export default function InstrumentModal({
           </Field>
         )}
         {/* 구매처와 같다 — 쓰던 곳에서 고르거나, 새 자리는 그냥 쳐 넣는다 */}
-        <Field label="사용위치" hint="마스터에 없는 곳은 저장할 때 새로 등록됩니다.">
+        <Field label="사용위치" hint="기본설정에 없는 곳은 저장할 때 새로 등록됩니다.">
           <SearchSelect
             value={form.locationName}
             onChange={(v) => set('locationName', v)}
@@ -256,7 +256,7 @@ export default function InstrumentModal({
         {/*
           구매처는 그냥 쳐서 넣는다. 마스터에 없는 이름이면 서버가 새로 만들어 이어 준다.
         */}
-        <Field label="구매처" hint="마스터에 없는 이름은 저장할 때 새로 등록됩니다.">
+        <Field label="구매처" hint="기본설정에 없는 이름은 저장할 때 새로 등록됩니다.">
           <input
             className={inputClass}
             placeholder="예: METRIS"

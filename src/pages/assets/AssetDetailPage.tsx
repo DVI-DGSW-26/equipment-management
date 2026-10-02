@@ -266,7 +266,7 @@ export default function AssetDetailPage() {
                   </Def>
                   <Def label="상각률">
                     {a.depreciationRate == null ? (
-                      <span className="text-fg-muted">마스터 값 적용</span>
+                      <span className="text-fg-muted">기본설정 값 적용</span>
                     ) : (
                       rateText(a.depreciationRate)
                     )}
@@ -819,7 +819,7 @@ function CorrectModal({
             onChange={(e) => set('usefulLifeYears', e.target.value.replace(/[^\d]/g, ''))}
           />
         </Field>
-        <Field label="상각률" hint="비우면 마스터의 내용연수 × 상각방법 값을 쓴다">
+        <Field label="상각률" hint="비우면 기본설정의 내용연수 × 상각방법 값을 쓴다">
           <input
             className={`${inputClass} num`}
             inputMode="decimal"
