@@ -64,42 +64,48 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
         <V>{fmtDate(d.performedDate)}</V>
       </div>
 
-      <div className="grid grid-cols-1 border-t border-fg xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)]">
-        {/* ---------- 측정값 ---------- */}
-        <div className="min-w-0 overflow-x-auto border-b border-fg xl:border-r xl:border-b-0">
-          <table className="w-full border-collapse text-center">
-            <thead>
-              <tr className="border-b border-fg bg-bg">
-                <th className="border-r border-fg px-2 py-1 font-medium">측정자</th>
-                <th className="border-r border-fg px-2 py-1 font-medium">회</th>
-                {parts.map((p) => (
-                  <th key={p} className="border-r border-fg px-2 py-1 font-medium">
-                    {p + 1}
-                  </th>
-                ))}
-                <th className="px-2 py-1 font-medium">AVERAGE</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.appraiserBlocks.map((b, a) => (
-                <AppraiserRows key={b.appraiser} d={d} a={a} />
+      {/*
+        ---------- 측정값 ----------
+        양식은 측정값과 결과를 좌우로 놓지만, 화면에서 그대로 나누면 부품 10개 + 평균 칸이
+        들어갈 폭이 모자라 표가 잘렸다. 측정값은 한 줄을 다 쓰고 결과를 그 아래에 둔다.
+      */}
+      <div className="overflow-x-auto border-t border-fg">
+        <table className="w-full border-collapse text-center whitespace-nowrap">
+          <thead>
+            <tr className="border-b border-fg bg-bg">
+              <th className="border-r border-fg px-2 py-1 font-medium">측정자</th>
+              <th className="border-r border-fg px-2 py-1 font-medium">회</th>
+              {parts.map((p) => (
+                <th key={p} className="border-r border-fg px-2 py-1 font-medium">
+                  {p + 1}
+                </th>
               ))}
-              <tr className="border-b border-fg bg-bg font-medium">
-                <td colSpan={2} className="border-r border-fg px-2 py-1">
-                  PART AVE (Xp)
+              <th className="px-2 py-1 font-medium">AVERAGE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.appraiserBlocks.map((b, a) => (
+              <AppraiserRows key={b.appraiser} d={d} a={a} />
+            ))}
+            <tr className="border-b border-fg bg-bg font-medium">
+              <td colSpan={2} className="border-r border-fg px-2 py-1">
+                PART AVE (Xp)
+              </td>
+              {d.partAverages.map((v, p) => (
+                <td key={p} className="num border-r border-fg px-2 py-1">
+                  {fmtNum(v, 3)}
                 </td>
-                {d.partAverages.map((v, p) => (
-                  <td key={p} className="num border-r border-fg px-2 py-1">
-                    {fmtNum(v, 3)}
-                  </td>
-                ))}
-                <td className="num px-2 py-1 text-left">X̿ = {fmtNum(d.grandMean, 4)}</td>
-              </tr>
-            </tbody>
-          </table>
+              ))}
+              <td className="num px-2 py-1 text-left">X̿ = {fmtNum(d.grandMean, 4)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
+      <div className="grid grid-cols-1 border-t border-fg md:grid-cols-2">
+        <div className="min-w-0 border-b border-fg md:border-r md:border-b-0">
           {/* 양식 아래 17~20번 줄 */}
-          <div className="grid grid-cols-2 gap-x-6 px-3 py-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-6 px-3 py-2">
             <Stat label="Rp" value={fmtNum(d.rp, 4)} hint="max(Xp) − min(Xp)" />
             <Stat label="R̄" value={fmtNum(d.rBar, 4)} hint="(ra + rb + rc) / 측정자 수" />
             <Stat label="X̄diff" value={fmtNum(d.xDiff, 4)} hint="max(x̄) − min(x̄)" />
