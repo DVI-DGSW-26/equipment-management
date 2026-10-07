@@ -18,6 +18,7 @@ import {
 } from '@/components/ui';
 import GaugeRrModal from './GaugeRrModal';
 import GaugeRrSheet from './GaugeRrSheet';
+import GaugeRrPrintSheet from './GaugeRrPrintSheet';
 
 export default function GaugeRrDetailPage() {
   const { id } = useParams();
@@ -109,7 +110,13 @@ export default function GaugeRrDetailPage() {
       </div>
 
       <QueryState isPending={detail.isPending} error={detail.error} />
-      {d && <GaugeRrSheet d={d} />}
+      {/* 화면은 읽기 좋게 고친 배치, 종이는 엑셀 양식 그대로 */}
+      {d && (
+        <div className="print:hidden">
+          <GaugeRrSheet d={d} />
+        </div>
+      )}
+      {d && <GaugeRrPrintSheet d={d} />}
       {d && editing && <GaugeRrModal study={d} onClose={() => setEditing(false)} />}
     </div>
   );
