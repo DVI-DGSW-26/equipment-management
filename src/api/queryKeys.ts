@@ -2,6 +2,7 @@ import type { ApprovalStatus } from './approvals';
 import type { AttachmentOwner } from './attachments';
 import type { AssetFilter, AssetListQuery } from './assets';
 import type { ForecastQuery } from './depreciation';
+import type { GaugeRrListQuery } from './gaugeRr';
 import type { CodeMasterKind } from './masters';
 import type { SafetyEquipmentQuery } from './inspections';
 import type { InstrumentListQuery } from './instruments';
@@ -66,6 +67,11 @@ export const queryKeys = {
     all: ['calibrations'] as const,
     byInstrument: (instrumentId: number) => ['calibrations', 'instrument', instrumentId] as const,
     annual: (planYear: number) => ['calibrations', 'annual', planYear] as const,
+  },
+  gaugeRr: {
+    all: ['gauge-rr'] as const,
+    list: (q: GaugeRrListQuery) => ['gauge-rr', 'list', q] as const,
+    detail: (id: number) => ['gauge-rr', 'detail', id] as const,
   },
   notifications: {
     all: ['notifications'] as const,

@@ -13,6 +13,8 @@ import PhysicalAssetListPage from '@/pages/physicalAssets/PhysicalAssetListPage'
 import InstrumentListPage from '@/pages/instruments/InstrumentListPage';
 import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
 import InstrumentCardPage from '@/pages/instruments/InstrumentCardPage';
+import GaugeRrListPage from '@/pages/gaugeRr/GaugeRrListPage';
+import GaugeRrDetailPage from '@/pages/gaugeRr/GaugeRrDetailPage';
 import DepreciationPage from '@/pages/depreciation/DepreciationPage';
 import InspectionListPage from '@/pages/inspections/InspectionListPage';
 import NotificationPage from '@/pages/notifications/NotificationPage';
@@ -92,6 +94,8 @@ export default function App() {
             <InstrumentCardPage />
           }
         />
+        <Route path="/gauge-rr" element={<GaugeRrListPage />} />
+        <Route path="/gauge-rr/:id" element={<GaugeRrDetailPage />} />
         <Route
           path="/depreciation"
           element={
