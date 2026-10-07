@@ -5,6 +5,7 @@ import { gaugeRrApi, type GaugeRrJudgment, type GaugeRrSummary } from '@/api/gau
 import { queryKeys } from '@/api/queryKeys';
 import { useCanEdit } from '@/hooks/useMe';
 import { useUrlState } from '@/hooks/useUrlState';
+import { FROM_LIST } from '@/hooks/useBackToList';
 import { fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { rowNo } from '@/lib/paging';
@@ -217,7 +218,7 @@ export default function GaugeRrListPage() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
-                  onClick={() => navigate(`/gauge-rr/${r.id}`)}
+                  onClick={() => navigate(`/gauge-rr/${r.id}`, { state: FROM_LIST })}
                   className="cursor-pointer border-b border-line hover:bg-bg"
                 >
                   <td className="num px-3 py-2 text-fg-muted">{rowNo(i)}</td>

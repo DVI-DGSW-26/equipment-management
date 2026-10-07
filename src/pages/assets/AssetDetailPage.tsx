@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useBackToList } from '@/hooks/useBackToList';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   assetsApi,
@@ -61,7 +62,7 @@ const DETAIL_TABS = [
 export default function AssetDetailPage() {
   const { id } = useParams();
   const assetId = Number(id);
-  const navigate = useNavigate();
+  const backToList = useBackToList('/assets');
   const qc = useQueryClient();
   const toast = useToast();
   const { perms } = usePerms();
@@ -116,7 +117,7 @@ export default function AssetDetailPage() {
     onSuccess: () => {
       toast.ok('폐기 처리했습니다. 감가상각 내역은 그대로 남습니다.');
       invalidate();
-      navigate('/assets');
+      backToList();
     },
     onError: toast.fail,
   });
@@ -128,7 +129,7 @@ export default function AssetDetailPage() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={btnClass} onClick={() => navigate('/assets')}>
+        <button type="button" className={btnClass} onClick={backToList}>
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">{a?.name ?? '자산 상세'}</h1>
