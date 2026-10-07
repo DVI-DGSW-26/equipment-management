@@ -46,6 +46,8 @@ export interface GaugeRrAppraiserBlock {
   partAverages: number[];
   /** 부품별 범위 (R 행) */
   partRanges: number[];
+  /** 회차별 평균 — 회차 행 끝의 AVERAGE 칸 (엑셀 N18 등) */
+  trialAverages: number[];
   /** x̄a */
   average: number;
   /** r̄a */
