@@ -11,8 +11,8 @@ import type { GaugeRrDetail, GaugeRrJudgment } from '@/api/gaugeRr';
  * 양식은 크기가 고정이다 — 측정자 3명 · 반복 3회 · 부품 10개 칸이 늘 있고,
  * 덜 쓴 칸은 엑셀처럼 비워 둔다.
  *
- * 숫자는 서버 값을 엑셀 표시 형식(TEXT "0.000" 등)으로 찍기만 한다. 예외는 반복 행 끝의
- * 평균(엑셀 N18 = AVERAGE(C18:L18)) 하나다 — 서버가 주지 않는 표시용 값이라 여기서 낸다.
+ * 숫자는 서버 값을 엑셀 표시 형식(TEXT "0.000" 등)으로 찍기만 한다. 회차 행 끝의
+ * AVERAGE(엑셀 N18) 도 서버가 주는 trialAverages 를 쓴다.
  * 오른쪽 K1·K2·K3 표는 양식에 인쇄된 상수표 그대로다.
  */
 
@@ -150,7 +150,7 @@ export default function GaugeRrPrintSheet({ d }: { d: GaugeRrDetail }) {
     const base = a * 5;
     for (let t = 0; t < 3; t += 1) {
       const row = d.measurements[a]?.[t];
-      const avg = row && row.length > 0 ? row.reduce((x, y) => x + y, 0) / row.length : null;
+      const avg = block?.trialAverages[t];
       left.push(
         <>
           <C bd="Lb">

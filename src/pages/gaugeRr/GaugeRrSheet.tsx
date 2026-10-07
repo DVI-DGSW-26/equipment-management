@@ -199,7 +199,7 @@ function AppraiserRows({ d, a }: { d: GaugeRrDetail; a: number }) {
               {fmtNum(v, 3)}
             </td>
           ))}
-          <td />
+          <td className="num px-2 py-1 text-left">{fmtNum(b.trialAverages[t], 3)}</td>
         </tr>
       ))}
       <tr className="border-b border-line bg-bg">
