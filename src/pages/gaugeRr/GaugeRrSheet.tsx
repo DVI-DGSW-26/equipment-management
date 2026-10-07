@@ -25,42 +25,42 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
   return (
     <div className="card-sheet mx-auto w-full max-w-[1360px] border border-fg bg-surface text-[17px] text-fg">
       <h2 className="card-heading border-b border-fg py-1.5 text-center text-[24px] font-bold tracking-[0.1em]">
-        GAGE R&amp;R DATA SHEET
+        게이지 R&amp;R 데이터 시트
       </h2>
 
-      {/* ---------- 머리 ---------- */}
+      {/* ---------- 머리. 화면은 한글로 적는다 — 종이(GaugeRrPrintSheet)는 엑셀 양식대로 영문 ---------- */}
       <div className="card-head grid grid-cols-[auto_1fr_auto_1fr_auto_1fr]">
-        <L>Part Number</L>
+        <L>품번</L>
         <V mono>{d.partNumber}</V>
-        <L>Gage Name</L>
+        <L>게이지 이름</L>
         <V>{d.gageName}</V>
-        <L>Appraiser A</L>
+        <L>측정자 A</L>
         <V>{d.appraisers[0]}</V>
 
-        <L>Part Name</L>
+        <L>품명</L>
         <V>{d.partName}</V>
-        <L>Gage Number</L>
+        <L>게이지 번호</L>
         <V mono>
           {d.gageNumber ?? '-'}
           {d.instrumentMgmtNo && (
             <span className="ml-1 text-fg-muted">({d.instrumentMgmtNo})</span>
           )}
         </V>
-        <L>Appraiser B</L>
+        <L>측정자 B</L>
         <V>{d.appraisers[1]}</V>
 
-        <L>Characteristic</L>
+        <L>측정 특성</L>
         <V>{d.characteristic ?? '-'}</V>
-        <L>Gage Type</L>
+        <L>게이지 규격</L>
         <V>{d.gageType ?? '-'}</V>
-        <L>Appraiser C</L>
+        <L>측정자 C</L>
         <V>{d.appraisers[2] ?? '-'}</V>
 
-        <L>Specification</L>
+        <L>규격</L>
         <V>{spec}</V>
-        <L>Classification</L>
+        <L>특성 분류</L>
         <V>{d.characteristicClass ?? '-'}</V>
-        <L>Date Performed</L>
+        <L>시행일</L>
         <V>{fmtDate(d.performedDate)}</V>
       </div>
 
