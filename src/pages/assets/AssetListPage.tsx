@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FROM_LIST } from '@/hooks/useBackToList';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   assetsApi,
@@ -476,7 +477,7 @@ export default function AssetListPage() {
                   {rows.map((a, i) => (
                     <tr
                       key={a.id}
-                      onClick={() => navigate(`/assets/${a.id}`)}
+                      onClick={() => navigate(`/assets/${a.id}`, { state: FROM_LIST })}
                       className="cursor-pointer border-b border-line hover:bg-bg"
                     >
                       {sel.showSelectColumn && (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useBackToList } from '@/hooks/useBackToList';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { instrumentsApi } from '@/api/instruments';
 import {
@@ -35,7 +36,7 @@ import {
 export default function InstrumentDetailPage() {
   const { id } = useParams();
   const instrumentId = Number(id);
-  const navigate = useNavigate();
+  const backToList = useBackToList('/instruments');
   const qc = useQueryClient();
   const toast = useToast();
   const { perms } = usePerms();
@@ -91,7 +92,7 @@ export default function InstrumentDetailPage() {
     onSuccess: () => {
       toast.ok('폐기 처리했습니다. 교정 이력은 그대로 남습니다.');
       invalidateAll();
-      navigate('/instruments');
+      backToList();
     },
     onError: toast.fail,
   });
@@ -115,7 +116,7 @@ export default function InstrumentDetailPage() {
     <div className="space-y-3">
       {/* 인쇄하면 종이에는 이력카드만 나간다 */}
       <div className="no-print flex flex-wrap items-center gap-2">
-        <button type="button" className={btnClass} onClick={() => navigate('/instruments')}>
+        <button type="button" className={btnClass} onClick={backToList}>
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">{d?.name ?? '계측기'}</h1>

@@ -12,6 +12,7 @@ import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { searchIn } from '@/lib/search';
 import { useUrlState } from '@/hooks/useUrlState';
+import { FROM_LIST } from '@/hooks/useBackToList';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
 import {
@@ -35,8 +36,16 @@ import {
 
 type TabKey = 'list' | 'annual';
 
+/**
+ * 보던 탭도 주소에 담는다. 컴포넌트 안에만 두면 연간 LIST 에서 계측기를 열었다
+ * 돌아왔을 때 계측기 목록 탭으로 바뀌어 있었다.
+ */
+const TAB_DEFAULTS = { tab: 'list' };
+
 export default function InstrumentListPage() {
-  const [tab, setTab] = useState<TabKey>('list');
+  const [q, setQ] = useUrlState(TAB_DEFAULTS);
+  const tab = q.tab as TabKey;
+  const setTab = (next: TabKey) => setQ({ tab: next });
 
   return (
     <div className="space-y-3">
@@ -521,7 +530,7 @@ function ListTab() {
                   return (
                     <tr
                       key={i.id}
-                      onClick={() => navigate(`/instruments/${i.id}`)}
+                      onClick={() => navigate(`/instruments/${i.id}`, { state: FROM_LIST })}
                       className={`cursor-pointer border-b border-line hover:bg-bg ${
                         gone ? 'text-fg-muted' : ''
                       }`}
@@ -584,13 +593,23 @@ function ListTab() {
 
 /* ---------- 연간 교정검사 LIST ---------- */
 
+/**
+ * 연간 LIST 의 조건도 주소에 담는다. 계측기 목록 탭과 이름이 겹치지 않게 a 를 붙인다 —
+ * 같은 주소를 나눠 쓰므로 keyword 를 같이 쓰면 탭을 바꿀 때 검색어가 따라온다.
+ */
+const ANNUAL_DEFAULTS = { aYear: '', aKeyword: '', aState: '' };
+
 function AnnualTab() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [planYear, setPlanYear] = useState(currentYear());
-  const [keyword, setKeyword] = useState('');
-  const [state, setState] = useState<'' | 'done' | 'todo'>('');
+  const [aq, setAq] = useUrlState(ANNUAL_DEFAULTS);
+  const planYear = Number(aq.aYear) || currentYear();
+  const setPlanYear = (y: number) => setAq({ aYear: y === currentYear() ? '' : String(y) });
+  const keyword = aq.aKeyword;
+  const setKeyword = (v: string) => setAq({ aKeyword: v });
+  const state = aq.aState as '' | 'done' | 'todo';
+  const setState = (v: '' | 'done' | 'todo') => setAq({ aState: v });
   const [exporting, setExporting] = useState(false);
 
   const q = useQuery({
@@ -753,7 +772,7 @@ function AnnualTab() {
             {rows.map((r, i) => (
               <tr
                 key={r.calibrationId}
-                onClick={() => navigate(`/instruments/${r.instrumentId}`)}
+                onClick={() => navigate(`/instruments/${r.instrumentId}`, { state: FROM_LIST })}
                 className="cursor-pointer border-b border-line hover:bg-bg"
               >
                 <td className="num px-3 py-2 text-fg-muted">{rowNo(i)}</td>

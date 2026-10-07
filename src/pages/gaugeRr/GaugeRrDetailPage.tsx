@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useBackToList } from '@/hooks/useBackToList';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { gaugeRrApi } from '@/api/gaugeRr';
 import { queryKeys } from '@/api/queryKeys';
@@ -22,6 +23,7 @@ export default function GaugeRrDetailPage() {
   const { id } = useParams();
   const studyId = Number(id);
   const navigate = useNavigate();
+  const backToList = useBackToList('/gauge-rr');
   const qc = useQueryClient();
   const toast = useToast();
   /* 보는 것은 누구나, 고치는 것은 계측기 영역을 맡은 사람과 팀장만 */
@@ -40,7 +42,7 @@ export default function GaugeRrDetailPage() {
     onSuccess: () => {
       toast.ok('삭제했습니다.');
       void qc.invalidateQueries({ queryKey: queryKeys.gaugeRr.all });
-      navigate('/gauge-rr');
+      backToList();
     },
     onError: toast.fail,
   });
@@ -51,7 +53,7 @@ export default function GaugeRrDetailPage() {
     <div className="space-y-3">
       {/* 인쇄하면 종이에는 양식만 나간다 */}
       <div className="no-print flex flex-wrap items-center gap-2">
-        <button type="button" className={btnClass} onClick={() => navigate('/gauge-rr')}>
+        <button type="button" className={btnClass} onClick={backToList}>
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
