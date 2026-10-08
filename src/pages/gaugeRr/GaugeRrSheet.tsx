@@ -49,15 +49,17 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
         <L>측정자 B</L>
         <V>{d.appraisers[1]}</V>
 
-        <L>측정 특성</L>
-        <V>{d.characteristic ?? '-'}</V>
+        <L>규격</L>
+        <V>{spec}</V>
         <L>게이지 규격</L>
         <V>{d.gageType ?? '-'}</V>
         <L>측정자 C</L>
         <V>{d.appraisers[2] ?? '-'}</V>
 
-        <L>규격</L>
-        <V>{spec}</V>
+        <L>측정 조건</L>
+        <V>
+          {d.appraisers.length}명 · {d.trials}회 · {d.parts}개
+        </V>
         <L>특성 분류</L>
         <V>{d.characteristicClass ?? '-'}</V>
         <L>시행일</L>
