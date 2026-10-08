@@ -15,6 +15,7 @@ import { useUrlState } from '@/hooks/useUrlState';
 import { FROM_LIST } from '@/hooks/useBackToList';
 import { useToast } from '@/components/toastContext';
 import InstrumentModal from './InstrumentModal';
+import AccuracyText from './AccuracyText';
 import {
   Badge,
   btnClass,
@@ -542,7 +543,9 @@ function ListTab() {
                       <td className="px-3 py-2">{i.name}</td>
                       <td className="px-3 py-2">{i.serialNo ?? '-'}</td>
                       <td className="px-3 py-2">{i.specText ?? '-'}</td>
-                      <td className="px-3 py-2">{i.accuracy ?? '-'}</td>
+                      <td className="px-3 py-2">
+                        <AccuracyText value={i.accuracy} />
+                      </td>
                       <td className="num px-3 py-2">{i.calibrationCycleMonths}개월</td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(plan?.planDate)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmtDate(plan?.performedDate)}</td>
@@ -780,7 +783,9 @@ function AnnualTab() {
                 <td className="px-3 py-2">{r.name}</td>
                 <td className="px-3 py-2">{r.serialNo ?? '-'}</td>
                 <td className="px-3 py-2">{r.specText ?? '-'}</td>
-                <td className="px-3 py-2">{r.accuracy ?? '-'}</td>
+                <td className="px-3 py-2">
+                  <AccuracyText value={r.accuracy} />
+                </td>
                 <td className="num px-3 py-2">{r.calibrationCycleMonths}</td>
                 <td className="px-3 py-2">{fmtDate(r.planDate)}</td>
                 <td className="px-3 py-2">{fmtDate(r.performedDate)}</td>
