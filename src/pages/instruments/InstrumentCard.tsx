@@ -131,241 +131,248 @@ export default function InstrumentCard({
         종이와 딴판으로 보인다는 얘기가 있었다(2026-09-03).
         인쇄는 종이 크기를 따라야 하므로 print 규칙에서 max-width 를 풀어 준다.
       */}
+      {/*
+        글자는 모두 한 줄로 둔다. 칸이 좁아 두세 줄로 꺾이고 HISTORY 표는 한 글자씩
+        세로로 쌓여 겹쳐 보였다(2026-10-08 요청). 그래서 카드가 내용만큼 넓어지고
+        (min-w-max), 화면보다 넓으면 이 상자 안에서만 옆으로 민다.
+      */}
       {d && (
-        <div className="card-sheet mx-auto w-full max-w-[1360px] border border-fg bg-surface text-[17px] text-fg">
-          <h2 className="card-heading border-b border-fg py-1.5 text-center text-[26px] font-bold tracking-[0.25em]">
-            측정기 이력카드
-          </h2>
+        <div className="card-scroll overflow-x-auto">
+          <div className="card-sheet mx-auto w-full max-w-[1360px] min-w-max border border-fg bg-surface text-[17px] text-fg whitespace-nowrap">
+            <h2 className="card-heading border-b border-fg py-1.5 text-center text-[26px] font-bold tracking-[0.25em]">
+              측정기 이력카드
+            </h2>
 
-          {/* 머리 — 양식의 기본 정보 3행 */}
-          <div className="card-head grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
-            <CardLabel>관리 NO</CardLabel>
-            <CardValue mono>{d.mgmtNo}</CardValue>
-            <CardLabel>계측기명</CardLabel>
-            <CardValue>{d.name}</CardValue>
-            <CardLabel>규격</CardLabel>
-            <CardValue>{d.specText}</CardValue>
-            <CardLabel>정확도</CardLabel>
-            <CardValue>{d.accuracy}</CardValue>
+            {/* 머리 — 양식의 기본 정보 3행 */}
+            <div className="card-head grid grid-cols-[repeat(4,auto_auto)]">
+              <CardLabel>관리 NO</CardLabel>
+              <CardValue mono>{d.mgmtNo}</CardValue>
+              <CardLabel>계측기명</CardLabel>
+              <CardValue>{d.name}</CardValue>
+              <CardLabel>규격</CardLabel>
+              <CardValue>{d.specText}</CardValue>
+              <CardLabel>정확도</CardLabel>
+              <CardValue>{d.accuracy}</CardValue>
 
-            <CardLabel>구매일</CardLabel>
-            <CardValue>{cardDate(d.purchaseDate)}</CardValue>
-            <CardLabel>제작사</CardLabel>
-            <CardValue>{d.maker}</CardValue>
-            <CardLabel>S/NO</CardLabel>
-            <CardValue mono>{d.serialNo}</CardValue>
-            <CardLabel>보관장소</CardLabel>
-            <CardValue>{d.locationName}</CardValue>
+              <CardLabel>구매일</CardLabel>
+              <CardValue>{cardDate(d.purchaseDate)}</CardValue>
+              <CardLabel>제작사</CardLabel>
+              <CardValue>{d.maker}</CardValue>
+              <CardLabel>S/NO</CardLabel>
+              <CardValue mono>{d.serialNo}</CardValue>
+              <CardLabel>보관장소</CardLabel>
+              <CardValue>{d.locationName}</CardValue>
 
-            <CardLabel>사용부서</CardLabel>
-            <div className="col-span-3 border-r border-b border-fg px-2 py-1.5">
-              {DEPT_BOXES.map(({ key, label }, i) => (
-                <span key={key}>
-                  {i > 0 && ', '}
-                  {label} ({d.department === key ? <b>V</b> : <span>&nbsp;&nbsp;</span>}
-                  {key === 'ETC' && d.department === 'ETC' && d.departmentEtc
-                    ? ` ${d.departmentEtc}`
-                    : ''}
-                  )
-                </span>
-              ))}
+              <CardLabel>사용부서</CardLabel>
+              <div className="col-span-3 border-r border-b border-fg px-2 py-1.5">
+                {DEPT_BOXES.map(({ key, label }, i) => (
+                  <span key={key}>
+                    {i > 0 && ', '}
+                    {label} ({d.department === key ? <b>V</b> : <span>&nbsp;&nbsp;</span>}
+                    {key === 'ETC' && d.department === 'ETC' && d.departmentEtc
+                      ? ` ${d.departmentEtc}`
+                      : ''}
+                    )
+                  </span>
+                ))}
+              </div>
+              <CardLabel>교정주기</CardLabel>
+              <CardValue>{cycleText(d.calibrationCycleMonths)}</CardValue>
+              <div className="col-span-2 border-b border-fg px-2 py-1.5 text-center">기타 (&nbsp;)</div>
             </div>
-            <CardLabel>교정주기</CardLabel>
-            <CardValue>{cycleText(d.calibrationCycleMonths)}</CardValue>
-            <div className="col-span-2 border-b border-fg px-2 py-1.5 text-center">기타 (&nbsp;)</div>
-          </div>
 
-          {/*
-            양식에 칸이 없는 것들. 화면에서는 여기서 다 보이고 종이에는 나가지 않는다.
-            머리와 같은 8칸 격자라 위 줄과 세로선이 맞는다.
-          */}
-          <div className="no-print grid grid-cols-[auto_1fr_auto_1fr_auto_1fr_auto_1fr] border-t border-fg">
-            <CardLabel>사용자</CardLabel>
-            <CardValue>{d.userName}</CardValue>
-            <CardLabel>최근 교정일</CardLabel>
-            <CardValue>{fmtDate(d.lastCalibratedDate)}</CardValue>
             {/*
-              "연결 고정자산" 칸은 뺐다 — 서버가 계측기 응답에 그 값을 주지 않는다
-              (백엔드 회신 2026-09-08). 연결은 고정자산 쪽 "계측기 관리번호" 로만 본다.
-              빈 자리를 그냥 두면 아래 "비고" 줄이 이 줄 뒤에 붙어 격자가 어긋나므로
-              차기 교정일이 남은 세 칸을 먹는다.
+              양식에 칸이 없는 것들. 화면에서는 여기서 다 보이고 종이에는 나가지 않는다.
+              머리와 같은 8칸 격자라 위 줄과 세로선이 맞는다.
             */}
-            <CardLabel>차기 교정일</CardLabel>
-            <div className="col-span-3 border-b border-fg px-2 py-1.5 text-center">
-              {fmtDate(d.nextDueDate)}
+            <div className="no-print grid grid-cols-[repeat(4,auto_auto)] border-t border-fg">
+              <CardLabel>사용자</CardLabel>
+              <CardValue>{d.userName}</CardValue>
+              <CardLabel>최근 교정일</CardLabel>
+              <CardValue>{fmtDate(d.lastCalibratedDate)}</CardValue>
+              {/*
+                "연결 고정자산" 칸은 뺐다 — 서버가 계측기 응답에 그 값을 주지 않는다
+                (백엔드 회신 2026-09-08). 연결은 고정자산 쪽 "계측기 관리번호" 로만 본다.
+                빈 자리를 그냥 두면 아래 "비고" 줄이 이 줄 뒤에 붙어 격자가 어긋나므로
+                차기 교정일이 남은 세 칸을 먹는다.
+              */}
+              <CardLabel>차기 교정일</CardLabel>
+              <div className="col-span-3 border-b border-fg px-2 py-1.5 text-center">
+                {fmtDate(d.nextDueDate)}
+              </div>
+
+              <CardLabel>비고</CardLabel>
+              <div className="col-span-7 border-b border-fg px-2 py-1.5">{d.remark ?? ''}</div>
+
+              {/* 폐기한 것만. 사용중인 계측기에 "상태: 사용중" 을 적어 봐야 읽을 것이 늘 뿐이다 */}
+              {d.status === 'DISCARDED' && (
+                <>
+                  <CardLabel>폐기</CardLabel>
+                  <div className="col-span-7 border-b border-fg px-2 py-1.5">
+                    <Badge tone="muted">{d.statusLabel}</Badge>
+                    <span className="ml-2">
+                      {fmtDate(d.discardedAt)}
+                      {d.discardReason ? ` · ${d.discardReason}` : ''}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
-            <CardLabel>비고</CardLabel>
-            <div className="col-span-7 border-b border-fg px-2 py-1.5">{d.remark ?? ''}</div>
-
-            {/* 폐기한 것만. 사용중인 계측기에 "상태: 사용중" 을 적어 봐야 읽을 것이 늘 뿐이다 */}
-            {d.status === 'DISCARDED' && (
-              <>
-                <CardLabel>폐기</CardLabel>
-                <div className="col-span-7 border-b border-fg px-2 py-1.5">
-                  <Badge tone="muted">{d.statusLabel}</Badge>
-                  <span className="ml-2">
-                    {fmtDate(d.discardedAt)}
-                    {d.discardReason ? ` · ${d.discardReason}` : ''}
-                  </span>
+            {/* 본문 — 왼쪽 구매 정보와 사진 / 오른쪽 검교정 현황 */}
+            <div className="card-body grid grid-cols-[auto_1fr] border-t border-fg">
+              <div className="flex flex-col border-r border-fg">
+                <div className="grid grid-cols-[repeat(2,auto_auto)] border-b border-fg">
+                  <CardLabel>구매처</CardLabel>
+                  <CardValue>{d.supplierName}</CardValue>
+                  <CardLabel>구매가격</CardLabel>
+                  <div className="px-2 py-1.5 text-center">{cardWon(d.purchasePrice)}</div>
                 </div>
-              </>
-            )}
-          </div>
 
-          {/* 본문 — 왼쪽 구매 정보와 사진 / 오른쪽 검교정 현황 */}
-          <div className="card-body grid grid-cols-1 border-t border-fg lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <div className="flex min-w-0 flex-col border-b border-fg lg:border-r lg:border-b-0">
-              <div className="grid grid-cols-[auto_1fr_auto_1fr] border-b border-fg">
-                <CardLabel>구매처</CardLabel>
-                <CardValue>{d.supplierName}</CardValue>
-                <CardLabel>구매가격</CardLabel>
-                <div className="px-2 py-1.5 text-center">{cardWon(d.purchasePrice)}</div>
-              </div>
-
-              <div className="card-photo relative flex min-h-72 flex-1 items-center justify-center p-3">
-                <span className="absolute top-0 left-0 border-r border-b border-fg px-3 py-1 text-[17px]">
-                  SKETCH
-                </span>
-                {photo ? (
-                  <AuthImage
-                    path={`/attachment/${photo.id}/download`}
-                    alt={`${d.name} 사진`}
-                    className="max-h-[420px] max-w-full object-contain"
-                  />
-                ) : (
-                  <span className="no-print text-[18px] text-fg-muted">
-                    등록된 사진이 없습니다. 아래 첨부에서 사진을 올리면 여기 나옵니다.
+                <div className="card-photo relative flex min-h-72 flex-1 items-center justify-center p-3">
+                  <span className="absolute top-0 left-0 border-r border-b border-fg px-3 py-1 text-[17px]">
+                    SKETCH
                   </span>
-                )}
+                  {photo ? (
+                    <AuthImage
+                      path={`/attachment/${photo.id}/download`}
+                      alt={`${d.name} 사진`}
+                      className="max-h-[420px] max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="no-print max-w-[22em] text-center text-[18px] whitespace-normal text-fg-muted">
+                      등록된 사진이 없습니다. 아래 첨부에서 사진을 올리면 여기 나옵니다.
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="min-w-0">
-              <h2 className="card-title border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold tracking-[0.15em]">
-                검교정 현황 (HISTORY)
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[16px]">
-                  <thead>
-                    <tr className="border-b border-fg text-center">
-                      <th className="border-r border-line px-2 py-1 font-medium">의뢰처</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">교정일</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">차기교정일</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">교정비용</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">이상발생 조치</th>
-                      <th className="border-r border-line px-2 py-1 font-medium">비고</th>
-                      {/* 여기부터는 양식에 없는 칸. 화면에서만 본다 */}
-                      <th className="no-print border-r border-line px-2 py-1 font-medium">결과</th>
-                      <th className="no-print border-r border-line px-2 py-1 font-medium">
-                        성적서 번호
-                      </th>
-                      <th className="no-print border-r border-line px-2 py-1 font-medium">확인자</th>
-                      <th className="no-print border-r border-line px-2 py-1 font-medium">
-                        계획 연도
-                      </th>
-                      <th className="no-print px-2 py-1 font-medium">계획일</th>
-                      {editable && <th className="no-print px-2 py-1" />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((c) => (
-                      <tr
-                        key={c.id}
-                        /* 실시 전 계획은 종이 양식의 이력표에 적는 것이 아니다 */
-                        className={`border-b border-line ${c.performedDate ? '' : 'no-print'}`}
-                      >
-                        <td className="border-r border-line px-2 py-1 text-center">
-                          {c.agencyName ?? ''}
-                        </td>
-                        <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
-                          {cardDate(c.performedDate)}
-                        </td>
-                        <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
-                          {cardDate(c.nextDueDate)}
-                        </td>
-                        <td className="num border-r border-line px-2 py-1 whitespace-nowrap">
-                          {cardWon(c.cost)}
-                        </td>
-                        <td className="border-r border-line px-2 py-1">{c.actionNote ?? ''}</td>
-                        <td className="border-r border-line px-2 py-1">{c.remark ?? ''}</td>
-                        <td className="no-print border-r border-line px-2 py-1 text-center">
-                          {c.performed ? (
-                            <span className={c.result === 'FAIL' ? 'text-danger' : ''}>
-                              {c.resultMark ?? '-'}
-                            </span>
-                          ) : (
-                            <Badge tone="warn">미실시</Badge>
-                          )}
-                        </td>
-                        <td className="no-print border-r border-line px-2 py-1 text-center">
-                          {c.certificateNo ?? ''}
-                        </td>
-                        <td className="no-print border-r border-line px-2 py-1 text-center">
-                          {c.confirmedBy ?? ''}
-                        </td>
-                        <td className="no-print border-r border-line px-2 py-1 text-center tabular-nums">
-                          {c.planYear}
-                        </td>
-                        <td className="no-print px-2 py-1 text-center whitespace-nowrap">
-                          {cardDate(c.planDate)}
-                        </td>
-                        {editable && (
-                          <td className="no-print px-2 py-1 text-right whitespace-nowrap">
-                            {onEditCalibration && (
-                              <button
-                                type="button"
-                                className="mr-2 text-accent hover:underline"
-                                onClick={() => onEditCalibration(c)}
-                              >
-                                수정
-                              </button>
-                            )}
-                            {onDeleteCalibration && (
-                              <button
-                                type="button"
-                                className="text-danger hover:underline"
-                                onClick={() => {
-                                  if (window.confirm('이 교정 이력을 삭제합니다.'))
-                                    onDeleteCalibration(c.id);
-                                }}
-                              >
-                                삭제
-                              </button>
+              <div>
+                <h2 className="card-title border-b border-fg px-3 py-1.5 text-center text-[19px] font-semibold tracking-[0.15em]">
+                  검교정 현황 (HISTORY)
+                </h2>
+                <div>
+                  <table className="w-full text-[16px]">
+                    <thead>
+                      <tr className="border-b border-fg text-center">
+                        <th className="border-r border-line px-2 py-1 font-medium">의뢰처</th>
+                        <th className="border-r border-line px-2 py-1 font-medium">교정일</th>
+                        <th className="border-r border-line px-2 py-1 font-medium">차기교정일</th>
+                        <th className="border-r border-line px-2 py-1 font-medium">교정비용</th>
+                        <th className="border-r border-line px-2 py-1 font-medium">이상발생 조치</th>
+                        <th className="border-r border-line px-2 py-1 font-medium">비고</th>
+                        {/* 여기부터는 양식에 없는 칸. 화면에서만 본다 */}
+                        <th className="no-print border-r border-line px-2 py-1 font-medium">결과</th>
+                        <th className="no-print border-r border-line px-2 py-1 font-medium">
+                          성적서 번호
+                        </th>
+                        <th className="no-print border-r border-line px-2 py-1 font-medium">확인자</th>
+                        <th className="no-print border-r border-line px-2 py-1 font-medium">
+                          계획 연도
+                        </th>
+                        <th className="no-print px-2 py-1 font-medium">계획일</th>
+                        {editable && <th className="no-print px-2 py-1" />}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((c) => (
+                        <tr
+                          key={c.id}
+                          /* 실시 전 계획은 종이 양식의 이력표에 적는 것이 아니다 */
+                          className={`border-b border-line ${c.performedDate ? '' : 'no-print'}`}
+                        >
+                          <td className="border-r border-line px-2 py-1 text-center">
+                            {c.agencyName ?? ''}
+                          </td>
+                          <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
+                            {cardDate(c.performedDate)}
+                          </td>
+                          <td className="border-r border-line px-2 py-1 text-center whitespace-nowrap">
+                            {cardDate(c.nextDueDate)}
+                          </td>
+                          <td className="num border-r border-line px-2 py-1 whitespace-nowrap">
+                            {cardWon(c.cost)}
+                          </td>
+                          <td className="border-r border-line px-2 py-1">{c.actionNote ?? ''}</td>
+                          <td className="border-r border-line px-2 py-1">{c.remark ?? ''}</td>
+                          <td className="no-print border-r border-line px-2 py-1 text-center">
+                            {c.performed ? (
+                              <span className={c.result === 'FAIL' ? 'text-danger' : ''}>
+                                {c.resultMark ?? '-'}
+                              </span>
+                            ) : (
+                              <Badge tone="warn">미실시</Badge>
                             )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
-                    {/* 양식의 빈 줄. 손으로 적어 넣을 자리가 남아 있어야 한다 */}
-                    {Array.from({ length: Math.max(0, MIN_ROWS - printedCount) }, (_, i) => (
-                      <tr key={`blank-${i}`} className="border-b border-line">
-                        <td className="border-r border-line px-2 py-1">&nbsp;</td>
-                        <td className="border-r border-line px-2 py-1" />
-                        <td className="border-r border-line px-2 py-1" />
-                        <td className="border-r border-line px-2 py-1" />
-                        <td className="border-r border-line px-2 py-1" />
-                        <td className="border-r border-line px-2 py-1" />
-                        <td className="no-print border-r border-line px-2 py-1" />
-                        <td className="no-print border-r border-line px-2 py-1" />
-                        <td className="no-print border-r border-line px-2 py-1" />
-                        <td className="no-print border-r border-line px-2 py-1" />
-                        <td className="no-print px-2 py-1" />
-                        {editable && <td className="no-print px-2 py-1" />}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <td className="no-print border-r border-line px-2 py-1 text-center">
+                            {c.certificateNo ?? ''}
+                          </td>
+                          <td className="no-print border-r border-line px-2 py-1 text-center">
+                            {c.confirmedBy ?? ''}
+                          </td>
+                          <td className="no-print border-r border-line px-2 py-1 text-center tabular-nums">
+                            {c.planYear}
+                          </td>
+                          <td className="no-print px-2 py-1 text-center whitespace-nowrap">
+                            {cardDate(c.planDate)}
+                          </td>
+                          {editable && (
+                            <td className="no-print px-2 py-1 text-right whitespace-nowrap">
+                              {onEditCalibration && (
+                                <button
+                                  type="button"
+                                  className="mr-2 text-accent hover:underline"
+                                  onClick={() => onEditCalibration(c)}
+                                >
+                                  수정
+                                </button>
+                              )}
+                              {onDeleteCalibration && (
+                                <button
+                                  type="button"
+                                  className="text-danger hover:underline"
+                                  onClick={() => {
+                                    if (window.confirm('이 교정 이력을 삭제합니다.'))
+                                      onDeleteCalibration(c.id);
+                                  }}
+                                >
+                                  삭제
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                      {/* 양식의 빈 줄. 손으로 적어 넣을 자리가 남아 있어야 한다 */}
+                      {Array.from({ length: Math.max(0, MIN_ROWS - printedCount) }, (_, i) => (
+                        <tr key={`blank-${i}`} className="border-b border-line">
+                          <td className="border-r border-line px-2 py-1">&nbsp;</td>
+                          <td className="border-r border-line px-2 py-1" />
+                          <td className="border-r border-line px-2 py-1" />
+                          <td className="border-r border-line px-2 py-1" />
+                          <td className="border-r border-line px-2 py-1" />
+                          <td className="border-r border-line px-2 py-1" />
+                          <td className="no-print border-r border-line px-2 py-1" />
+                          <td className="no-print border-r border-line px-2 py-1" />
+                          <td className="no-print border-r border-line px-2 py-1" />
+                          <td className="no-print border-r border-line px-2 py-1" />
+                          <td className="no-print px-2 py-1" />
+                          {editable && <td className="no-print px-2 py-1" />}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <QueryState isPending={calibrations.isPending} error={calibrations.error} />
               </div>
-              <QueryState isPending={calibrations.isPending} error={calibrations.error} />
             </div>
-          </div>
 
-          {/* 첨부 등. 카드 안에 두어 한 계측기를 한 자리에서 본다 */}
-          {footer && <div className="no-print border-t border-fg">{footer}</div>}
+            {/* 첨부 등. 카드 안에 두어 한 계측기를 한 자리에서 본다 */}
+            {footer && <div className="no-print border-t border-fg">{footer}</div>}
 
-          <div className="border-t border-fg px-3 py-1 text-right text-[15px] text-fg-sub">
-            A4(297×210)
+            <div className="border-t border-fg px-3 py-1 text-right text-[15px] text-fg-sub">
+              A4(297×210)
+            </div>
           </div>
         </div>
       )}
