@@ -13,7 +13,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterBar, inputClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function PartnerTab() {
   const qc = useQueryClient();
@@ -48,18 +48,6 @@ export default function PartnerTab() {
       title="거래처"
       right={
         <>
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="거래처명" />
-          <select
-            className={`${filterClass} w-36`}
-            value={type}
-            onChange={(e) => setType(e.target.value as typeof type)}
-            aria-label="구분"
-          >
-            <option value="">구분 전체</option>
-            <option value="SUPPLIER">{PARTNER_TYPE_LABEL.SUPPLIER}</option>
-            <option value="CALIBRATION_AGENCY">{PARTNER_TYPE_LABEL.CALIBRATION_AGENCY}</option>
-          </select>
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
               거래처 추가
@@ -70,6 +58,26 @@ export default function PartnerTab() {
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '거래처명' }}
+        count={{ shown: rows.length, total: all.length }}
+        onReset={() => {
+          setKeyword('');
+          setType('');
+        }}
+        resetDisabled={keyword === '' && type === ''}
+      >
+        <select
+          className={`${filterClass} w-36`}
+          value={type}
+          onChange={(e) => setType(e.target.value as typeof type)}
+          aria-label="구분"
+        >
+          <option value="">구분 전체</option>
+          <option value="SUPPLIER">{PARTNER_TYPE_LABEL.SUPPLIER}</option>
+          <option value="CALIBRATION_AGENCY">{PARTNER_TYPE_LABEL.CALIBRATION_AGENCY}</option>
+        </select>
+      </FilterBar>
       <QueryState
         isPending={q.isPending}
         error={q.error}

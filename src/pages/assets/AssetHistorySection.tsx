@@ -4,7 +4,7 @@ import { assetsApi } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
 import { fmtDateTime } from '@/lib/date';
 import { searchIn } from '@/lib/search';
-import { FilterCount, filterClass, QueryState, SearchBox, Section, thClass } from '@/components/ui';
+import { FilterBar, filterClass, QueryState, Section, thClass } from '@/components/ui';
 
 /**
  * 변경 이력.
@@ -39,33 +39,30 @@ export default function AssetHistorySection({ assetId }: { assetId: number }) {
   const filtering = type !== '' || keyword.trim() !== '';
 
   return (
-    <Section
-      title="변경 이력"
-      right={
-        <>
-          <SearchBox
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="항목·값·변경자"
-            width="w-48"
-          />
-          <select
-            className={`${filterClass} w-40`}
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            aria-label="구분 필터"
-          >
-            <option value="">전체 구분</option>
-            {types.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <FilterCount shown={rows.length} total={all.length} />
-        </>
-      }
-    >
+    <Section title="변경 이력">
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '항목 · 값 · 변경자' }}
+        count={{ shown: rows.length, total: all.length }}
+        onReset={() => {
+          setKeyword('');
+          setType('');
+        }}
+        resetDisabled={!filtering}
+      >
+        <select
+          className={`${filterClass} w-40`}
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          aria-label="구분"
+        >
+          <option value="">구분 전체</option>
+          {types.map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </FilterBar>
       <QueryState
         isPending={q.isPending}
         error={q.error}

@@ -9,7 +9,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, FilterBar, inputClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function AccountTab() {
   const qc = useQueryClient();
@@ -41,8 +41,6 @@ export default function AccountTab() {
       title="계정과목"
       right={
         <>
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="코드·계정과목명" />
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
               계정과목 추가
@@ -53,6 +51,10 @@ export default function AccountTab() {
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '코드 · 계정과목명' }}
+        count={{ shown: rows.length, total: all.length }}
+      />
       <QueryState
         isPending={q.isPending}
         error={q.error}

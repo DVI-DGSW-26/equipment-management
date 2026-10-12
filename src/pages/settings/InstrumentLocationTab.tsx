@@ -7,7 +7,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { btnPrimaryClass, FilterCount, filterClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnPrimaryClass, FilterBar, filterClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function InstrumentLocationTab() {
   const qc = useQueryClient();
@@ -60,8 +60,6 @@ export default function InstrumentLocationTab() {
       title="계측기 사용위치"
       right={
         <>
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="위치 검색" width="w-40" />
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <>
               <input
@@ -86,6 +84,10 @@ export default function InstrumentLocationTab() {
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '사용위치' }}
+        count={{ shown: rows.length, total: all.length }}
+      />
       <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">
         고정자산의 위치 코드(A01 · 압출동 …)와는 별개 목록입니다.
       </p>

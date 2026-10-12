@@ -16,11 +16,9 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
+  FilterBar,
   filterClass,
-  FilterCount,
   QueryState,
-  SearchBox,
-  SearchHint,
   Section,
   seqThClass,
   StatCards,
@@ -237,21 +235,11 @@ export default function EquipmentTab() {
         title={
           <>
             안전검사 대상{' '}
-            <span className="font-normal text-fg-muted">
-              {rows.length}건{rows.length !== all.length && ` / 전체 ${all.length}건`}
-              {due !== 'all' && ' · 기한 필터 적용 중'}
-            </span>
+            {due !== 'all' && <span className="font-normal text-fg-muted">기한 필터 적용 중</span>}
           </>
         }
         right={
           <>
-            <SearchHint fields="설비명 · 형식번호 · 설치장소 · 검사기관 · 합격번호" />
-            <SearchBox
-              value={keyword}
-              onChange={setKeyword}
-              placeholder="통합 검색"
-              width="w-72"
-            />
             <button
               type="button"
               className={btnClass}
@@ -271,7 +259,16 @@ export default function EquipmentTab() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+        <FilterBar
+          search={{
+            value: keyword,
+            onChange: setKeyword,
+            fields: '설비명 · 형식번호 · 설치장소 · 검사기관 · 합격번호',
+          }}
+          count={{ shown: rows.length, total: all.length }}
+          onReset={reset}
+          resetDisabled={!dirty}
+        >
           <Pick label="담당반" value={team} onChange={setTeam} options={options.teams} />
           <Pick label="검사기관" value={agency} onChange={setAgency} options={options.agencies} />
           <Pick label="설치장소" value={place} onChange={setPlace} options={options.places} />
@@ -309,16 +306,7 @@ export default function EquipmentTab() {
               </option>
             ))}
           </select>
-          <FilterCount shown={rows.length} total={all.length} />
-          <button
-            type="button"
-            className={`${btnClass} ml-auto`}
-            disabled={!dirty}
-            onClick={reset}
-          >
-            초기화
-          </button>
-        </div>
+        </FilterBar>
 
         {/* 기한이 무엇을 기준으로 잡히는지 적어 둔다. 합격증 유효기간과 헷갈리기 쉽다 */}
         <p className="border-b border-line px-3 py-2 text-[18px] text-fg-muted">

@@ -8,7 +8,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { btnClass, btnPrimaryClass, Field, filterClass, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, filterClass, FilterBar, inputClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function ItemTab() {
   const qc = useQueryClient();
@@ -30,20 +30,6 @@ export default function ItemTab() {
       title="품목"
       right={
         <>
-          <select
-            className={`${filterClass} w-32`}
-            value={itemTypeCode}
-            onChange={(e) => setItemTypeCode(e.target.value)}
-          >
-            <option value="">전체 비품구분</option>
-            {(types.data ?? []).map((t) => (
-              <option key={t.id} value={t.code}>
-                {t.code} {t.name}
-              </option>
-            ))}
-          </select>
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="품목코드·품목명·비고" />
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
               품목 추가
@@ -54,6 +40,29 @@ export default function ItemTab() {
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '품목코드 · 품목명 · 비고' }}
+        count={{ shown: rows.length, total: all.length }}
+        onReset={() => {
+          setKeyword('');
+          setItemTypeCode('');
+        }}
+        resetDisabled={keyword === '' && itemTypeCode === ''}
+      >
+        <select
+          className={`${filterClass} w-32`}
+          value={itemTypeCode}
+          onChange={(e) => setItemTypeCode(e.target.value)}
+          aria-label="비품구분"
+        >
+          <option value="">비품구분 전체</option>
+          {(types.data ?? []).map((t) => (
+            <option key={t.id} value={t.code}>
+              {t.code} {t.name}
+            </option>
+          ))}
+        </select>
+      </FilterBar>
       <QueryState
         isPending={q.isPending}
         error={q.error}
