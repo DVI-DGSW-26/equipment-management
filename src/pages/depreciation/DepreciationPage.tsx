@@ -20,10 +20,9 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
+  FilterBar,
   filterClass,
-  FilterCount,
   QueryState,
-  SearchBox,
   Section,
   StatCards,
   stickyThClass,
@@ -299,9 +298,6 @@ function ScheduleTab({
       title={`${fiscalYear}년 감가상각비명세`}
       right={
         <>
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
-          <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
-          <FilterCount shown={rows.length} total={all.length} />
           <ExcelButton
             rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
             columns={[
@@ -328,6 +324,17 @@ function ScheduleTab({
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '자산코드 · 자산명' }}
+        count={{ shown: rows.length, total: all.length }}
+        onReset={() => {
+          setKeyword('');
+          setAccount('');
+        }}
+        resetDisabled={keyword.trim() === '' && account === ''}
+      >
+        <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
+      </FilterBar>
       <QueryState
         isPending={q.isPending}
         error={q.error}
@@ -553,9 +560,6 @@ function YearlyTab({
         title="자산별"
         right={
           <>
-            <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
-            <AccountPicker value={account} onChange={setAccount} options={accountOptions(pivot)} />
-            <FilterCount shown={shown.length} total={pivot.length} />
             <ExcelButton
               rows={shown.map((r, i) => ({ ...r, no: rowNo(i) }))}
               columns={[
@@ -588,6 +592,17 @@ function YearlyTab({
           </>
         }
       >
+        <FilterBar
+          search={{ value: keyword, onChange: setKeyword, fields: '자산코드 · 자산명' }}
+          count={{ shown: shown.length, total: pivot.length }}
+          onReset={() => {
+            setKeyword('');
+            setAccount('');
+          }}
+          resetDisabled={keyword.trim() === '' && account === ''}
+        >
+          <AccountPicker value={account} onChange={setAccount} options={accountOptions(pivot)} />
+        </FilterBar>
         <QueryState
           isPending={q.isPending}
           error={q.error}
@@ -681,9 +696,6 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         title={`${fiscalYear}년 고정자산관리대장`}
         right={
           <>
-            <SearchBox value={keyword} onChange={setKeyword} placeholder="자산코드·자산명" />
-            <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
-            <FilterCount shown={rows.length} total={all.length} />
             <ExcelButton
               rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
               columns={[
@@ -710,6 +722,17 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
           </>
         }
       >
+        <FilterBar
+          search={{ value: keyword, onChange: setKeyword, fields: '자산코드 · 자산명' }}
+          count={{ shown: rows.length, total: all.length }}
+          onReset={() => {
+            setKeyword('');
+            setAccount('');
+          }}
+          resetDisabled={keyword.trim() === '' && account === ''}
+        >
+          <AccountPicker value={account} onChange={setAccount} options={accountOptions(all)} />
+        </FilterBar>
         <QueryState
           isPending={q.isPending}
           error={q.error}
@@ -972,12 +995,6 @@ function ForecastTab() {
         title={byMonth ? `${shownYear}년 월별 예상` : '상세'}
         right={
           <>
-            <SearchBox
-              value={keyword}
-              onChange={setKeyword}
-              placeholder={groupBy === 'asset' ? '자산코드·자산명' : '코드·이름'}
-            />
-            <FilterCount shown={shownRows.length} total={(d?.rows ?? []).length} />
             <ExcelButton
               rows={shownRows.map((r, i) => ({ ...r, no: rowNo(i) }))}
               columns={[
@@ -1009,6 +1026,14 @@ function ForecastTab() {
           </>
         }
       >
+        <FilterBar
+          search={{
+            value: keyword,
+            onChange: setKeyword,
+            fields: groupBy === 'asset' ? '자산코드 · 자산명' : '코드 · 이름',
+          }}
+          count={{ shown: shownRows.length, total: (d?.rows ?? []).length }}
+        />
         <QueryState
           isPending={q.isPending}
           error={q.error}

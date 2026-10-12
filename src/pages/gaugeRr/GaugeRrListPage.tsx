@@ -16,12 +16,10 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
-  FilterCount,
-  filterClass,
+  DateRange,
+  FilterBar,
   QueryState,
   ReadOnlyChip,
-  SearchBox,
-  SearchHint,
   Section,
   seqThClass,
   StatCards,
@@ -138,13 +136,6 @@ export default function GaugeRrListPage() {
         title="게이지 R&R 목록"
         right={
           <>
-            <SearchHint fields="품번 · 품명 · 게이지 · 측정자" />
-            <SearchBox
-              value={q.keyword}
-              onChange={(v) => setQ({ keyword: v })}
-              placeholder="통합 검색"
-              width="w-72"
-            />
             <button
               type="button"
               className={btnClass}
@@ -163,33 +154,24 @@ export default function GaugeRrListPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
-          <span className="text-[18px] text-fg-sub">시행일</span>
-          <input
-            type="date"
-            className={`${filterClass} w-44`}
-            value={q.from}
-            onChange={(e) => setQ({ from: e.target.value })}
-            aria-label="시행일 시작"
+        <FilterBar
+          search={{
+            value: q.keyword,
+            onChange: (v) => setQ({ keyword: v }),
+            fields: '품번 · 품명 · 게이지 · 측정자',
+          }}
+          count={{ shown: rows.length, total: all.length }}
+          onReset={() => setQ({ ...DEFAULTS })}
+          resetDisabled={!dirty}
+        >
+          <DateRange
+            label="시행일"
+            from={q.from}
+            to={q.to}
+            onFromChange={(v) => setQ({ from: v })}
+            onToChange={(v) => setQ({ to: v })}
           />
-          <span className="text-fg-muted">~</span>
-          <input
-            type="date"
-            className={`${filterClass} w-44`}
-            value={q.to}
-            onChange={(e) => setQ({ to: e.target.value })}
-            aria-label="시행일 끝"
-          />
-          <FilterCount shown={rows.length} total={all.length} />
-          <button
-            type="button"
-            className={`${btnClass} ml-auto`}
-            disabled={!dirty}
-            onClick={() => setQ({ ...DEFAULTS })}
-          >
-            초기화
-          </button>
-        </div>
+        </FilterBar>
 
         <QueryState
           isPending={list.isPending}

@@ -29,6 +29,8 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
+  DateRange,
+  FilterBar,
   filterClass,
   FilterInput,
   Pagination,
@@ -146,6 +148,10 @@ export default function AssetListPage() {
     setQ({ ...EMPTY_FORM, page: '0' });
     sel.clear();
   };
+  /** 조건을 하나라도 건드렸는가. 처음 그대로면 초기화를 막는다 */
+  const dirty = (Object.keys(EMPTY_FORM) as (keyof FormState)[]).some(
+    (k) => form[k] !== EMPTY_FORM[k],
+  );
 
   const accounts = useAccounts();
   const departments = useDepartments();
@@ -260,12 +266,59 @@ export default function AssetListPage() {
         ]}
       />
 
-      {/*
-        조건을 한 줄로 눕힌다. 라벨을 칸 위에 얹어 격자로 쌓으니 화면 절반이 조건칸이라
-        정작 목록이 아래로 밀렸다(2026-09-03). 무엇을 고르는 칸인지는 첫 항목 이름과
-        placeholder 로 알린다. 날짜·금액처럼 두 칸이 한 쌍인 것만 앞에 짧은 말을 붙인다.
-      */}
-      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
+      <Section
+        title={
+          <>
+            고정자산 목록{' '}
+            {sel.showSelectColumn && (
+              <span className="font-normal text-fg-muted">
+                선택 {sel.selected.size}건 · 이 페이지 스티커 가능 {sel.printableRows.length}건
+              </span>
+            )}
+          </>
+        }
+        right={
+          <>
+            <button
+              type="button"
+              className={btnClass}
+              disabled={all.length === 0 || exporting}
+              title={`걸러 놓은 ${all.length.toLocaleString('ko-KR')}건을 화면에 보이는 열 그대로 내려받습니다.`}
+              onClick={() => void exportScreen()}
+            >
+              {exporting ? '만드는 중…' : 'Excel'}
+            </button>
+            <button
+              type="button"
+              className={btnClass}
+              disabled={download.isPending}
+              onClick={() => download.mutate({ kind: 'pdf' })}
+            >
+              목록표 PDF
+            </button>
+            {sel.showSelectColumn && (
+              <button
+                type="button"
+                className={btnClass}
+                title={
+                  sel.selected.size === 0
+                    ? '스티커를 출력할 행을 먼저 선택하세요.'
+                    : `선택한 ${sel.selected.size}건 스티커 출력`
+                }
+                disabled={download.isPending || sel.selected.size === 0}
+                onClick={() => setPreviewing(true)}
+              >
+                스티커 출력
+              </button>
+            )}
+          </>
+        }
+      >
+        <FilterBar
+          count={{ shown: all.length, total: all.length }}
+          onReset={reset}
+          resetDisabled={!dirty}
+        >
           <FilterInput
             placeholder="자산명"
             value={form.name}
@@ -330,24 +383,13 @@ export default function AssetListPage() {
             ))}
           </select>
 
-          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[18px] text-fg-sub">
-            취득일
-            <input
-              type="date"
-              className={`${filterClass} w-36`}
-              aria-label="취득일 시작"
-              value={form.acquiredFrom}
-              onChange={(e) => set('acquiredFrom', e.target.value)}
-            />
-            ~
-            <input
-              type="date"
-              className={`${filterClass} w-36`}
-              aria-label="취득일 종료"
-              value={form.acquiredTo}
-              onChange={(e) => set('acquiredTo', e.target.value)}
-            />
-          </span>
+          <DateRange
+            label="취득일"
+            from={form.acquiredFrom}
+            to={form.acquiredTo}
+            onFromChange={(v) => set('acquiredFrom', v)}
+            onToChange={(v) => set('acquiredTo', v)}
+          />
 
           <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[18px] text-fg-sub">
             취득가액
@@ -368,61 +410,10 @@ export default function AssetListPage() {
             />
           </span>
 
-        {/* 안내 문구는 자리만 먹고 알려 주는 것이 없다. 조회 중 표시만 남긴다 */}
-        {list.isFetching && <span className="shrink-0 text-[18px] text-accent">조회 중…</span>}
-        <button type="button" className={`${btnClass} ml-auto`} onClick={reset}>
-          초기화
-        </button>
-      </div>
+          {/* 안내 문구는 자리만 먹고 알려 주는 것이 없다. 조회 중 표시만 남긴다 */}
+          {list.isFetching && <span className="shrink-0 text-[18px] text-accent">조회 중…</span>}
+        </FilterBar>
 
-      <Section
-        title={
-          <>
-            고정자산 목록{' '}
-            {sel.showSelectColumn && (
-              <span className="font-normal text-fg-muted">
-                선택 {sel.selected.size}건 · 이 페이지 스티커 가능 {sel.printableRows.length}건
-              </span>
-            )}
-          </>
-        }
-        right={
-          <>
-            <button
-              type="button"
-              className={btnClass}
-              disabled={all.length === 0 || exporting}
-              title={`걸러 놓은 ${all.length.toLocaleString('ko-KR')}건을 화면에 보이는 열 그대로 내려받습니다.`}
-              onClick={() => void exportScreen()}
-            >
-              {exporting ? '만드는 중…' : 'Excel'}
-            </button>
-            <button
-              type="button"
-              className={btnClass}
-              disabled={download.isPending}
-              onClick={() => download.mutate({ kind: 'pdf' })}
-            >
-              목록표 PDF
-            </button>
-            {sel.showSelectColumn && (
-              <button
-                type="button"
-                className={btnClass}
-                title={
-                  sel.selected.size === 0
-                    ? '스티커를 출력할 행을 먼저 선택하세요.'
-                    : `선택한 ${sel.selected.size}건 스티커 출력`
-                }
-                disabled={download.isPending || sel.selected.size === 0}
-                onClick={() => setPreviewing(true)}
-              >
-                스티커 출력
-              </button>
-            )}
-          </>
-        }
-      >
         {/* 선택 열을 숨긴 이유를 알린다 */}
         {all.length > 0 && !sel.showSelectColumn && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[17px] text-warn">

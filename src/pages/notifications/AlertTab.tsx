@@ -28,7 +28,7 @@ import {
   Pagination,
   QueryState,
   ReadOnlyChip,
-  SearchBox,
+  FilterBar,
   Section,
   seqThClass,
   thClass,
@@ -494,20 +494,10 @@ function RecipientBlock({ type, edit }: { type: AlertType; edit: boolean }) {
         찾는 칸과 넣는 칸을 줄로 갈라 놓는다.
         한 줄에 붙여 두니 맨 앞 검색칸이 등록 항목처럼 읽혔다.
       */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2">
-        <span className="text-[18px] text-fg-sub">
-          수신자 <b className="text-fg">{rows.length}명</b>
-          {rows.length !== all.length && ` / 전체 ${all.length}명`}
-        </span>
-        <div className="ml-auto">
-          <SearchBox
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="이름·이메일로 찾기"
-            width="w-56"
-          />
-        </div>
-      </div>
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '이름 · 이메일' }}
+        count={{ shown: rows.length, total: all.length, unit: '명' }}
+      />
 
       {edit && (
         <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg/40 px-3 py-2">
@@ -1055,29 +1045,28 @@ function LogSection({ type }: { type: AlertType }) {
   return (
     <Section
       title={`${ALERT_TYPE_LABEL[type]} 발송 이력`}
-      right={
-        <>
-          {type === 'SAFETY' && teamOptions.length > 0 && (
-            <select
-              className={`${filterClass} w-36`}
-              value={team}
-              onChange={(e) => {
-                setTeam(e.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="">담당반 전체</option>
-              {teamOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          )}
-          <span className="text-[18px] text-fg-muted">30일 보관</span>
-        </>
-      }
+      right={<span className="text-[18px] text-fg-muted">30일 보관</span>}
     >
+      {type === 'SAFETY' && teamOptions.length > 0 && (
+        <FilterBar>
+          <select
+            className={`${filterClass} w-36`}
+            value={team}
+            aria-label="담당반"
+            onChange={(e) => {
+              setTeam(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="">담당반 전체</option>
+            {teamOptions.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </FilterBar>
+      )}
       <QueryState
         isPending={q.isPending}
         error={q.error}

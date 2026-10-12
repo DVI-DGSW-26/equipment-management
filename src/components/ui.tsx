@@ -200,6 +200,42 @@ export function SearchHint({ fields }: { fields: string }) {
   return <span className="text-[17px] whitespace-nowrap text-fg-muted">검색 : {fields}</span>;
 }
 
+/** 조건줄의 기간 칸. 앞에 무엇의 기간인지 짧게 붙인다 — `취득일 [ ] ~ [ ]` */
+export function DateRange({
+  label,
+  from,
+  to,
+  onFromChange,
+  onToChange,
+}: {
+  label: string;
+  from: string;
+  to: string;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-1 text-[18px] whitespace-nowrap text-fg-sub">
+      {label}
+      <input
+        type="date"
+        className={`${filterClass} w-40`}
+        aria-label={`${label} 시작`}
+        value={from}
+        onChange={(e) => onFromChange(e.target.value)}
+      />
+      ~
+      <input
+        type="date"
+        className={`${filterClass} w-40`}
+        aria-label={`${label} 끝`}
+        value={to}
+        onChange={(e) => onToChange(e.target.value)}
+      />
+    </span>
+  );
+}
+
 /**
  * 조회 전용 표시.
  *
@@ -237,12 +273,83 @@ export function ReadOnlyChip({
 }
 
 /** 걸러낸 건수 표시. 필터가 걸려 있을 때만 전체 건수를 함께 보여 준다 */
-export function FilterCount({ shown, total }: { shown: number; total: number }) {
+export function FilterCount({
+  shown,
+  total,
+  unit = '건',
+}: {
+  shown: number;
+  total: number;
+  unit?: string;
+}) {
   return (
-    <span className="text-[18px] text-fg-muted">
-      {shown.toLocaleString('ko-KR')}건
-      {shown !== total && ` / 전체 ${total.toLocaleString('ko-KR')}건`}
+    <span className="text-[18px] whitespace-nowrap text-fg-muted">
+      {shown.toLocaleString('ko-KR')}
+      {unit}
+      {shown !== total && ` / 전체 ${total.toLocaleString('ko-KR')}${unit}`}
     </span>
+  );
+}
+
+/**
+ * 목록의 조건줄. 모든 목록이 이 줄 하나로 거른다.
+ *
+ * 화면마다 검색칸이 머리줄 오른쪽에 있거나, 표 위 따로 된 상자에 있거나, 등록 단추와
+ * 한데 섞여 있어서 탭을 옮길 때마다 어디서 찾는지 다시 봐야 했다(2026-10-12).
+ * 자리와 순서를 하나로 묶는다 —
+ *
+ *   목록 머리줄 : 제목 · (오른쪽) Excel · 등록 같은 할 일만
+ *   그 바로 아래 : 검색 → 고르는 칸 → 기간·정렬 → 건수 → (오른쪽 끝) 초기화
+ *
+ * 고르는 칸은 children 으로 받는다. 초기화는 조건이 둘 이상인 목록에만 단다 —
+ * 검색칸 하나뿐이면 칸 안의 ✕ 로 충분하다.
+ */
+export function FilterBar({
+  search,
+  count,
+  onReset,
+  resetDisabled,
+  children,
+}: {
+  search?: {
+    value: string;
+    onChange: (value: string) => void;
+    /** 함께 보는 칸들. 검색칸 왼쪽에 "검색 : …" 로 붙는다 */
+    fields: string;
+    width?: string;
+  };
+  count?: { shown: number; total: number; unit?: string };
+  onReset?: () => void;
+  /** 초기화를 막는다. 조건이 처음 그대로일 때 넘긴다 */
+  resetDisabled?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+      {search && (
+        <>
+          <SearchHint fields={search.fields} />
+          <SearchBox
+            value={search.value}
+            onChange={search.onChange}
+            placeholder={search.fields.includes('·') ? '통합 검색' : '검색어 입력'}
+            width={search.width ?? 'w-64'}
+          />
+        </>
+      )}
+      {children}
+      {count && <FilterCount shown={count.shown} total={count.total} unit={count.unit} />}
+      {onReset && (
+        <button
+          type="button"
+          className={`${btnClass} ml-auto`}
+          disabled={resetDisabled}
+          onClick={onReset}
+        >
+          초기화
+        </button>
+      )}
+    </div>
   );
 }
 

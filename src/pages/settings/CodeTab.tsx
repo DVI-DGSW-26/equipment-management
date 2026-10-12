@@ -14,7 +14,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, FilterBar, inputClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
   const qc = useQueryClient();
@@ -34,12 +34,6 @@ export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
       title={CODE_MASTER_LABEL[kind]}
       right={
         <>
-          <SearchBox
-            value={keyword}
-            onChange={setKeyword}
-            placeholder={extraLabel ? `코드·이름·${extraLabel}·비고` : '코드·이름·비고'}
-          />
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
               추가
@@ -50,6 +44,14 @@ export default function CodeTab({ kind }: { kind: CodeMasterKind }) {
         </>
       }
     >
+      <FilterBar
+        search={{
+          value: keyword,
+          onChange: setKeyword,
+          fields: extraLabel ? `코드 · 이름 · ${extraLabel} · 비고` : '코드 · 이름 · 비고',
+        }}
+        count={{ shown: rows.length, total: all.length }}
+      />
       <QueryState
         isPending={q.isPending}
         error={q.error}

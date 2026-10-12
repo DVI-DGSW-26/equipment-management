@@ -27,13 +27,11 @@ import {
   btnDangerClass,
   btnPrimaryClass,
   Field,
+  FilterBar,
   filterClass,
-  FilterCount,
   inputClass,
   Pagination,
   QueryState,
-  SearchBox,
-  SearchHint,
   Section,
   stickyThClass,
   TableScroll,
@@ -239,18 +237,60 @@ export default function PhysicalAssetListPage() {
         실물자산 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
       </h1>
 
-      {/*
-        조건을 한 줄로 눕힌다. 격자로 쌓으면 화면 절반이 조건칸이라 목록이 밀린다.
-        "조회 조건" 제목줄도 걷어냈다 — 무엇을 하는 줄인지는 칸만 봐도 안다.
-      */}
-      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
-          <SearchHint fields="품명 · 자산코드 · 모델명 · 규격 · 제조업체" />
-          <SearchBox
-            value={form.keyword}
-            onChange={(v) => set('keyword', v)}
-            placeholder="통합 검색"
-            width="w-72"
-          />
+      <Section
+        title={
+          <>
+            실물자산 목록{' '}
+            <span className="font-normal text-fg-muted">
+              선택 {sel.selected.size}건
+              {rows.length > 0 && ` · 이 페이지 스티커 가능 ${sel.printableRows.length}건`}
+            </span>
+          </>
+        }
+        right={
+          <>
+            <button
+              type="button"
+              className={btnClass}
+              disabled={filtered.length === 0 || exporting}
+              title={`화면에 보이는 그대로 ${filtered.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
+              onClick={() => void exportScreen()}
+            >
+              {exporting ? '만드는 중…' : 'Excel'}
+            </button>
+            <button
+              type="button"
+              className={btnClass}
+              title={
+                sel.selected.size === 0
+                  ? '스티커를 출력할 행을 먼저 선택하세요.'
+                  : `선택한 ${sel.selected.size}건 스티커 출력`
+              }
+              disabled={sticker.isPending || sel.selected.size === 0}
+              onClick={() => setPreviewing(true)}
+            >
+              스티커 출력
+            </button>
+            {edit ? (
+              <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
+                실물자산 등록
+              </button>
+            ) : (
+          <ReadOnlyChip />
+        )}
+          </>
+        }
+      >
+        <FilterBar
+          search={{
+            value: form.keyword,
+            onChange: (v) => set('keyword', v),
+            fields: '품명 · 자산코드 · 모델명 · 규격 · 제조업체',
+          }}
+          count={{ shown: filtered.length, total: all.length }}
+          onReset={reset}
+          resetDisabled={!dirty}
+        >
           <Pick
             label="자산구분"
             value={form.category}
@@ -317,56 +357,7 @@ export default function PhysicalAssetListPage() {
             />
             렌탈만
           </label>
-          <FilterCount shown={filtered.length} total={all.length} />
-        <button type="button" className={`${btnClass} ml-auto`} disabled={!dirty} onClick={reset}>
-          초기화
-        </button>
-      </div>
-
-      <Section
-        title={
-          <>
-            실물자산 목록{' '}
-            <span className="font-normal text-fg-muted">
-              선택 {sel.selected.size}건
-              {rows.length > 0 && ` · 이 페이지 스티커 가능 ${sel.printableRows.length}건`}
-            </span>
-          </>
-        }
-        right={
-          <>
-            <button
-              type="button"
-              className={btnClass}
-              disabled={filtered.length === 0 || exporting}
-              title={`화면에 보이는 그대로 ${filtered.length.toLocaleString('ko-KR')}건을 내려받습니다.`}
-              onClick={() => void exportScreen()}
-            >
-              {exporting ? '만드는 중…' : 'Excel'}
-            </button>
-            <button
-              type="button"
-              className={btnClass}
-              title={
-                sel.selected.size === 0
-                  ? '스티커를 출력할 행을 먼저 선택하세요.'
-                  : `선택한 ${sel.selected.size}건 스티커 출력`
-              }
-              disabled={sticker.isPending || sel.selected.size === 0}
-              onClick={() => setPreviewing(true)}
-            >
-              스티커 출력
-            </button>
-            {edit ? (
-              <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-                실물자산 등록
-              </button>
-            ) : (
-          <ReadOnlyChip />
-        )}
-          </>
-        }
-      >
+        </FilterBar>
         {truncated && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
             실물자산이 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}

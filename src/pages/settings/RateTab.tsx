@@ -10,7 +10,7 @@ import { useToast } from '@/components/toastContext';
 import { searchIn } from '@/lib/search';
 import { rowNo } from '@/lib/paging';
 import { useCanEdit } from '@/hooks/useMe';
-import { Badge, btnClass, btnPrimaryClass, Field, FilterCount, inputClass, QueryState, ReadOnlyChip, SearchBox, Section, seqThClass, thClass } from '@/components/ui';
+import { Badge, btnClass, btnPrimaryClass, Field, FilterBar, inputClass, QueryState, ReadOnlyChip, Section, seqThClass, thClass } from '@/components/ui';
 
 export default function RateTab() {
   const qc = useQueryClient();
@@ -35,8 +35,6 @@ export default function RateTab() {
               미확인 값 포함
             </Badge>
           )}
-          <SearchBox value={keyword} onChange={setKeyword} placeholder="내용연수" width="w-32" />
-          <FilterCount shown={rows.length} total={all.length} />
           {edit ? (
             <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
               상각률 추가
@@ -47,6 +45,10 @@ export default function RateTab() {
         </>
       }
     >
+      <FilterBar
+        search={{ value: keyword, onChange: setKeyword, fields: '내용연수' }}
+        count={{ shown: rows.length, total: all.length }}
+      />
       <QueryState
         isPending={q.isPending}
         error={q.error}

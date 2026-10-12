@@ -20,13 +20,11 @@ import {
   Badge,
   btnClass,
   btnPrimaryClass,
-  FilterCount,
+  FilterBar,
   filterClass,
   MultiPick,
   Pagination,
   QueryState,
-  SearchBox,
-  SearchHint,
   Section,
   seqThClass,
   StatCards,
@@ -381,13 +379,6 @@ function ListTab() {
         title="계측기 목록"
         right={
           <>
-            <SearchHint fields="관리번호 · 계측기명 · S/NO · 규격 · 사용자 · 보관장소" />
-            <SearchBox
-              value={keyword}
-              onChange={(v) => setFilter({ keyword: v })}
-              placeholder="통합 검색"
-              width="w-72"
-            />
             <button
               type="button"
               className={btnClass}
@@ -419,7 +410,16 @@ function ListTab() {
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+        <FilterBar
+          search={{
+            value: keyword,
+            onChange: (v) => setFilter({ keyword: v }),
+            fields: '관리번호 · 계측기명 · S/NO · 규격 · 사용자 · 보관장소',
+          }}
+          count={{ shown: rows.length, total: all.length }}
+          onReset={reset}
+          resetDisabled={!dirty}
+        >
           {/* 폐기한 것은 기본으로 감춘다. 찾을 일이 있을 때만 꺼내 본다 */}
           <select
             className={`${filterClass} w-28`}
@@ -475,16 +475,7 @@ function ListTab() {
             <option value="due">기한 임박순</option>
             <option value="mgmtNo">관리번호순</option>
           </select>
-          <FilterCount shown={rows.length} total={all.length} />
-          <button
-            type="button"
-            className={`${btnClass} ml-auto`}
-            disabled={!dirty}
-            onClick={reset}
-          >
-            초기화
-          </button>
-        </div>
+        </FilterBar>
 
         <QueryState
           isPending={(view !== 'DISCARDED' && list.isPending) || (view !== 'IN_USE' && discarded.isPending)}
@@ -666,24 +657,6 @@ function AnnualTab() {
       }
       right={
         <>
-          <SearchHint fields="관리번호 · 계측기명 · S/NO · 사용위치 · 사용자" />
-          <SearchBox
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="통합 검색"
-            width="w-64"
-          />
-          <select
-            className={`${filterClass} w-32`}
-            value={state}
-            onChange={(e) => setState(e.target.value as typeof state)}
-            aria-label="실시 여부"
-          >
-            <option value="">실시 여부 전체</option>
-            <option value="done">실시</option>
-            <option value="todo">미실시</option>
-          </select>
-          <FilterCount shown={rows.length} total={all.length} />
           <button
             type="button"
             className={btnClass}
@@ -697,17 +670,6 @@ function AnnualTab() {
           >
             {exporting ? '만드는 중…' : '엑셀 다운로드'}
           </button>
-          <select
-            className={`${filterClass} w-28`}
-            value={planYear}
-            onChange={(e) => setPlanYear(Number(e.target.value))}
-          >
-            {Array.from({ length: 7 }, (_, i) => currentYear() + 1 - i).map((y) => (
-              <option key={y} value={y}>
-                {y}년
-              </option>
-            ))}
-          </select>
           <button
             type="button"
             className={btnPrimaryClass}
@@ -726,6 +688,40 @@ function AnnualTab() {
         </>
       }
     >
+      <FilterBar
+        search={{
+          value: keyword,
+          onChange: setKeyword,
+          fields: '관리번호 · 계측기명 · S/NO · 사용위치 · 사용자',
+        }}
+        count={{ shown: rows.length, total: all.length }}
+        onReset={() => setAq({ aKeyword: '', aState: '' })}
+        resetDisabled={keyword === '' && state === ''}
+      >
+        {/* 연도는 초기화하지 않는다. 연간 계획 생성도 이 연도로 만든다 */}
+        <select
+          className={`${filterClass} w-28`}
+          value={planYear}
+          aria-label="계획 연도"
+          onChange={(e) => setPlanYear(Number(e.target.value))}
+        >
+          {Array.from({ length: 7 }, (_, i) => currentYear() + 1 - i).map((y) => (
+            <option key={y} value={y}>
+              {y}년
+            </option>
+          ))}
+        </select>
+        <select
+          className={`${filterClass} w-32`}
+          value={state}
+          onChange={(e) => setState(e.target.value as typeof state)}
+          aria-label="실시 여부"
+        >
+          <option value="">실시 여부 전체</option>
+          <option value="done">실시</option>
+          <option value="todo">미실시</option>
+        </select>
+      </FilterBar>
       <QueryState
         isPending={q.isPending}
         error={q.error}
