@@ -6,18 +6,20 @@ import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
 import { getToday, toIsoDate } from '@/lib/date';
 import {
-  APPRAISER_COUNTS,
   APPRAISER_LETTERS,
+  APPRAISERS,
   badCellCount,
+  fmtNum,
+  GRR_LIMIT,
   gridFrom,
   isBlockPaste,
   isNumberText,
-  PART_MAX,
-  PART_MIN,
+  PARTS,
   pasteInto,
+  previewGaugeRr,
   resizeGrid,
   toMeasurements,
-  TRIAL_COUNTS,
+  TRIALS,
   type Grid,
 } from '@/domain/gaugeRr';
 import Modal from '@/components/Modal';
@@ -31,8 +33,12 @@ const INSTRUMENT_QUERY = { page: 0, size: 500 };
 /**
  * 게이지 R&R 등록·수정.
  *
- * 양식의 파란 칸만 받는다. 계산은 서버가 하고 저장 응답에 결과가 같이 온다 —
- * 그래서 입력하는 동안에는 결과가 없고, 저장하면 상세 화면에 양식이 채워진다.
+ * 양식의 파란 칸만 받는다. 측정자 3명 · 반복 3회 · 시료 10개로 고정이다.
+ *
+ * 입력하는 동안 %R&R·ndc 를 바로 계산해 보여 준다 (품질팀 요청 2026-10-08) —
+ * 서버와 같은 식이라 저장 후 값과 같다. 저장된 값은 서버 계산이 기준이다.
+ * %R&R 이 기준(10)을 넘으면 비고에 사유를 적어야 저장된다.
+ *
  * 수정도 양식을 통째로 다시 보낸다(PATCH 이지만 부분 수정이 아니다).
  */
 export default function GaugeRrModal({
@@ -51,7 +57,6 @@ export default function GaugeRrModal({
     instrumentId: study?.instrumentId != null ? String(study.instrumentId) : '',
     partNumber: study?.partNumber ?? '',
     partName: study?.partName ?? '',
-    characteristic: study?.characteristic ?? '',
     characteristicClass: study?.characteristicClass ?? '일반',
     specLower: study?.specLower != null ? String(study.specLower) : '',
     specUpper: study?.specUpper != null ? String(study.specUpper) : '',
@@ -63,23 +68,16 @@ export default function GaugeRrModal({
   });
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const [appraisers, setAppraisers] = useState<string[]>(study?.appraisers ?? ['', '', '']);
-  const [trials, setTrials] = useState(study?.trials ?? 3);
-  const [parts, setParts] = useState(study?.parts ?? 10);
+  /* 예전에 2명·2회 등으로 저장한 것도 고칠 때는 3·3·10 양식으로 펼친다. 빈칸은 채워야 저장된다 */
+  const [appraisers, setAppraisers] = useState<string[]>(() =>
+    Array.from({ length: APPRAISERS }, (_, i) => study?.appraisers[i] ?? ''),
+  );
   const [grid, setGrid] = useState<Grid>(() =>
-    study ? gridFrom(study.measurements) : resizeGrid([], 3, 3, 10),
+    resizeGrid(study ? gridFrom(study.measurements) : [], APPRAISERS, TRIALS, PARTS),
   );
   /* 저장을 눌러 본 뒤에만 빈칸을 빨갛게 칠한다. 처음부터 칠하면 온통 빨갛다 */
   const [tried, setTried] = useState(false);
 
-  /* 측정자·반복·부품 수를 바꿔도 이미 친 값은 남긴다 */
-  const resize = (a: number, t: number, p: number) => {
-    setAppraisers((prev) => Array.from({ length: a }, (_, i) => prev[i] ?? ''));
-    setTrials(t);
-    setParts(p);
-    setGrid((g) => resizeGrid(g, a, t, p));
-  };
-  const appraiserCount = appraisers.length;
 
   const instruments = useQuery({
     queryKey: queryKeys.instruments.list(INSTRUMENT_QUERY),
@@ -143,6 +141,15 @@ export default function GaugeRrModal({
   const bad = badCellCount(grid);
   if (bad > 0) errors.push(`측정값 ${bad}칸이 비었거나 숫자가 아닙니다.`);
 
+  /* 다 채워지면 바로 계산한다. 칸 하나를 고칠 때마다 다시 계산된다 */
+  const preview = useMemo(() => {
+    const m = toMeasurements(grid);
+    return m ? previewGaugeRr(m) : null;
+  }, [grid]);
+  const over = preview != null && preview.pctGrr > GRR_LIMIT;
+  if (over && !form.remark.trim())
+    errors.push(`R&R 이 ${GRR_LIMIT}% 를 넘었습니다. 비고에 사유를 적어 주세요.`);
+
   const save = useMutation({
     mutationFn: () => {
       const measurements = toMeasurements(grid);
@@ -152,7 +159,8 @@ export default function GaugeRrModal({
         instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
         partNumber: form.partNumber.trim(),
         partName: form.partName.trim(),
-        characteristic: opt(form.characteristic),
+        /* 입력칸은 뺐다(품질팀 요청). 예전에 적어 둔 값은 고쳐 저장해도 지우지 않는다 */
+        characteristic: study?.characteristic ?? undefined,
         characteristicClass: opt(form.characteristicClass),
         specLower: opt(form.specLower) != null ? Number(form.specLower) : undefined,
         specUpper: opt(form.specUpper) != null ? Number(form.specUpper) : undefined,
@@ -160,8 +168,8 @@ export default function GaugeRrModal({
         gageNumber: opt(form.gageNumber),
         gageType: opt(form.gageType),
         appraisers: appraisers.map((n) => n.trim()),
-        trials,
-        parts,
+        trials: TRIALS,
+        parts: PARTS,
         performedDate: form.performedDate,
         remark: opt(form.remark),
         measurements,
@@ -203,7 +211,7 @@ export default function GaugeRrModal({
             disabled={save.isPending}
             onClick={submit}
           >
-            {save.isPending ? '계산 중…' : '저장하고 계산'}
+            {save.isPending ? '저장 중…' : '저장'}
           </button>
         </>
       }
@@ -278,16 +286,8 @@ export default function GaugeRrModal({
               onChange={(e) => set('partName', e.target.value)}
             />
           </Field>
-          <Field label="측정 특성 (Characteristic)">
-            <input
-              className={inputClass}
-              value={form.characteristic}
-              onChange={(e) => set('characteristic', e.target.value)}
-              placeholder="외경"
-            />
-          </Field>
           <Field label="규격 (하한 ~ 상한)" hint="넣으면 공차 대비 %R&R 도 계산합니다.">
-            <div className="flex items-center gap-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
               <input
                 className={`${inputClass} num`}
                 inputMode="decimal"
@@ -305,49 +305,15 @@ export default function GaugeRrModal({
               />
             </div>
           </Field>
+          <div />
         </div>
 
-        {/* ---------- 측정 조건 ---------- */}
-        <div className="grid grid-cols-1 gap-3 border-t border-line pt-3 md:grid-cols-6">
-          <Field label="측정자 수">
-            <select
-              className={inputClass}
-              value={appraiserCount}
-              onChange={(e) => resize(Number(e.target.value), trials, parts)}
-            >
-              {APPRAISER_COUNTS.map((n) => (
-                <option key={n} value={n}>
-                  {n}명
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="반복 횟수">
-            <select
-              className={inputClass}
-              value={trials}
-              onChange={(e) => resize(appraiserCount, Number(e.target.value), parts)}
-            >
-              {TRIAL_COUNTS.map((n) => (
-                <option key={n} value={n}>
-                  {n}회
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="부품 수">
-            <select
-              className={inputClass}
-              value={parts}
-              onChange={(e) => resize(appraiserCount, trials, Number(e.target.value))}
-            >
-              {Array.from({ length: PART_MAX - PART_MIN + 1 }, (_, i) => i + PART_MIN).map((n) => (
-                <option key={n} value={n}>
-                  {n}개
-                </option>
-              ))}
-            </select>
-          </Field>
+        {/* ---------- 측정자 ---------- */}
+        <div className="grid grid-cols-1 gap-3 border-t border-line pt-3 md:grid-cols-4">
+          <div className="text-[17px] text-fg-sub">
+            <div className="mb-0.5 text-[18px]">측정 조건</div>
+            측정자 {APPRAISERS}명 · 반복 {TRIALS}회 · 시료 {PARTS}개
+          </div>
           {appraisers.map((name, i) => (
             <Field key={i} label={`측정자 ${APPRAISER_LETTERS[i]}`} required>
               <input
@@ -373,7 +339,7 @@ export default function GaugeRrModal({
                 <tr className="bg-bg text-fg-sub">
                   <th className="border border-line px-2 py-1">측정자</th>
                   <th className="border border-line px-2 py-1">회</th>
-                  {Array.from({ length: parts }, (_, p) => (
+                  {Array.from({ length: PARTS }, (_, p) => (
                     <th key={p} className="border border-line px-2 py-1">
                       {p + 1}
                     </th>
@@ -386,7 +352,7 @@ export default function GaugeRrModal({
                     <tr key={`${a}-${t}`} className={t === 0 && a > 0 ? 'border-t-2 border-fg-muted' : ''}>
                       {t === 0 && (
                         <th
-                          rowSpan={trials}
+                          rowSpan={TRIALS}
                           className="border border-line bg-bg px-2 py-1 font-medium"
                         >
                           {APPRAISER_LETTERS[a]}
@@ -408,7 +374,7 @@ export default function GaugeRrModal({
                               }`}
                               inputMode="decimal"
                               value={v}
-                              aria-label={`측정자 ${APPRAISER_LETTERS[a]} ${t + 1}회 ${p + 1}번 부품`}
+                              aria-label={`측정자 ${APPRAISER_LETTERS[a]} ${t + 1}회 시료 ${p + 1}`}
                               onChange={(e) => setCell(a, t, p, e.target.value)}
                               onPaste={onPaste(a, t, p)}
                             />
@@ -423,7 +389,14 @@ export default function GaugeRrModal({
           </div>
         </div>
 
-        <Field label="비고">
+        <LiveResult preview={preview} remaining={bad} />
+
+        <Field
+          label={over ? `비고 — R&R ${GRR_LIMIT}% 초과 사유` : '비고'}
+          required={over}
+          error={tried && over && !form.remark.trim() ? '사유를 적어야 저장됩니다.' : undefined}
+          hint={over ? '기준을 넘은 이유와 조치를 남깁니다. 상세 화면과 인쇄물의 비고에 그대로 나갑니다.' : undefined}
+        >
           <input
             className={inputClass}
             value={form.remark}
@@ -432,5 +405,49 @@ export default function GaugeRrModal({
         </Field>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * 지금 입력한 값으로 계산한 결과. 측정값 90칸이 다 차야 나온다.
+ * 기준은 %R&R 10 이하(GRR_LIMIT) — 넘으면 빨갛게 보이고 비고에 사유를 받는다.
+ */
+function LiveResult({
+  preview,
+  remaining,
+}: {
+  preview: ReturnType<typeof previewGaugeRr> | null;
+  remaining: number;
+}) {
+  if (!preview)
+    return (
+      <div className="rounded-sm border border-line bg-bg px-3 py-2 text-[17px] text-fg-muted">
+        실시간 계산 — 측정값 {remaining}칸을 더 채우면 R&amp;R 과 ndc 가 나옵니다.
+      </div>
+    );
+
+  const over = preview.pctGrr > GRR_LIMIT;
+  return (
+    <div
+      className={`flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-sm border px-3 py-2 text-[18px] ${
+        over ? 'border-danger/40 bg-danger/10' : 'border-accent/40 bg-accent/10'
+      }`}
+    >
+      <span className="text-fg-sub">실시간 계산</span>
+      <span className={`font-semibold ${over ? 'text-danger' : 'text-accent'}`}>
+        R&amp;R <span className="num">{fmtNum(preview.pctGrr, 2)}</span>%
+      </span>
+      <span>
+        ndc <span className="num font-semibold">{fmtNum(preview.ndc, 2)}</span>
+      </span>
+      <span className="text-fg-sub">
+        EV <span className="num">{fmtNum(preview.pctEv, 2)}</span>% · AV{' '}
+        <span className="num">{fmtNum(preview.pctAv, 2)}</span>% · PV{' '}
+        <span className="num">{fmtNum(preview.pctPv, 2)}</span>%
+      </span>
+      <span className={`ml-auto ${over ? 'font-semibold text-danger' : 'text-accent'}`}>
+        {over ? `기준(${GRR_LIMIT}% 이하) 초과 — 비고에 사유 필수` : `기준(${GRR_LIMIT}% 이하) 충족`}
+      </span>
+    </div>
   );
 }
