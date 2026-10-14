@@ -64,6 +64,7 @@ const COLUMNS: ExcelColumn<Row>[] = [
   { header: 'PART NO.', value: (r) => r.partNo, width: 14 },
   { header: 'GAGE 명', value: (r) => r.gageName, width: 16 },
   { header: 'S/NO.', value: (r) => r.gageSerial, width: 14 },
+  { header: '계측기 관리번호', value: (r) => r.instrumentMgmtNo, width: 14 },
   { header: '항목', value: (r) => r.item, width: 10 },
   { header: '계획월', value: (r) => r.plannedMonth, numeric: true, width: 8 },
   { header: '실시일', value: (r) => r.performedDate, width: 12 },
@@ -135,10 +136,46 @@ export default function GaugeRrPlanTab() {
   const doneCount = all.filter((p) => p.done).length;
   const lateCount = all.filter((p) => isLate(p, today)).length;
 
+  /*
+   * 작년 계획 복사. 해마다 측정 대상이 거의 같아 복사한 뒤 계획월만 고친다.
+   * 실적은 옮기지 않는다. 이미 줄이 있으면 서버가 마지막 NO 뒤로 이어 붙인다.
+   */
+  const fromYear = year - 1;
+  const canCopy = (years.data ?? []).includes(fromYear);
+  const copy = useMutation({
+    mutationFn: () => gaugeRrApi.copyPlans(fromYear, year),
+    onSuccess: (next) => {
+      /* 응답이 그 해 계획표 전체다 — 다시 묻지 않고 바로 채운다 */
+      qc.setQueryData(queryKeys.gaugeRr.plans(year), next);
+      void qc.invalidateQueries({ queryKey: queryKeys.gaugeRr.all });
+      toast.ok(`${fromYear}년 계획을 ${year}년으로 복사했습니다. 계획월을 확인해 주세요.`);
+    },
+    onError: toast.fail,
+  });
+  const copyButton = edit && canCopy && (
+    <button
+      type="button"
+      className={btnClass}
+      disabled={copy.isPending}
+      title={`${fromYear}년 계획 줄을 ${year}년으로 옮깁니다. 실적은 옮기지 않습니다.`}
+      onClick={() => {
+        if (
+          window.confirm(
+            `${fromYear}년 계획을 ${year}년으로 복사합니다. 실적은 옮기지 않습니다.` +
+              (all.length > 0 ? ` 지금 있는 ${all.length}줄 뒤로 이어 붙습니다.` : ''),
+          )
+        )
+          copy.mutate();
+      }}
+    >
+      {copy.isPending ? '복사 중…' : `${fromYear}년 계획 복사`}
+    </button>
+  );
+
   const hit = searchIn(keyword);
   const rows = all.filter(
     (p) =>
-      hit(p.partNo, p.product, p.productSpec, p.gageName, p.gageSerial, p.item) &&
+      hit(p.partNo, p.product, p.productSpec, p.gageName, p.gageSerial, p.instrumentMgmtNo, p.item) &&
       (state === '' ||
         (state === 'done' && p.done) ||
         (state === 'todo' && !p.done) ||
@@ -196,6 +233,7 @@ export default function GaugeRrPlanTab() {
             >
               인쇄 · PDF
             </button>
+            {copyButton}
             {addButton || <ReadOnlyChip />}
           </>
         }
@@ -204,7 +242,7 @@ export default function GaugeRrPlanTab() {
           search={{
             value: keyword,
             onChange: (v) => setPq({ pKeyword: v }),
-            fields: 'PART NO · 제품 · GAGE · S/NO · 항목',
+            fields: 'PART NO · 제품 · GAGE · S/NO · 관리번호 · 항목',
           }}
           count={{ shown: rows.length, total: all.length }}
           onReset={() => setPq({ pKeyword: '', pState: '' })}
@@ -248,6 +286,7 @@ export default function GaugeRrPlanTab() {
             ) : (
               <span className="flex flex-wrap items-center gap-2">
                 <span>{year}년 계획이 없습니다.</span>
+                {copyButton}
                 {addButton}
               </span>
             )
@@ -302,7 +341,14 @@ export default function GaugeRrPlanTab() {
                       </td>
                       <td className="code px-3 py-2">{p.partNo}</td>
                       <td className="px-3 py-2">{p.gageName}</td>
-                      <td className="code px-3 py-2">{p.gageSerial ?? '-'}</td>
+                      <td className="code px-3 py-2">
+                        {p.gageSerial ?? '-'}
+                        {p.instrumentMgmtNo && (
+                          <div className="text-[17px] text-fg-muted" title="연결된 계측기 관리번호">
+                            {p.instrumentMgmtNo}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{p.item ?? '-'}</td>
                       {MONTHS.map((m) => {
                         const planned = p.plannedMonth === m;

@@ -65,7 +65,14 @@ export default function GaugeRrModal({
   const toast = useToast();
 
   const [form, setForm] = useState({
-    instrumentId: study?.instrumentId != null ? String(study.instrumentId) : '',
+    instrumentId:
+      study != null
+        ? study.instrumentId != null
+          ? String(study.instrumentId)
+          : ''
+        : plan?.instrumentId != null
+          ? String(plan.instrumentId)
+          : '',
     planId: study?.planId != null ? String(study.planId) : plan ? String(plan.id) : '',
     partNumber: study?.partNumber ?? plan?.partNo ?? '',
     partName: study?.partName ?? plan?.product ?? '',
@@ -138,9 +145,16 @@ export default function GaugeRrModal({
   const planMissing =
     form.planId !== '' && plans.data != null && !plans.data.some((p) => String(p.id) === form.planId);
 
-  /* 계획을 고르면 품번·품명·게이지를 그 계획으로 채운다. 채운 뒤에 고쳐 쓸 수 있다 */
+  /*
+   * 계획을 고르면 품번·품명·게이지를 그 계획으로 채운다. 채운 뒤에 고쳐 쓸 수 있다.
+   * 계획에 계측기가 이어져 있으면 그 계측기를 고른다 — R&R 은 그 계측기의 이력이 된다.
+   */
   const pickPlan = (value: string) => {
     const p = plans.data?.find((x) => String(x.id) === value);
+    const i =
+      p?.instrumentId != null
+        ? instruments.data?.items.find((x) => x.id === p.instrumentId)
+        : undefined;
     setForm((prev) =>
       p
         ? {
@@ -148,8 +162,10 @@ export default function GaugeRrModal({
             planId: value,
             partNumber: p.partNo,
             partName: p.product,
+            instrumentId: p.instrumentId != null ? String(p.instrumentId) : prev.instrumentId,
             gageName: p.gageName,
             gageNumber: p.gageSerial ?? prev.gageNumber,
+            gageType: i?.specText ?? prev.gageType,
           }
         : { ...prev, planId: value },
     );
@@ -177,7 +193,9 @@ export default function GaugeRrModal({
   const errors: string[] = [];
   if (!form.partNumber.trim()) errors.push('품번(Part Number)을 입력하세요.');
   if (!form.partName.trim()) errors.push('품명(Part Name)을 입력하세요.');
-  if (!form.gageName.trim()) errors.push('게이지 이름을 입력하세요.');
+  /* 계측기를 이으면 게이지 이름은 서버가 대장 값으로 채운다 */
+  if (!form.instrumentId && !form.gageName.trim())
+    errors.push('계측기를 고르거나 게이지 이름을 입력하세요.');
   if (!form.performedDate) errors.push('시행일을 입력하세요.');
   if (appraisers.some((n) => !n.trim())) errors.push('측정자 이름 3명을 모두 입력하세요.');
   if (!specText(form.specLower) || !specText(form.specUpper)) errors.push('규격은 숫자로 입력하세요.');
@@ -203,7 +221,7 @@ export default function GaugeRrModal({
       characteristicClass: opt(form.characteristicClass),
       specLower: opt(form.specLower) != null ? Number(form.specLower) : undefined,
       specUpper: opt(form.specUpper) != null ? Number(form.specUpper) : undefined,
-      gageName: form.gageName.trim(),
+      gageName: opt(form.gageName),
       gageNumber: opt(form.gageNumber),
       gageType: opt(form.gageType),
       appraisers: appraisers.map((n) => n.trim()),
@@ -311,14 +329,26 @@ export default function GaugeRrModal({
             </Field>
           </div>
           <div className="md:col-span-2">
-            <Field label="계측기 연결" hint="고르면 게이지 이름·번호·규격을 채웁니다. 연결하지 않아도 됩니다.">
-              <SearchSelect
-                value={form.instrumentId}
-                onChange={pickInstrument}
-                options={instrumentOptions}
-                loading={instruments.isPending}
-                placeholder="계측기명 · 관리번호로 찾기"
-              />
+            <Field
+              label="계측기 연결"
+              hint="고르면 이 R&R 이 그 계측기의 이력으로 남고, 게이지 이름·번호는 대장 값을 씁니다. 대장에 없는 게이지면 비워 두고 직접 적습니다."
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SearchSelect
+                    value={form.instrumentId}
+                    onChange={pickInstrument}
+                    options={instrumentOptions}
+                    loading={instruments.isPending}
+                    placeholder="계측기명 · 관리번호 · S/NO 로 찾기"
+                  />
+                </div>
+                {form.instrumentId !== '' && (
+                  <button type="button" className={btnClass} onClick={() => set('instrumentId', '')}>
+                    연결 해제
+                  </button>
+                )}
+              </div>
             </Field>
           </div>
         </div>
@@ -356,10 +386,12 @@ export default function GaugeRrModal({
             />
           </Field>
 
-          <Field label="게이지 이름 (Gage Name)" required>
+          {/* 계측기를 이으면 이름·번호는 서버가 대장 값으로 채운다 — 적어도 무시되므로 잠근다 */}
+          <Field label="게이지 이름 (Gage Name)" required={!form.instrumentId}>
             <input
               className={inputClass}
               value={form.gageName}
+              disabled={form.instrumentId !== ''}
               onChange={(e) => set('gageName', e.target.value)}
               placeholder="Micrometer"
             />
@@ -368,6 +400,7 @@ export default function GaugeRrModal({
             <input
               className={`${inputClass} code`}
               value={form.gageNumber}
+              disabled={form.instrumentId !== ''}
               onChange={(e) => set('gageNumber', e.target.value)}
             />
           </Field>

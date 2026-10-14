@@ -1,12 +1,17 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { gaugeRrApi, type GaugeRrPlan, type SaveGaugeRrPlanPayload } from '@/api/gaugeRr';
+import { instrumentsApi } from '@/api/instruments';
 import { queryKeys } from '@/api/queryKeys';
 import Modal from '@/components/Modal';
+import SearchSelect from '@/components/SearchSelect';
 import { useToast } from '@/components/toastContext';
 import { btnClass, btnPrimaryClass, Field, inputClass } from '@/components/ui';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** 계측기 고르는 목록. 계측기 목록 화면·R&R 등록 창과 같은 조회라 받아 둔 것을 함께 쓴다 */
+const INSTRUMENT_QUERY = { page: 0, size: 500 };
 
 /**
  * 점검 횟수 빠른 선택. 횟수는 회사 사정에 따라 달라 사람이 정한다 (요청 2026-10-14) —
@@ -29,6 +34,10 @@ const PRESETS: { label: string; months: number[] }[] = [
  *
  * 서버의 계획 줄은 계획월이 하나다. 한 품목을 한 해에 여러 번 점검하면 고른 달마다 줄을
  * 하나씩 만든다 — 실적도 회차마다 따로 잇는다. 수정은 그 줄 하나의 달만 바꾼다.
+ *
+ * 게이지는 계측기 대장에서 고른다. R&R 은 계측기를 평가하는 일이라 결과가 대장과 이어져야
+ * 한다. 고르면 GAGE 명·S/NO 는 서버가 대장 값으로 채우므로 칸을 잠근다. 대장에 없는
+ * 게이지는 고르지 않고 손으로 적는다 (필수 여부는 품질팀 확인 전이라 선택으로 둔다).
  */
 export default function GaugeRrPlanModal({
   plan,
@@ -45,6 +54,7 @@ export default function GaugeRrPlanModal({
   const toast = useToast();
 
   const [form, setForm] = useState({
+    instrumentId: plan?.instrumentId != null ? String(plan.instrumentId) : '',
     seq: plan ? String(plan.seq) : '',
     product: plan?.product ?? '',
     productSpec: plan?.productSpec ?? '',
@@ -69,10 +79,38 @@ export default function GaugeRrPlanModal({
 
   const planYear = plan?.planYear ?? year;
 
+  const instruments = useQuery({
+    queryKey: queryKeys.instruments.list(INSTRUMENT_QUERY),
+    queryFn: () => instrumentsApi.list(INSTRUMENT_QUERY),
+    staleTime: 5 * 60_000,
+  });
+  const instrumentOptions = useMemo(
+    () =>
+      (instruments.data?.items ?? []).map((i) => ({
+        value: String(i.id),
+        label: `${i.name} (${i.mgmtNo})`,
+        hint: [i.serialNo, i.specText].filter(Boolean).join(' · '),
+      })),
+    [instruments.data],
+  );
+
+  /* 고르면 대장 값을 보여 준다. 저장할 때는 서버가 같은 값으로 채운다 */
+  const pickInstrument = (value: string) => {
+    const i = instruments.data?.items.find((x) => String(x.id) === value);
+    setForm((p) => ({
+      ...p,
+      instrumentId: value,
+      gageName: i ? i.name : p.gageName,
+      gageSerial: i ? (i.serialNo ?? '') : p.gageSerial,
+    }));
+  };
+  const linked = form.instrumentId !== '';
+
   const errors: string[] = [];
   if (!form.product.trim()) errors.push('제품을 입력하세요.');
   if (!form.partNo.trim()) errors.push('PART NO. 를 입력하세요.');
-  if (!form.gageName.trim()) errors.push('GAGE 명을 입력하세요.');
+  if (!linked && !form.gageName.trim())
+    errors.push('게이지(계측기)를 고르거나 GAGE 명을 입력하세요.');
   if (months.length === 0) errors.push('점검할 달을 고르세요.');
   if (form.seq.trim() && !/^[1-9]\d*$/.test(form.seq.trim()))
     errors.push('NO 는 1 이상의 정수로 입력하세요.');
@@ -89,7 +127,8 @@ export default function GaugeRrPlanModal({
         product: form.product.trim(),
         productSpec: opt(form.productSpec),
         partNo: form.partNo.trim(),
-        gageName: form.gageName.trim(),
+        instrumentId: linked ? Number(form.instrumentId) : undefined,
+        gageName: opt(form.gageName),
         gageSerial: opt(form.gageSerial),
         item: opt(form.item),
         plannedMonth,
@@ -180,10 +219,42 @@ export default function GaugeRrPlanModal({
             placeholder="외경"
           />
         </Field>
-        <Field label="GAGE 명" required>
+        <div className="md:col-span-2">
+          <Field
+            label="게이지 (계측기)"
+            hint={
+              linked
+                ? 'GAGE 명·S/NO. 는 계측기 대장 값을 씁니다. 대장에서 고치면 다음 복사 때 따라옵니다.'
+                : '계측기 대장에서 고릅니다. 대장에 없는 게이지면 비워 두고 아래에 직접 적습니다.'
+            }
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <SearchSelect
+                  value={form.instrumentId}
+                  onChange={pickInstrument}
+                  options={instrumentOptions}
+                  loading={instruments.isPending}
+                  placeholder="계측기명 · 관리번호 · S/NO 로 찾기"
+                />
+              </div>
+              {linked && (
+                <button
+                  type="button"
+                  className={btnClass}
+                  onClick={() => set('instrumentId', '')}
+                >
+                  연결 해제
+                </button>
+              )}
+            </div>
+          </Field>
+        </div>
+        <Field label="GAGE 명" required={!linked}>
           <input
             className={inputClass}
             value={form.gageName}
+            disabled={linked}
             onChange={(e) => set('gageName', e.target.value)}
             placeholder="Micrometer"
           />
@@ -192,6 +263,7 @@ export default function GaugeRrPlanModal({
           <input
             className={`${inputClass} code`}
             value={form.gageSerial}
+            disabled={linked}
             onChange={(e) => set('gageSerial', e.target.value)}
           />
         </Field>
