@@ -22,6 +22,7 @@ import AttachmentsSection from '@/components/AttachmentsSection';
 import { usePerms } from '@/hooks/useMe';
 import { canEdit } from '@/lib/permissions';
 import InstrumentCard from './InstrumentCard';
+import InstrumentGaugeRrSection from './InstrumentGaugeRrSection';
 import {
   Badge,
   btnClass,
@@ -208,11 +209,15 @@ export default function InstrumentDetailPage() {
           onEditCalibration={edit ? setCalibrationTarget : undefined}
           onDeleteCalibration={edit ? (id) => removeCalibration.mutate(id) : undefined}
           footer={
-            <AttachmentsSection
-              owner={{ kind: 'instrument', id: instrumentId }}
-              emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
-              canWrite={edit}
-            />
+            <>
+              {/* R&R 은 이 계측기를 평가한 기록이다 — 교정 이력 바로 아래에 둔다 */}
+              <InstrumentGaugeRrSection instrumentId={instrumentId} />
+              <AttachmentsSection
+                owner={{ kind: 'instrument', id: instrumentId }}
+                emptyText="첨부파일이 없습니다. 교정성적서 스캔본 등을 올립니다."
+                canWrite={edit}
+              />
+            </>
           }
         />
       )}

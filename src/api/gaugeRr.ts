@@ -122,6 +122,10 @@ export interface GaugeRrDetail {
  * measurements 는 [3][3][10] 이어야 한다.
  */
 export interface SaveGaugeRrPayload {
+  /**
+   * 주면 게이지 이름·번호는 계측기 대장 값으로 채워지고 보낸 값은 무시된다.
+   * 비우고 planId 를 주면 그 계획의 계측기를 쓴다.
+   */
   instrumentId?: number;
   /** 주면 그 계획표 줄의 실적이 된다. 이미 다른 기록이 연결된 계획이면 409 */
   planId?: number;
@@ -130,7 +134,8 @@ export interface SaveGaugeRrPayload {
   characteristicClass?: string;
   specLower?: number;
   specUpper?: number;
-  gageName: string;
+  /** 계측기를 잇지 않으면 필수 */
+  gageName?: string;
   gageNumber?: string;
   gageType?: string;
   /** 3명 */
@@ -146,6 +151,8 @@ export interface GaugeRrListQuery {
   from?: IsoDate;
   to?: IsoDate;
   partNumber?: string;
+  /** 계측기 상세의 R&R 이력 */
+  instrumentId?: number;
 }
 
 /**
@@ -162,6 +169,9 @@ export interface GaugeRrPlan {
   /** 제품 규격 (양식 품명 둘째 줄) */
   productSpec: string | null;
   partNo: string;
+  /** 연결된 계측기. 있으면 GAGE 명·S/NO 는 서버가 계측기 대장 값으로 채운 것이다 */
+  instrumentId: number | null;
+  instrumentMgmtNo: string | null;
   gageName: string;
   gageSerial: string | null;
   /** 항목 (외경 등) */
@@ -189,7 +199,10 @@ export interface SaveGaugeRrPlanPayload {
   product: string;
   productSpec?: string;
   partNo: string;
-  gageName: string;
+  /** 주면 GAGE 명·S/NO 는 계측기 대장 값으로 채워지고 보낸 값은 무시된다 */
+  instrumentId?: number;
+  /** 계측기를 잇지 않으면 필수 */
+  gageName?: string;
   gageSerial?: string;
   item?: string;
   plannedMonth: number;
@@ -221,6 +234,13 @@ export const gaugeRrApi = {
     request<GaugeRrPlan>('POST', '/gauge-rr/plans', { body }),
   updatePlan: (id: number, body: SaveGaugeRrPlanPayload) =>
     request<GaugeRrPlan>('PATCH', `/gauge-rr/plans/${id}`, { body }),
+  /**
+   * from 해의 줄을 to 해로 통째로 옮기고 to 해 계획표 전체를 돌려준다. 실적은 옮기지 않는다.
+   * to 해에 이미 줄이 있으면 마지막 NO 뒤로 이어 붙는다. 계측기가 연결된 줄은 GAGE 명·S/NO 를
+   * 지금 대장 값으로 다시 채우고, 폐기된 계측기는 연결만 빼고 옮긴다.
+   */
+  copyPlans: (from: number, to: number) =>
+    request<GaugeRrPlan[]>('POST', '/gauge-rr/plans/copy', { query: { from, to } }),
   /** 줄만 지운다. 이어진 R&R 기록은 남는다 */
   removePlan: (id: number) => request<void>('DELETE', `/gauge-rr/plans/${id}`),
 };
