@@ -29,10 +29,13 @@ import {
 import GaugeRrModal from './GaugeRrModal';
 import GaugeRrPlanTab from './GaugeRrPlanTab';
 
-type TabKey = 'records' | 'plans';
+type TabKey = 'plans' | 'records';
 
-/** 보던 탭도 주소에 담는다. 계획표에서 기록을 열었다 돌아와도 계획표가 그대로 있게 */
-const TAB_DEFAULTS = { tab: 'records' };
+/**
+ * 보던 탭도 주소에 담는다. 계획표에서 기록을 열었다 돌아와도 계획표가 그대로 있게.
+ * 계획 및 관리 대장을 맨 앞에 둔다 — 화면 최상단에 두라는 요청 (2026-10-14).
+ */
+const TAB_DEFAULTS = { tab: 'plans' };
 
 export default function GaugeRrListPage() {
   const [q, setQ] = useUrlState(TAB_DEFAULTS);
@@ -40,15 +43,18 @@ export default function GaugeRrListPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
-      <Tabs
-        tabs={[
-          { key: 'records' as const, label: 'R&R 기록' },
-          { key: 'plans' as const, label: '연간 계획표' },
-        ]}
-        value={tab}
-        onChange={(next) => setQ({ tab: next })}
-      />
+      {/* 계획표를 인쇄하면 종이에는 양식만 나간다 */}
+      <div className="no-print space-y-3">
+        <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
+        <Tabs
+          tabs={[
+            { key: 'plans' as const, label: '계획 및 관리 대장' },
+            { key: 'records' as const, label: 'R&R 등록 목록' },
+          ]}
+          value={tab}
+          onChange={(next) => setQ({ tab: next })}
+        />
+      </div>
       {tab === 'plans' ? <GaugeRrPlanTab /> : <RecordsTab />}
     </div>
   );

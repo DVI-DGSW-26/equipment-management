@@ -9,11 +9,26 @@ import { btnClass, btnPrimaryClass, Field, inputClass } from '@/components/ui';
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /**
- * 연간 계획표 한 줄 추가·수정.
+ * 점검 횟수 빠른 선택. 횟수는 회사 사정에 따라 달라 사람이 정한다 (요청 2026-10-14) —
+ * 과장님 기준 예시는 두 달에 한 번, 연 6회다. 고른 뒤 달을 하나씩 더하거나 뺄 수 있다.
+ */
+const PRESETS: { label: string; months: number[] }[] = [
+  { label: '연 1회', months: [1] },
+  { label: '반기 (연 2회)', months: [1, 7] },
+  { label: '분기 (연 4회)', months: [1, 4, 7, 10] },
+  { label: '2개월마다 (연 6회)', months: [1, 3, 5, 7, 9, 11] },
+  { label: '매월 (연 12회)', months: MONTHS },
+];
+
+/**
+ * 연간 계획표 줄 추가·수정.
  *
  * 계획만 다룬다. 실적은 R&R 기록을 등록할 때 이 줄을 골라 잇는다 — 여기서는 바꾸지 못한다.
  * NO 를 비우면 서버가 그 해의 다음 번호를 붙인다. 같은 해에 NO 가 겹치면 409 로 막힌다.
  * 수정에서는 연도를 바꿀 수 없다 (서버 규칙).
+ *
+ * 서버의 계획 줄은 계획월이 하나다. 한 품목을 한 해에 여러 번 점검하면 고른 달마다 줄을
+ * 하나씩 만든다 — 실적도 회차마다 따로 잇는다. 수정은 그 줄 하나의 달만 바꾼다.
  */
 export default function GaugeRrPlanModal({
   plan,
@@ -37,26 +52,38 @@ export default function GaugeRrPlanModal({
     gageName: plan?.gageName ?? '',
     gageSerial: plan?.gageSerial ?? '',
     item: plan?.item ?? '',
-    plannedMonth: plan ? String(plan.plannedMonth) : '',
     remark: plan?.remark ?? '',
   });
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  /** 점검할 달. 수정은 그 줄 하나라 한 달만 */
+  const [months, setMonths] = useState<number[]>(plan ? [plan.plannedMonth] : []);
+  const toggleMonth = (m: number) =>
+    setMonths((prev) =>
+      plan
+        ? [m]
+        : prev.includes(m)
+          ? prev.filter((x) => x !== m)
+          : [...prev, m].sort((a, b) => a - b),
+    );
   const [tried, setTried] = useState(false);
 
   const planYear = plan?.planYear ?? year;
 
   const errors: string[] = [];
-  if (!form.product.trim()) errors.push('제품(품명)을 입력하세요.');
+  if (!form.product.trim()) errors.push('제품을 입력하세요.');
   if (!form.partNo.trim()) errors.push('PART NO. 를 입력하세요.');
   if (!form.gageName.trim()) errors.push('GAGE 명을 입력하세요.');
-  if (!form.plannedMonth) errors.push('계획월을 고르세요.');
+  if (months.length === 0) errors.push('점검할 달을 고르세요.');
   if (form.seq.trim() && !/^[1-9]\d*$/.test(form.seq.trim()))
     errors.push('NO 는 1 이상의 정수로 입력하세요.');
+  /* 여러 줄을 한꺼번에 만들 때 NO 를 하나로 정하면 둘째 줄부터 409 다 */
+  if (!plan && months.length > 1 && form.seq.trim())
+    errors.push('여러 달을 고르면 NO 는 비워 두세요. 차례로 붙습니다.');
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async (): Promise<GaugeRrPlan[]> => {
       const opt = (s: string) => (s.trim() === '' ? undefined : s.trim());
-      const body: SaveGaugeRrPlanPayload = {
+      const body = (plannedMonth: number): SaveGaugeRrPlanPayload => ({
         planYear,
         seq: opt(form.seq) != null ? Number(form.seq) : undefined,
         product: form.product.trim(),
@@ -65,17 +92,31 @@ export default function GaugeRrPlanModal({
         gageName: form.gageName.trim(),
         gageSerial: opt(form.gageSerial),
         item: opt(form.item),
-        plannedMonth: Number(form.plannedMonth),
+        plannedMonth,
         remark: opt(form.remark),
-      };
-      return plan ? gaugeRrApi.updatePlan(plan.id, body) : gaugeRrApi.createPlan(body);
+      });
+      if (plan) return [await gaugeRrApi.updatePlan(plan.id, body(months[0]))];
+      /* 차례로 보낸다 — 한꺼번에 보내면 자동 번호가 엉킬 수 있다 */
+      const saved: GaugeRrPlan[] = [];
+      for (const m of months) saved.push(await gaugeRrApi.createPlan(body(m)));
+      return saved;
     },
     onSuccess: (saved) => {
       void qc.invalidateQueries({ queryKey: queryKeys.gaugeRr.all });
-      toast.ok(plan ? '계획을 수정했습니다.' : `NO.${saved.seq} 계획을 추가했습니다.`);
+      toast.ok(
+        plan
+          ? '계획을 수정했습니다.'
+          : saved.length === 1
+            ? `NO.${saved[0].seq} 계획을 추가했습니다.`
+            : `계획 ${saved.length}줄을 추가했습니다 (NO.${saved[0].seq}~${saved[saved.length - 1].seq}).`,
+      );
       onClose();
     },
-    onError: toast.fail,
+    onError: (e) => {
+      /* 여러 줄 중 일부만 들어갔을 수 있다. 들어간 것은 목록에 보이게 다시 받는다 */
+      void qc.invalidateQueries({ queryKey: queryKeys.gaugeRr.all });
+      toast.fail(e);
+    },
   });
 
   const submit = () => {
@@ -86,7 +127,7 @@ export default function GaugeRrPlanModal({
   return (
     <Modal
       title={plan ? `${planYear}년 계획 수정 (NO.${plan.seq})` : `${planYear}년 계획 추가`}
-      width={760}
+      width={820}
       onClose={onClose}
       footer={
         <>
@@ -108,30 +149,7 @@ export default function GaugeRrPlanModal({
       }
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Field label="NO" hint={plan ? undefined : '비우면 다음 번호가 붙습니다.'}>
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
-            value={form.seq}
-            onChange={(e) => set('seq', e.target.value)}
-            placeholder={plan ? undefined : '자동'}
-          />
-        </Field>
-        <Field label="계획월" required>
-          <select
-            className={inputClass}
-            value={form.plannedMonth}
-            onChange={(e) => set('plannedMonth', e.target.value)}
-          >
-            <option value="">고르세요</option>
-            {MONTHS.map((m) => (
-              <option key={m} value={m}>
-                {m}월
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="제품 (품명)" required>
+        <Field label="제품" required>
           <input
             className={inputClass}
             value={form.product}
@@ -177,16 +195,74 @@ export default function GaugeRrPlanModal({
             onChange={(e) => set('gageSerial', e.target.value)}
           />
         </Field>
+
         <div className="md:col-span-2">
-          <Field label="비고">
-            <input
-              className={inputClass}
-              value={form.remark}
-              onChange={(e) => set('remark', e.target.value)}
-              maxLength={500}
-            />
+          <Field
+            label={plan ? '계획월' : `점검할 달 (연 ${months.length}회)`}
+            required
+            hint={
+              plan
+                ? '이 줄 하나의 달을 바꿉니다.'
+                : '고른 달마다 계획 줄이 하나씩 생깁니다. 실적도 회차마다 따로 잇습니다.'
+            }
+          >
+            {!plan && (
+              <div className="mb-1.5 flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className={btnClass}
+                    onClick={() => setMonths(p.months)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-6 gap-1 md:grid-cols-12">
+              {MONTHS.map((m) => {
+                const on = months.includes(m);
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleMonth(m)}
+                    className={`rounded-sm border py-1.5 text-[18px] ${
+                      on
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-line bg-surface text-fg-sub hover:bg-bg'
+                    }`}
+                  >
+                    {m}월
+                  </button>
+                );
+              })}
+            </div>
           </Field>
         </div>
+
+        <Field
+          label="NO"
+          hint={plan ? undefined : '비우면 다음 번호가 붙습니다. 여러 달이면 차례로 붙습니다.'}
+        >
+          <input
+            className={`${inputClass} num`}
+            inputMode="numeric"
+            value={form.seq}
+            onChange={(e) => set('seq', e.target.value)}
+            placeholder={plan ? undefined : '자동'}
+          />
+        </Field>
+        <Field label="비고">
+          <input
+            className={inputClass}
+            value={form.remark}
+            onChange={(e) => set('remark', e.target.value)}
+            maxLength={500}
+          />
+        </Field>
       </div>
     </Modal>
   );

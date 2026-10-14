@@ -7,6 +7,7 @@ import { useCanEdit } from '@/hooks/useMe';
 import { useUrlState } from '@/hooks/useUrlState';
 import { FROM_LIST } from '@/hooks/useBackToList';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
+import { printAs } from '@/lib/printTitle';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
 import { searchIn } from '@/lib/search';
 import { fmtNum, JUDGMENT_TONE } from '@/domain/gaugeRr';
@@ -25,8 +26,12 @@ import {
 } from '@/components/ui';
 import GaugeRrModal from './GaugeRrModal';
 import GaugeRrPlanModal from './GaugeRrPlanModal';
+import GaugeRrPlanPrintSheet from './GaugeRrPlanPrintSheet';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** 계획표는 2026년부터 쓴다 (요청 2026-10-14) */
+const FIRST_YEAR = 2026;
 
 /**
  * 계획표 조건도 주소에 담는다. 기록 탭과 이름이 겹치지 않게 p 를 붙인다 —
@@ -84,7 +89,7 @@ export default function GaugeRrPlanTab() {
   const edit = useCanEdit('instrument');
 
   const [pq, setPq] = useUrlState(PLAN_DEFAULTS);
-  const year = Number(pq.pYear) || currentYear();
+  const year = Number(pq.pYear) || Math.max(currentYear(), FIRST_YEAR);
   const keyword = pq.pKeyword;
   const state = pq.pState as StateFilter;
 
@@ -96,9 +101,19 @@ export default function GaugeRrPlanTab() {
     queryKey: queryKeys.gaugeRr.planYears(),
     queryFn: () => gaugeRrApi.planYears(),
   });
-  /* 계획이 있는 해 + 올해·내년. 아직 계획이 없는 해에도 새로 적을 수 있어야 한다 */
+  /*
+   * 2026년부터 내년까지 + 계획이 있는 해. 아직 계획이 없는 해에도 새로 적을 수 있어야 한다.
+   * 계획이 있는 해는 그 전이라도 남긴다 — 숨기면 이미 적은 계획을 볼 길이 없다.
+   */
   const yearOptions = [
-    ...new Set([...(years.data ?? []), currentYear() + 1, currentYear(), year]),
+    ...new Set([
+      ...(years.data ?? []),
+      ...Array.from(
+        { length: Math.max(0, currentYear() + 1 - FIRST_YEAR + 1) },
+        (_, i) => FIRST_YEAR + i,
+      ),
+      year,
+    ]),
   ].sort((a, b) => b - a);
 
   const plans = useQuery({
@@ -149,225 +164,239 @@ export default function GaugeRrPlanTab() {
   );
 
   return (
-    <Section
-      title={
-        <>
-          {year}년 게이지 R&amp;R 계획표{' '}
-          <span className="font-normal text-fg-muted">
-            실시 {doneCount} / 계획 {all.length}
-            {lateCount > 0 && <span className="text-danger"> · 지연 {lateCount}</span>}
-          </span>
-        </>
-      }
-      right={
-        <>
-          <button
-            type="button"
-            className={btnClass}
-            disabled={rows.length === 0 || exporting}
-            onClick={() => void download()}
-          >
-            {exporting ? '만드는 중…' : '엑셀 다운로드'}
-          </button>
-          {addButton || <ReadOnlyChip />}
-        </>
-      }
-    >
-      <FilterBar
-        search={{
-          value: keyword,
-          onChange: (v) => setPq({ pKeyword: v }),
-          fields: 'PART NO · 제품 · GAGE · S/NO · 항목',
-        }}
-        count={{ shown: rows.length, total: all.length }}
-        onReset={() => setPq({ pKeyword: '', pState: '' })}
-        resetDisabled={keyword === '' && state === ''}
-      >
-        {/* 연도는 초기화하지 않는다. 계획 추가도 이 연도로 한다 */}
-        <select
-          className={`${filterClass} w-28`}
-          value={year}
-          aria-label="계획 연도"
-          onChange={(e) =>
-            setPq({ pYear: Number(e.target.value) === currentYear() ? '' : e.target.value })
-          }
-        >
-          {yearOptions.map((y) => (
-            <option key={y} value={y}>
-              {y}년
-            </option>
-          ))}
-        </select>
-        <select
-          className={`${filterClass} w-36`}
-          value={state}
-          aria-label="실시 여부"
-          onChange={(e) => setPq({ pState: e.target.value })}
-        >
-          <option value="">실시 여부 전체</option>
-          <option value="done">실시</option>
-          <option value="todo">미실시</option>
-          <option value="late">지연 (계획월 지남)</option>
-        </select>
-      </FilterBar>
-
-      <QueryState
-        isPending={plans.isPending}
-        error={plans.error}
-        isEmpty={rows.length === 0}
-        emptyText={
-          all.length > 0 ? (
-            '조건에 맞는 계획이 없습니다.'
-          ) : (
-            <span className="flex flex-wrap items-center gap-2">
-              <span>{year}년 계획이 없습니다.</span>
-              {addButton}
+    <>
+      <Section
+        className="print:hidden"
+        title={
+          <>
+            {year}년 게이지 R&amp;R 계획 및 관리 대장{' '}
+            <span className="font-normal text-fg-muted">
+              실시 {doneCount} / 계획 {all.length}
+              {lateCount > 0 && <span className="text-danger"> · 지연 {lateCount}</span>}
             </span>
-          )
+          </>
         }
-      />
+        right={
+          <>
+            <button
+              type="button"
+              className={btnClass}
+              disabled={rows.length === 0 || exporting}
+              onClick={() => void download()}
+            >
+              {exporting ? '만드는 중…' : '엑셀 다운로드'}
+            </button>
+            {/* 종이에는 거르지 않은 그 해 계획 전부가 나간다 — 대장은 한 해 전체다 */}
+            <button
+              type="button"
+              className={btnClass}
+              disabled={all.length === 0}
+              title="품질팀 엑셀 양식(년간 시트) 그대로 인쇄합니다. 검색·필터와 상관없이 그 해 계획 전부가 나갑니다."
+              onClick={() => printAs(`${year}년_게이지RR_계획및관리대장`)}
+            >
+              인쇄 · PDF
+            </button>
+            {addButton || <ReadOnlyChip />}
+          </>
+        }
+      >
+        <FilterBar
+          search={{
+            value: keyword,
+            onChange: (v) => setPq({ pKeyword: v }),
+            fields: 'PART NO · 제품 · GAGE · S/NO · 항목',
+          }}
+          count={{ shown: rows.length, total: all.length }}
+          onReset={() => setPq({ pKeyword: '', pState: '' })}
+          resetDisabled={keyword === '' && state === ''}
+        >
+          {/* 연도는 초기화하지 않는다. 계획 추가도 이 연도로 한다 */}
+          <select
+            className={`${filterClass} w-28`}
+            value={year}
+            aria-label="계획 연도"
+            onChange={(e) =>
+              setPq({ pYear: Number(e.target.value) === currentYear() ? '' : e.target.value })
+            }
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}년
+              </option>
+            ))}
+          </select>
+          <select
+            className={`${filterClass} w-36`}
+            value={state}
+            aria-label="실시 여부"
+            onChange={(e) => setPq({ pState: e.target.value })}
+          >
+            <option value="">실시 여부 전체</option>
+            <option value="done">실시</option>
+            <option value="todo">미실시</option>
+            <option value="late">지연 (계획월 지남)</option>
+          </select>
+        </FilterBar>
 
-      {rows.length > 0 && (
-        <>
-          <table className="w-max min-w-full text-[19px]">
-            <thead>
-              <tr className="border-b border-line bg-bg text-left text-fg-sub">
-                <th className={`${thClass} w-14 text-right`}>NO</th>
-                <th className={thClass}>제품</th>
-                <th className={thClass}>PART NO.</th>
-                <th className={thClass}>GAGE 명</th>
-                <th className={thClass}>S/NO.</th>
-                <th className={thClass}>항목</th>
-                {MONTHS.map((m) => (
-                  <th key={m} className="w-10 px-1 py-2 text-center font-medium">
-                    {m}
-                  </th>
-                ))}
-                <th className={thClass}>실시일</th>
-                <th className={`${thClass} text-right`}>%R&amp;R</th>
-                <th className={`${thClass} text-right`}>ndc</th>
-                <th className={`${thClass} text-center`}>판정</th>
-                <th className={thClass}>비고</th>
-                {edit && <th className={thClass} />}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => {
-                const late = isLate(p, today);
-                const open = () =>
-                  p.studyId != null &&
-                  navigate(`/gauge-rr/${p.studyId}`, { state: FROM_LIST });
-                return (
-                  <tr
-                    key={p.id}
-                    onClick={open}
-                    title={p.studyId != null ? '눌러서 실적(R&R 기록)을 엽니다.' : undefined}
-                    className={`border-b border-line ${
-                      p.studyId != null ? 'cursor-pointer hover:bg-bg' : ''
-                    }`}
-                  >
-                    <td className="num px-3 py-2 text-fg-muted">{p.seq}</td>
-                    <td className="px-3 py-2">
-                      {p.product}
-                      {p.productSpec && (
-                        <div className="text-[17px] text-fg-muted">{p.productSpec}</div>
-                      )}
-                    </td>
-                    <td className="code px-3 py-2">{p.partNo}</td>
-                    <td className="px-3 py-2">{p.gageName}</td>
-                    <td className="code px-3 py-2">{p.gageSerial ?? '-'}</td>
-                    <td className="px-3 py-2">{p.item ?? '-'}</td>
-                    {MONTHS.map((m) => {
-                      const planned = p.plannedMonth === m;
-                      const performed = p.done && p.performedMonth === m;
-                      return (
-                        <td key={m} className="border-l border-line px-1 py-2 text-center">
-                          {planned && (
-                            <span
-                              className={late ? 'text-danger' : 'text-fg-sub'}
-                              title={late ? `${m}월 계획 — 아직 실시하지 않았습니다` : `${m}월 계획`}
-                            >
-                              ●
-                            </span>
-                          )}
-                          {performed && (
-                            <span
-                              className={`font-semibold ${p.judgment ? MARK_CLASS[p.judgment] : ''}`}
-                              title={`${fmtDate(p.performedDate)} 실시 · ${p.judgmentLabel ?? ''}`}
-                            >
-                              ✓
-                            </span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="border-l border-line px-3 py-2 whitespace-nowrap">
-                      {p.done ? fmtDate(p.performedDate) : late ? <Badge tone="danger">지연</Badge> : '-'}
-                    </td>
-                    <td className="num px-3 py-2">{fmtNum(p.pctGrr, 2)}</td>
-                    <td className="num px-3 py-2">{fmtNum(p.ndc, 2)}</td>
-                    <td className="px-3 py-2 text-center">
-                      {p.judgment ? (
-                        <Badge tone={JUDGMENT_TONE[p.judgment]}>{p.judgmentLabel}</Badge>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-fg-sub">{p.remark ?? '-'}</td>
-                    {edit && (
-                      <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
-                        <span className="flex gap-1">
-                          {!p.done && (
+        <QueryState
+          isPending={plans.isPending}
+          error={plans.error}
+          isEmpty={rows.length === 0}
+          emptyText={
+            all.length > 0 ? (
+              '조건에 맞는 계획이 없습니다.'
+            ) : (
+              <span className="flex flex-wrap items-center gap-2">
+                <span>{year}년 계획이 없습니다.</span>
+                {addButton}
+              </span>
+            )
+          }
+        />
+
+        {rows.length > 0 && (
+          <>
+            <table className="w-max min-w-full text-[19px]">
+              <thead>
+                <tr className="border-b border-line bg-bg text-left text-fg-sub">
+                  <th className={`${thClass} w-14 text-right`}>NO</th>
+                  <th className={thClass}>제품</th>
+                  <th className={thClass}>PART NO.</th>
+                  <th className={thClass}>GAGE 명</th>
+                  <th className={thClass}>S/NO.</th>
+                  <th className={thClass}>항목</th>
+                  {MONTHS.map((m) => (
+                    <th key={m} className="w-10 px-1 py-2 text-center font-medium">
+                      {m}
+                    </th>
+                  ))}
+                  <th className={thClass}>실시일</th>
+                  <th className={`${thClass} text-right`}>%R&amp;R</th>
+                  <th className={`${thClass} text-right`}>ndc</th>
+                  <th className={`${thClass} text-center`}>판정</th>
+                  <th className={thClass}>비고</th>
+                  {edit && <th className={thClass} />}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => {
+                  const late = isLate(p, today);
+                  const open = () =>
+                    p.studyId != null &&
+                    navigate(`/gauge-rr/${p.studyId}`, { state: FROM_LIST });
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={open}
+                      title={p.studyId != null ? '눌러서 실적(R&R 기록)을 엽니다.' : undefined}
+                      className={`border-b border-line ${
+                        p.studyId != null ? 'cursor-pointer hover:bg-bg' : ''
+                      }`}
+                    >
+                      <td className="num px-3 py-2 text-fg-muted">{p.seq}</td>
+                      <td className="px-3 py-2">
+                        {p.product}
+                        {p.productSpec && (
+                          <div className="text-[17px] text-fg-muted">{p.productSpec}</div>
+                        )}
+                      </td>
+                      <td className="code px-3 py-2">{p.partNo}</td>
+                      <td className="px-3 py-2">{p.gageName}</td>
+                      <td className="code px-3 py-2">{p.gageSerial ?? '-'}</td>
+                      <td className="px-3 py-2">{p.item ?? '-'}</td>
+                      {MONTHS.map((m) => {
+                        const planned = p.plannedMonth === m;
+                        const performed = p.done && p.performedMonth === m;
+                        return (
+                          <td key={m} className="border-l border-line px-1 py-2 text-center">
+                            {planned && (
+                              <span
+                                className={late ? 'text-danger' : 'text-fg-sub'}
+                                title={late ? `${m}월 계획 — 아직 실시하지 않았습니다` : `${m}월 계획`}
+                              >
+                                ●
+                              </span>
+                            )}
+                            {performed && (
+                              <span
+                                className={`font-semibold ${p.judgment ? MARK_CLASS[p.judgment] : ''}`}
+                                title={`${fmtDate(p.performedDate)} 실시 · ${p.judgmentLabel ?? ''}`}
+                              >
+                                ✓
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="border-l border-line px-3 py-2 whitespace-nowrap">
+                        {p.done ? fmtDate(p.performedDate) : late ? <Badge tone="danger">지연</Badge> : '-'}
+                      </td>
+                      <td className="num px-3 py-2">{fmtNum(p.pctGrr, 2)}</td>
+                      <td className="num px-3 py-2">{fmtNum(p.ndc, 2)}</td>
+                      <td className="px-3 py-2 text-center">
+                        {p.judgment ? (
+                          <Badge tone={JUDGMENT_TONE[p.judgment]}>{p.judgmentLabel}</Badge>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-fg-sub">{p.remark ?? '-'}</td>
+                      {edit && (
+                        <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <span className="flex gap-1">
+                            {!p.done && (
+                              <button
+                                type="button"
+                                className={btnClass}
+                                onClick={() => setRecording(p)}
+                              >
+                                실적 등록
+                              </button>
+                            )}
+                            <button type="button" className={btnClass} onClick={() => setEditing(p)}>
+                              수정
+                            </button>
                             <button
                               type="button"
-                              className={btnClass}
-                              onClick={() => setRecording(p)}
-                            >
-                              실적 등록
-                            </button>
-                          )}
-                          <button type="button" className={btnClass} onClick={() => setEditing(p)}>
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            className={btnDangerClass}
-                            disabled={remove.isPending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `NO.${p.seq} ${p.partNo} 계획 줄을 지웁니다.` +
-                                    (p.done ? ' 이어진 R&R 기록은 그대로 남습니다.' : ''),
+                              className={btnDangerClass}
+                              disabled={remove.isPending}
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `NO.${p.seq} ${p.partNo} 계획 줄을 지웁니다.` +
+                                      (p.done ? ' 이어진 R&R 기록은 그대로 남습니다.' : ''),
+                                  )
                                 )
-                              )
-                                remove.mutate(p);
-                            }}
-                          >
-                            삭제
-                          </button>
-                        </span>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="border-t border-line px-3 py-2 text-[17px] text-fg-muted">
-            ● 계획월 (빨강은 지난 달까지 실시하지 않은 계획) · ✓ 실시월 (색은 판정: 초록 양호 ·
-            금색 조건부 · 빨강 부적합). 실시한 줄을 누르면 그 R&amp;R 기록을 엽니다.
-          </p>
-        </>
-      )}
+                                  remove.mutate(p);
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </span>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="border-t border-line px-3 py-2 text-[17px] text-fg-muted">
+              ● 계획월 (빨강은 지난 달까지 실시하지 않은 계획) · ✓ 실시월 (색은 판정: 초록 양호 ·
+              금색 조건부 · 빨강 부적합). 실시한 줄을 누르면 그 R&amp;R 기록을 엽니다.
+            </p>
+          </>
+        )}
 
-      {editing && (
-        <GaugeRrPlanModal
-          plan={editing === 'new' ? undefined : editing}
-          year={year}
-          onClose={() => setEditing(null)}
-        />
-      )}
-      {recording && <GaugeRrModal plan={recording} onClose={() => setRecording(null)} />}
-    </Section>
+        {editing && (
+          <GaugeRrPlanModal
+            plan={editing === 'new' ? undefined : editing}
+            year={year}
+            onClose={() => setEditing(null)}
+          />
+        )}
+        {recording && <GaugeRrModal plan={recording} onClose={() => setRecording(null)} />}
+      </Section>
+      <GaugeRrPlanPrintSheet year={year} plans={all} />
+    </>
   );
 }
