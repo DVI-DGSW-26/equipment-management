@@ -73,7 +73,7 @@ export default function GaugeRrDetailPage() {
               type="button"
               className={btnClass}
               onClick={() =>
-                navigate(`/gauge-rr?tab=plans&pYear=${d.performedDate.slice(0, 4)}`)
+                navigate(`/gauge-rr?pYear=${d.performedDate.slice(0, 4)}`)
               }
             >
               계획표 보기
