@@ -23,9 +23,36 @@ import {
   Section,
   seqThClass,
   StatCards,
+  Tabs,
   thClass,
 } from '@/components/ui';
 import GaugeRrModal from './GaugeRrModal';
+import GaugeRrPlanTab from './GaugeRrPlanTab';
+
+type TabKey = 'records' | 'plans';
+
+/** 보던 탭도 주소에 담는다. 계획표에서 기록을 열었다 돌아와도 계획표가 그대로 있게 */
+const TAB_DEFAULTS = { tab: 'records' };
+
+export default function GaugeRrListPage() {
+  const [q, setQ] = useUrlState(TAB_DEFAULTS);
+  const tab = q.tab as TabKey;
+
+  return (
+    <div className="space-y-3">
+      <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
+      <Tabs
+        tabs={[
+          { key: 'records' as const, label: 'R&R 기록' },
+          { key: 'plans' as const, label: '연간 계획표' },
+        ]}
+        value={tab}
+        onChange={(next) => setQ({ tab: next })}
+      />
+      {tab === 'plans' ? <GaugeRrPlanTab /> : <RecordsTab />}
+    </div>
+  );
+}
 
 /** 주소창에 담는 조건. 기간만 서버가 거르고 나머지는 화면에서 거른다 */
 const DEFAULTS = {
@@ -42,7 +69,6 @@ const COLUMNS: ExcelColumn<Row>[] = [
   { header: '시행일', value: (r) => r.performedDate, width: 12 },
   { header: '품번', value: (r) => r.partNumber, width: 16 },
   { header: '품명', value: (r) => r.partName, width: 24 },
-  { header: '특성', value: (r) => r.characteristic, width: 12 },
   { header: '게이지', value: (r) => r.gageName, width: 18 },
   { header: '게이지 번호', value: (r) => r.gageNumber, width: 14 },
   { header: '계측기 관리번호', value: (r) => r.instrumentMgmtNo, width: 14 },
@@ -50,9 +76,12 @@ const COLUMNS: ExcelColumn<Row>[] = [
   { header: '%R&R', value: (r) => (r.pctGrr == null ? null : fmtNum(r.pctGrr, 2)), numeric: true, width: 10 },
   { header: 'ndc', value: (r) => (r.ndc == null ? null : fmtNum(r.ndc, 2)), numeric: true, width: 8 },
   { header: '판정', value: (r) => r.judgmentLabel, width: 12 },
+  { header: '10% 초과 사유', value: (r) => r.exceedReason, width: 30 },
 ];
 
-export default function GaugeRrListPage() {
+/* ---------- R&R 기록 ---------- */
+
+function RecordsTab() {
   const navigate = useNavigate();
   const toast = useToast();
   const edit = useCanEdit('instrument');
@@ -75,7 +104,7 @@ export default function GaugeRrListPage() {
   const beforeJudgment = useMemo(() => {
     const hit = searchIn(q.keyword);
     return all.filter((r) =>
-      hit(r.partNumber, r.partName, r.characteristic, r.gageName, r.gageNumber, r.instrumentMgmtNo, ...r.appraisers),
+      hit(r.partNumber, r.partName, r.gageName, r.gageNumber, r.instrumentMgmtNo, ...r.appraisers),
     );
   }, [all, q.keyword]);
 
@@ -116,8 +145,6 @@ export default function GaugeRrListPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
-
       <StatCards
         cards={[
           {
@@ -187,7 +214,6 @@ export default function GaugeRrListPage() {
                 <th className={thClass}>시행일</th>
                 <th className={thClass}>품번</th>
                 <th className={thClass}>품명</th>
-                <th className={thClass}>특성</th>
                 <th className={thClass}>게이지</th>
                 <th className={thClass}>게이지 번호</th>
                 <th className={thClass}>측정자</th>
@@ -207,7 +233,6 @@ export default function GaugeRrListPage() {
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDate(r.performedDate)}</td>
                   <td className="code px-3 py-2">{r.partNumber}</td>
                   <td className="px-3 py-2">{r.partName}</td>
-                  <td className="px-3 py-2">{r.characteristic ?? '-'}</td>
                   <td className="px-3 py-2">{r.gageName}</td>
                   <td className="code px-3 py-2">
                     {r.gageNumber ?? '-'}
@@ -220,7 +245,13 @@ export default function GaugeRrListPage() {
                   <td className="num px-3 py-2">{fmtNum(r.ndc, 2)}</td>
                   <td className="px-3 py-2 text-center">
                     {r.judgment ? (
-                      <Badge tone={JUDGMENT_TONE[r.judgment]}>{r.judgmentLabel}</Badge>
+                      <Badge
+                        tone={JUDGMENT_TONE[r.judgment]}
+                        title={r.exceedReason ? `10% 초과 사유: ${r.exceedReason}` : undefined}
+                      >
+                        {r.judgmentLabel}
+                        {r.exceedReason && ' *'}
+                      </Badge>
                     ) : (
                       '-'
                     )}

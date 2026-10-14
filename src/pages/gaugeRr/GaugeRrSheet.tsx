@@ -49,8 +49,8 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
         <L>측정자 B</L>
         <V>{d.appraisers[1]}</V>
 
-        <L>측정 특성</L>
-        <V>{d.characteristic ?? '-'}</V>
+        <L>특성 분류</L>
+        <V>{d.characteristicClass ?? '-'}</V>
         <L>게이지 규격</L>
         <V>{d.gageType ?? '-'}</V>
         <L>측정자 C</L>
@@ -58,10 +58,10 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
 
         <L>규격</L>
         <V>{spec}</V>
-        <L>특성 분류</L>
-        <V>{d.characteristicClass ?? '-'}</V>
         <L>시행일</L>
         <V>{fmtDate(d.performedDate)}</V>
+        <L>연간 계획</L>
+        <V>{d.planId != null ? '계획표에 연결됨' : '-'}</V>
       </div>
 
       {/*
@@ -166,6 +166,12 @@ export default function GaugeRrSheet({ d }: { d: GaugeRrDetail }) {
           <p className="px-3 py-2 text-[15px] text-fg-muted">
             10% 미만 양호 · 10~30% 조건부 사용 · 30% 초과 부적합. 5.15σ(99%) 기준.
           </p>
+          {d.exceedReason && (
+            <div className="border-t border-fg px-3 py-2">
+              <span className="text-fg-muted">%R&amp;R 10% 초과 사유 </span>
+              {d.exceedReason}
+            </div>
+          )}
           {d.remark && (
             <div className="border-t border-fg px-3 py-2">
               <span className="text-fg-muted">비고 </span>

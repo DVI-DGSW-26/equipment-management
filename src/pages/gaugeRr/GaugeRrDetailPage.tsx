@@ -67,6 +67,18 @@ export default function GaugeRrDetailPage() {
         )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {!edit && <ReadOnlyChip />}
+          {/* 계획표는 시행일의 해로 연다 — 상세 응답에 계획 연도가 따로 없다 */}
+          {d?.planId != null && (
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() =>
+                navigate(`/gauge-rr?tab=plans&pYear=${d.performedDate.slice(0, 4)}`)
+              }
+            >
+              계획표 보기
+            </button>
+          )}
           {d?.instrumentId != null && (
             <button
               type="button"

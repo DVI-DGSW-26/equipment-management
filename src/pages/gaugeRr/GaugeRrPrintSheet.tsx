@@ -575,12 +575,12 @@ export default function GaugeRrPrintSheet({ d }: { d: GaugeRrDetail }) {
             <C s={4} bd="tlR">Appraiser C</C>
           </tr>
           <tr className={BLUE}>
-            <C s={3} bd="L">{d.characteristic ?? ''}</C>
+            <C s={3} bd="L"></C>
             <C className="text-right text-[6.5pt]">{lower}</C>
             <C className="text-right text-[6.5pt]">{upper}</C>
             <C s={4} bd="l" className="text-center">{d.gageType ?? ''}</C>
             <C s={5} bd="lR" className="text-center">{names[2]}</C>
-            <C s={3} bd="L">{d.characteristic ?? ''}</C>
+            <C s={3} bd="L"></C>
             <C s={4} bd="l">{d.gageType ?? ''}</C>
             <C s={4} bd="lR" className="text-center">{names[2]}</C>
           </tr>
@@ -634,7 +634,12 @@ export default function GaugeRrPrintSheet({ d }: { d: GaugeRrDetail }) {
           </p>
           <p className="mt-[10pt] flex items-end gap-[4pt]">
             Notes:
-            <span className="flex-1 border-b border-black">{d.remark ?? ''}</span>
+            {/* 초과 사유도 양식의 Notes 칸에 함께 적는다 — 종이에 따로 둘 칸이 없다 */}
+            <span className="flex-1 border-b border-black">
+              {[d.exceedReason && `%R&R 초과 사유: ${d.exceedReason}`, d.remark]
+                .filter(Boolean)
+                .join(' / ')}
+            </span>
           </p>
         </div>
         <div className="flex-1">

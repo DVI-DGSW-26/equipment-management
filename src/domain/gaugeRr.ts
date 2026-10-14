@@ -4,11 +4,13 @@ import type { GaugeRrJudgment } from '@/api/gaugeRr';
  * 게이지 R&R 화면 규칙. 계산은 서버가 한다 — 여기는 입력 격자 다루기와 표시 형식뿐이다.
  */
 
-/** 양식이 받는 범위 (서버 검증과 같다) */
-export const APPRAISER_COUNTS = [2, 3] as const;
-export const TRIAL_COUNTS = [2, 3] as const;
-export const PART_MIN = 2;
-export const PART_MAX = 10;
+/** 양식 크기. 품질팀 최종본으로 고정됐다 — 서버가 [3][3][10] 이 아니면 400 을 준다 */
+export const APPRAISERS = 3;
+export const TRIALS = 3;
+export const PARTS = 10;
+
+/** %R&R 이 이 값을 넘으면 사유 없이는 저장되지 않는다 (서버 검증과 같다) */
+export const EXCEED_LIMIT = 10;
 
 /** 양식의 측정자 이름표 */
 export const APPRAISER_LETTERS = ['A', 'B', 'C'] as const;
@@ -31,7 +33,10 @@ export const fmtNum = (v: number | null | undefined, digits: number): string =>
 /** 입력 격자. 칸마다 친 글자 그대로 둔다 — 숫자로 바꾸면 "20." 을 치는 도중에 점이 사라진다 */
 export type Grid = string[][][];
 
-export const resizeGrid = (grid: Grid, appraisers: number, trials: number, parts: number): Grid =>
+/** 빈 격자. 받아 온 측정값이 있으면 그 값으로, 모자란 칸은 빈칸으로 채운다 */
+export const blankGrid = (grid: Grid = []): Grid => resizeGrid(grid, APPRAISERS, TRIALS, PARTS);
+
+const resizeGrid = (grid: Grid, appraisers: number, trials: number, parts: number): Grid =>
   Array.from({ length: appraisers }, (_, a) =>
     Array.from({ length: trials }, (_, t) =>
       Array.from({ length: parts }, (_, p) => grid[a]?.[t]?.[p] ?? ''),
