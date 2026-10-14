@@ -130,6 +130,10 @@ export default function GaugeRrModal({
     }));
   };
 
+  /* 해제하면 계측기에서 채운 칸도 비운다 — 남겨 두면 대장 값이 손으로 적은 것처럼 남는다 */
+  const unlinkInstrument = () =>
+    setForm((p) => ({ ...p, instrumentId: '', gageName: '', gageNumber: '', gageType: '' }));
+
   /* ---------- 계획 연결 ---------- */
 
   /* 시행일의 해 계획표에서 고른다. 다른 기록이 이미 이어진 줄은 고를 수 없다(409) */
@@ -344,7 +348,7 @@ export default function GaugeRrModal({
                   />
                 </div>
                 {form.instrumentId !== '' && (
-                  <button type="button" className={btnClass} onClick={() => set('instrumentId', '')}>
+                  <button type="button" className={btnClass} onClick={unlinkInstrument}>
                     연결 해제
                   </button>
                 )}
