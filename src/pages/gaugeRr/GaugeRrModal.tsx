@@ -359,7 +359,7 @@ export default function GaugeRrModal({
 
         {/* ---------- 머리 정보 ---------- */}
         <div className="grid grid-cols-1 gap-3 border-t border-line pt-3 md:grid-cols-4">
-          <Field label="품번 (Part Number)" required>
+          <Field label="품번 (Part Number)" required hint="도면·고객사 부품 번호. 계획을 고르면 채워집니다.">
             <input
               className={`${inputClass} code`}
               value={form.partNumber}

@@ -13,6 +13,18 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 /** 계측기 고르는 목록. 계측기 목록 화면·R&R 등록 창과 같은 조회라 받아 둔 것을 함께 쓴다 */
 const INSTRUMENT_QUERY = { page: 0, size: 500 };
 
+/** R&R 기록 전부. 기록 탭과 같은 조회라 받아 둔 것을 함께 쓴다 */
+const RECORD_QUERY = {};
+
+/**
+ * 항목 기본 후보. 품질팀 양식에 쓰인 값이다. 정식 목록을 받으면 이 자리를 바꾼다 —
+ * 그 전까지는 이미 적힌 항목과 함께 후보로 띄우고, 없는 것은 직접 적는다.
+ */
+const ITEM_SEEDS = ['외경', '길이'];
+
+/** 제품 규격에 자주 쓰는 지름 기호. 키보드로 치기 어렵다 */
+const DIAMETER = 'Ø';
+
 /**
  * 점검 횟수 빠른 선택. 횟수는 회사 사정에 따라 달라 사람이 정한다 (요청 2026-10-14) —
  * 과장님 기준 예시는 두 달에 한 번, 연 6회다. 고른 뒤 달을 하나씩 더하거나 뺄 수 있다.
@@ -108,9 +120,64 @@ export default function GaugeRrPlanModal({
   /* 해제하면 계측기에서 채운 칸도 비운다 — 남겨 두면 대장 값이 손으로 적은 것처럼 남는다 */
   const unlink = () => setForm((p) => ({ ...p, instrumentId: '', gageName: '', gageSerial: '' }));
 
+  /* ---------- 품번·항목 후보 ---------- */
+
+  /*
+   * 자기고에는 품번 목록(마스터)이 없다. 그 대신 이미 적힌 품번을 후보로 띄운다 —
+   * 올해·작년 계획표와 R&R 기록에서 모은다. 고르면 제품·제품 규격도 채운다.
+   * 처음 쓰는 품번은 그대로 적는다.
+   */
+  const thisYearPlans = useQuery({
+    queryKey: queryKeys.gaugeRr.plans(planYear),
+    queryFn: () => gaugeRrApi.plans(planYear),
+  });
+  const lastYearPlans = useQuery({
+    queryKey: queryKeys.gaugeRr.plans(planYear - 1),
+    queryFn: () => gaugeRrApi.plans(planYear - 1),
+  });
+  const records = useQuery({
+    queryKey: queryKeys.gaugeRr.list(RECORD_QUERY),
+    queryFn: () => gaugeRrApi.list(RECORD_QUERY),
+  });
+  const known = useMemo(() => {
+    /* 품번 → 제품·규격. 계획표 값이 규격까지 있어 기록보다 앞선다 */
+    const parts = new Map<string, { product: string; productSpec: string }>();
+    const items = new Set<string>(ITEM_SEEDS);
+    for (const p of [...(thisYearPlans.data ?? []), ...(lastYearPlans.data ?? [])]) {
+      if (!parts.has(p.partNo))
+        parts.set(p.partNo, { product: p.product, productSpec: p.productSpec ?? '' });
+      if (p.item) items.add(p.item);
+    }
+    for (const r of records.data ?? [])
+      if (!parts.has(r.partNumber))
+        parts.set(r.partNumber, { product: r.partName, productSpec: '' });
+    return { parts, items: [...items] };
+  }, [thisYearPlans.data, lastYearPlans.data, records.data]);
+
+  const partOptions = useMemo(
+    () =>
+      [...known.parts].map(([partNo, v]) => ({
+        value: partNo,
+        label: partNo,
+        hint: [v.product, v.productSpec].filter(Boolean).join(' · '),
+      })),
+    [known],
+  );
+  const itemOptions = known.items.map((i) => ({ value: i, label: i }));
+
+  /* 아는 품번이면 제품·규격을 채운다. 처음 보는 품번이면 친 글자만 남긴다 */
+  const pickPart = (value: string) => {
+    const k = known.parts.get(value.trim());
+    setForm((p) =>
+      k
+        ? { ...p, partNo: value, product: k.product, productSpec: k.productSpec || p.productSpec }
+        : { ...p, partNo: value },
+    );
+  };
+
   const errors: string[] = [];
   if (!form.product.trim()) errors.push('제품을 입력하세요.');
-  if (!form.partNo.trim()) errors.push('PART NO. 를 입력하세요.');
+  if (!form.partNo.trim()) errors.push('품번(PART NO.)을 입력하세요.');
   if (!linked && !form.gageName.trim())
     errors.push('게이지(계측기)를 고르거나 GAGE 명을 입력하세요.');
   if (months.length === 0) errors.push('점검할 달을 고르세요.');
@@ -190,7 +257,20 @@ export default function GaugeRrPlanModal({
       }
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Field label="제품" required>
+        <Field
+          label="품번 (PART NO.)"
+          required
+          hint="도면·고객사에서 정한 부품 번호입니다. 예: C518N. 전에 쓴 품번은 골라서 넣을 수 있습니다."
+        >
+          <SearchSelect
+            value={form.partNo}
+            onChange={pickPart}
+            options={partOptions}
+            allowFree
+            placeholder="품번 입력 또는 고르기"
+          />
+        </Field>
+        <Field label="제품" required hint="부품 이름입니다. 예: INNER TUBE, 4WAY BLOCK">
           <input
             className={inputClass}
             value={form.product}
@@ -198,27 +278,42 @@ export default function GaugeRrPlanModal({
             placeholder="INNER TUBE"
           />
         </Field>
-        <Field label="제품 규격">
-          <input
-            className={inputClass}
-            value={form.productSpec}
-            onChange={(e) => set('productSpec', e.target.value)}
-            placeholder="Ø20.5*Ø14.2*40"
-          />
+        <Field
+          label="제품 규격"
+          hint={
+            <>
+              도면의 주요 치수를 * 로 이어 적습니다. 원통은 Ø외경*Ø내경*길이 (예: Ø20.5*Ø14.2*40),
+              사각은 가로*세로*높이 (예: 53*53*20)
+            </>
+          }
+        >
+          <div className="flex items-center gap-1">
+            <input
+              className={inputClass}
+              value={form.productSpec}
+              onChange={(e) => set('productSpec', e.target.value)}
+              placeholder="Ø20.5*Ø14.2*40"
+            />
+            <button
+              type="button"
+              className={btnClass}
+              title="지름 기호 Ø 를 끝에 붙입니다"
+              onClick={() => set('productSpec', form.productSpec + DIAMETER)}
+            >
+              Ø
+            </button>
+          </div>
         </Field>
-        <Field label="PART NO." required>
-          <input
-            className={`${inputClass} code`}
-            value={form.partNo}
-            onChange={(e) => set('partNo', e.target.value)}
-          />
-        </Field>
-        <Field label="항목">
-          <input
-            className={inputClass}
+        <Field
+          label="항목"
+          hint="R&R 로 재는 치수입니다. 목록에서 고르고, 없으면 직접 적습니다."
+        >
+          <SearchSelect
             value={form.item}
-            onChange={(e) => set('item', e.target.value)}
-            placeholder="외경"
+            onChange={(v) => set('item', v)}
+            options={itemOptions}
+            allowFree
+            placeholder="외경, 길이 …"
           />
         </Field>
         <div className="md:col-span-2">
