@@ -105,6 +105,8 @@ export default function GaugeRrPlanModal({
     }));
   };
   const linked = form.instrumentId !== '';
+  /* 해제하면 계측기에서 채운 칸도 비운다 — 남겨 두면 대장 값이 손으로 적은 것처럼 남는다 */
+  const unlink = () => setForm((p) => ({ ...p, instrumentId: '', gageName: '', gageSerial: '' }));
 
   const errors: string[] = [];
   if (!form.product.trim()) errors.push('제품을 입력하세요.');
@@ -242,7 +244,7 @@ export default function GaugeRrPlanModal({
                 <button
                   type="button"
                   className={btnClass}
-                  onClick={() => set('instrumentId', '')}
+                  onClick={unlink}
                 >
                   연결 해제
                 </button>
