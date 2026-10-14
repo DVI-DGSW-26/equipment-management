@@ -72,6 +72,8 @@ export const queryKeys = {
     all: ['gauge-rr'] as const,
     list: (q: GaugeRrListQuery) => ['gauge-rr', 'list', q] as const,
     detail: (id: number) => ['gauge-rr', 'detail', id] as const,
+    planYears: () => ['gauge-rr', 'plan-years'] as const,
+    plans: (year: number) => ['gauge-rr', 'plans', year] as const,
   },
   notifications: {
     all: ['notifications'] as const,
