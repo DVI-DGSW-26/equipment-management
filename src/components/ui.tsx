@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ALL_ROWS, PAGE_SIZES } from '@/lib/paging';
+import { useStickyColumns } from '@/hooks/useStickyColumns';
 import { errorMessage, forbiddenMessage, isForbidden } from '@/api/types';
 
 /* 공통 클래스. 사내 관리 도구 — 정보 밀도 우선, 애니메이션 없음 */
@@ -41,9 +42,16 @@ export const seqThClass = `${thClass} w-14 text-right`;
  * 내려야 스크롤바에 닿아서, 오른쪽 열을 보려고 한 번 내렸다 다시 올라와야 한다.
  * 높이를 화면 안으로 묶어 두 방향 스크롤바가 늘 손 닿는 데 있게 한다.
  * 대신 안에서 내릴 때 열 이름이 사라지지 않도록 표 머리를 고정한다(stickyThClass).
+ * 옆으로 넘길 때는 앞 3열이 남는다(useStickyColumns).
  */
 export function TableScroll({ children }: { children: ReactNode }) {
-  return <div className="max-h-[70vh] overflow-auto">{children}</div>;
+  const ref = useRef<HTMLDivElement>(null);
+  useStickyColumns(ref);
+  return (
+    <div ref={ref} className="max-h-[70vh] overflow-auto">
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -364,6 +372,8 @@ export function Section({
   children: ReactNode;
   className?: string;
 }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useStickyColumns(bodyRef);
   return (
     <section className={`rounded-sm border border-line bg-surface ${className}`}>
       {(title || right) && (
@@ -372,8 +382,10 @@ export function Section({
           <div className="flex flex-wrap items-center justify-end gap-2">{right}</div>
         </div>
       )}
-      {/* 좁은 화면에서 표가 넘칠 때 본문만 옆으로 밀린다. 화면 전체는 밀리지 않는다 */}
-      <div className="overflow-x-auto">{children}</div>
+      {/* 좁은 화면에서 표가 넘칠 때 본문만 옆으로 밀린다. 화면 전체는 밀리지 않는다. 앞 3열은 남는다 */}
+      <div ref={bodyRef} className="overflow-x-auto">
+        {children}
+      </div>
     </section>
   );
 }
