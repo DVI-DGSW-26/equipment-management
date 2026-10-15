@@ -44,7 +44,8 @@ const planLabel = (p: GaugeRrPlan): string =>
  * 게이지 R&R 등록·수정.
  *
  * 양식의 파란 칸만 받는다. 양식은 측정자 3명 × 반복 3회 × 시료 10개로 고정이다.
- * 머리 정보와 측정값 90칸이 다 차면 서버의 미리보기(저장 안 함)로 %R&R·ndc 를 바로 보여 주고,
+ * 측정값 90칸이 다 차면 서버의 미리보기(저장 안 함)로 %R&R·ndc 를 바로 보여 주고,
+ * 그 뒤로는 칸을 고칠 때마다 다시 계산한다. 머리 정보는 계산에 들지 않아 비어 있어도 된다.
  * %R&R 이 10 을 넘으면 사유 칸을 띄운다 — 사유 없이는 서버가 저장을 막는다.
  * 계산은 화면에서 하지 않는다. 서버 값과 어긋날 여지를 두지 않는다.
  * 수정도 양식을 통째로 다시 보낸다(PATCH 이지만 부분 수정이 아니다).
@@ -239,12 +240,32 @@ export default function GaugeRrModal({
   /* ---------- 미리보기 ---------- */
 
   /*
-   * 사유·비고·계획은 계산에 들지 않는다. 그 칸을 칠 때마다 다시 묻지 않도록 빼고 키를 만든다.
-   * 손이 멎은 뒤에 한 번만 보낸다.
+   * 계산에 드는 것은 측정값·규격·측정자 수뿐이다. 품번·게이지 같은 머리 정보를 다 채울 때까지
+   * 기다리지 않도록, 미리보기에는 계산에 드는 것만 담고 나머지는 자리 값으로 채워 보낸다
+   * (서버가 등록과 같은 검사를 하므로 빈 값은 못 보낸다).
+   * 계산에 들지 않는 칸은 키에서 빠지니 그 칸을 칠 때마다 다시 묻지 않는다. 손이 멎은 뒤에 한 번만 보낸다.
    */
-  const calcKey = body
-    ? JSON.stringify({ ...body, remark: undefined, exceedReason: undefined, planId: undefined })
-    : null;
+  const filledCells = APPRAISERS * TRIALS * PARTS - bad;
+  const calcMeasurements = toMeasurements(grid);
+  const calcKey = ((): string | null => {
+    if (!calcMeasurements) return null;
+    const num = (s: string) => (s.trim() !== '' && isNumberText(s) ? Number(s) : undefined);
+    let specLower = num(form.specLower);
+    let specUpper = num(form.specUpper);
+    if (specLower != null && specUpper != null && specLower >= specUpper)
+      specLower = specUpper = undefined;
+    const calcBody: SaveGaugeRrPayload = {
+      partNumber: '-',
+      partName: '-',
+      gageName: '-',
+      specLower,
+      specUpper,
+      appraisers: appraisers.map((n, i) => n.trim() || `측정자 ${APPRAISER_LETTERS[i]}`),
+      performedDate: toIsoDate(getToday()),
+      measurements: calcMeasurements,
+    };
+    return JSON.stringify(calcBody);
+  })();
   const settledKey = useDebounced(calcKey, 400);
   const preview = useQuery({
     queryKey: ['gauge-rr', 'preview', settledKey],
@@ -528,8 +549,9 @@ export default function GaugeRrModal({
           <span className="font-medium text-fg-sub">계산 결과</span>
           {calcKey == null ? (
             <span className="text-fg-muted">
-              필수 머리 정보와 측정값 {APPRAISERS * TRIALS * PARTS}칸을 모두 채우면 %R&amp;R·ndc 가
-              바로 계산됩니다.
+              측정값 <b className="num text-fg-sub">{filledCells}</b> / {APPRAISERS * TRIALS * PARTS}칸
+              입력 — 다 채우는 순간 %R&amp;R·ndc 가 계산되고, 그 뒤로는 값을 고칠 때마다 바로
+              바뀝니다.
             </span>
           ) : preview.isError && !stale ? (
             <span className="text-danger">
