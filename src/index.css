@@ -62,6 +62,42 @@
 }
 
 /*
+  넓은 표를 옆으로 넘길 때 붙잡아 두는 앞 열 (hooks/useStickyColumns).
+  border-collapse 표에서 고정 칸은 테두리가 가려진다. 줄 밑선은 그림자로 다시 긋는다.
+  배경은 세 겹 — 마우스 올린 줄 색, 줄 자체 색(--sc-tint, 훅이 잰다), 카드 바탕.
+*/
+[data-sticky-col] {
+  position: sticky;
+  z-index: 2;
+  background:
+    linear-gradient(var(--sc-hover, transparent), var(--sc-hover, transparent)),
+    linear-gradient(var(--sc-tint, transparent), var(--sc-tint, transparent)),
+    var(--color-surface);
+}
+th[data-sticky-col] {
+  z-index: 11; /* 표 머리(stickyThClass, z-10) 위 — 왼쪽 위 모서리가 둘 다 고정이다 */
+  background: var(--color-bg);
+}
+tr[class*="hover:bg-bg"]:hover > [data-sticky-col] {
+  --sc-hover: var(--color-bg);
+}
+tr.border-b > [data-sticky-col],
+th[data-sticky-col] {
+  box-shadow: inset 0 -1px 0 var(--color-line);
+}
+/* 넘겼을 때만 고정 열 오른쪽에 그림자 — 밑으로 무언가 지나가고 있다는 표시 */
+[data-sticky-scrolled] [data-sticky-edge]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -8px;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgb(0 0 0 / 0.12), transparent);
+}
+
+/*
   인쇄. 계측기 이력카드가 A4 가로 양식이라 그 기준으로 잡는다.
   화면에서만 쓰는 것(상단 메뉴·버튼)은 .no-print 로 뺀다.
 */
