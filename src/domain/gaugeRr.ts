@@ -1,7 +1,8 @@
 import type { GaugeRrJudgment } from '@/api/gaugeRr';
 
 /**
- * 게이지 R&R 화면 규칙. 계산은 서버가 한다 — 여기는 입력 격자 다루기와 표시 형식뿐이다.
+ * 게이지 R&R 화면 규칙. 계산은 서버가 한다 — 여기는 입력 격자 다루기와 표시 형식,
+ * 그리고 90칸이 다 차기 전에 보여 줄 임시 값(estimateGrr)뿐이다.
  */
 
 /** 양식 크기. 품질팀 최종본으로 고정됐다 — 서버가 [3][3][10] 이 아니면 400 을 준다 */
@@ -50,6 +51,63 @@ const NUMBER = /^-?\d+(\.\d+)?$/;
 
 /** 칸 하나가 숫자로 읽히는가. 빈칸은 따로 센다 */
 export const isNumberText = (s: string): boolean => NUMBER.test(s.trim());
+
+
+/** 양식 상수표. 반복 3회 → K1, 측정자 3명 → K2, 시료 10개 → K3 */
+const K1 = 0.5908;
+const K2 = 0.5231;
+const K3 = 0.3146;
+
+export interface GrrEstimate {
+  ev: number;
+  av: number;
+  pv: number;
+  pctGrr: number;
+  ndc: number;
+}
+
+/**
+ * 채운 칸만으로 낸 임시 %R&R·ndc. 칸을 칠 때마다 보여 주려고 화면에서 계산한다 (요청 2026-10-15).
+ *
+ * 양식과 같은 식(평균·범위법)이다. 다만 빈칸은 빼고 —
+ *   범위 R   한 측정자·한 시료에 2회 이상 찬 것만
+ *   평균     찬 칸끼리
+ *   R̄·x̄DIFF·Rp 는 값이 있는 측정자·시료끼리
+ * 90칸이 다 차면 서버 값과 같은 식이라 같은 값이 나온다. 저장·판정은 언제나 서버 값으로 한다.
+ * 범위가 하나도 없거나 시료가 2개 안 되면 null.
+ */
+export const estimateGrr = (grid: Grid): GrrEstimate | null => {
+  const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+  const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+  const val = (s: string) => (isNumberText(s) ? Number(s.trim()) : null);
+
+  const appraiserRanges: number[] = [];
+  const appraiserAverages: number[] = [];
+  const partValues: number[][] = Array.from({ length: PARTS }, () => []);
+  for (const trials of grid) {
+    const ranges: number[] = [];
+    const all: number[] = [];
+    for (let p = 0; p < PARTS; p++) {
+      const xs = trials.map((t) => val(t[p] ?? '')).filter((v): v is number => v != null);
+      if (xs.length >= 2) ranges.push(spread(xs));
+      all.push(...xs);
+      partValues[p].push(...xs);
+    }
+    if (ranges.length) appraiserRanges.push(mean(ranges));
+    if (all.length) appraiserAverages.push(mean(all));
+  }
+  const partAverages = partValues.filter((xs) => xs.length).map(mean);
+  if (appraiserRanges.length === 0 || partAverages.length < 2) return null;
+
+  const ev = mean(appraiserRanges) * K1;
+  const xDiff = appraiserAverages.length >= 2 ? spread(appraiserAverages) : 0;
+  const av = Math.sqrt(Math.max(0, (xDiff * K2) ** 2 - ev ** 2 / (PARTS * TRIALS)));
+  const grr = Math.hypot(ev, av);
+  const pv = spread(partAverages) * K3;
+  const tv = Math.hypot(grr, pv);
+  if (tv === 0) return null;
+  return { ev, av, pv, pctGrr: (100 * grr) / tv, ndc: grr === 0 ? Infinity : (1.41 * pv) / grr };
+};
 
 /** 다 채워졌고 전부 숫자면 서버로 보낼 배열, 아니면 null */
 export const toMeasurements = (grid: Grid): number[][][] | null => {
