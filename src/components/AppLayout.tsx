@@ -20,7 +20,7 @@ import { ToastProvider } from '@/components/Toast';
  */
 const NAV: { to: string; label: string }[] = [
   { to: '/assets', label: '고정자산' },
-  { to: '/physical-assets', label: '실물자산' },
+  { to: '/physical-assets', label: '비품' },
   { to: '/instruments', label: '계측기' },
   { to: '/gauge-rr', label: '게이지 R&R' },
   { to: '/depreciation', label: '감가상각' },

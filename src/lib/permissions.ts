@@ -15,7 +15,7 @@
  *
  * /auth/me 의 roles 로 갈린다 (백엔드 회신 2026-09-08).
  *
- *   asset       고정자산·실물자산·감가상각·안전검사
+ *   asset       고정자산·비품·감가상각·안전검사
  *   instrument  계측기·교정
  *   admin       승인·반려, 삭제·폐기가 승인 없이 바로 되는 계정 (팀장). 고칠 수 있는 영역은 넓히지 않는다
  *
@@ -52,7 +52,7 @@ export const roleLabels = (roles: readonly string[] | undefined): string[] => {
 };
 
 export interface Perms {
-  /** 고정자산·실물자산·감가상각·안전검사를 볼 수 있는가 */
+  /** 고정자산·비품·감가상각·안전검사를 볼 수 있는가 */
   asset: boolean;
   /** 계측기·교정을 볼 수 있는가 */
   instrument: boolean;
@@ -116,7 +116,7 @@ export type Domain = 'asset' | 'instrument' | 'any';
 /**
  * 이 영역의 자료를 고칠 수 있는가 (등록·수정·삭제 단추를 낼지).
  *
- *   asset       고정자산·실물자산·감가상각 계산·안전검사·자산 마스터·자산 사진
+ *   asset       고정자산·비품·감가상각 계산·안전검사·자산 마스터·자산 사진
  *   instrument  계측기·교정 이력·계측기 사용위치·거래처·계측기 사진
  *   조회 전용    없음 (서버 403 READ_ONLY_ACCOUNT)
  *

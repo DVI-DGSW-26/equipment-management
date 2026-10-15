@@ -211,8 +211,8 @@ export default function PhysicalAssetListPage() {
     setExporting(true);
     try {
       const data: PhysicalRow[] = filtered.map((r, i) => ({ ...r, no: rowNo(i) }));
-      await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('실물자산목록', toIsoDate(getToday())));
-      toast.ok(`실물자산 ${filtered.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
+      await downloadExcel(data, SCREEN_COLUMNS, stampedFileName('비품목록', toIsoDate(getToday())));
+      toast.ok(`비품 ${filtered.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);
     } finally {
@@ -234,13 +234,13 @@ export default function PhysicalAssetListPage() {
   return (
     <div className="space-y-3">
       <h1 className="text-[24px] font-semibold">
-        실물자산 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
+        비품 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
       </h1>
 
       <Section
         title={
           <>
-            실물자산 목록{' '}
+            비품 목록{' '}
             <span className="font-normal text-fg-muted">
               선택 {sel.selected.size}건
               {rows.length > 0 && ` · 이 페이지 스티커 가능 ${sel.printableRows.length}건`}
@@ -273,7 +273,7 @@ export default function PhysicalAssetListPage() {
             </button>
             {edit ? (
               <button type="button" className={btnPrimaryClass} onClick={() => setEditing('new')}>
-                실물자산 등록
+                비품 등록
               </button>
             ) : (
           <ReadOnlyChip />
@@ -360,7 +360,7 @@ export default function PhysicalAssetListPage() {
         </FilterBar>
         {truncated && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[18px] text-warn">
-            실물자산이 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}
+            비품이 {(list.data?.total ?? 0).toLocaleString('ko-KR')}건이라 앞의{' '}
             {all.length.toLocaleString('ko-KR')}건만 받아 왔습니다. 아래 결과는 그 안에서만 거른
             것입니다 — 서버 필터 추가가 필요합니다.
           </p>
@@ -369,7 +369,7 @@ export default function PhysicalAssetListPage() {
         {/* 체크박스가 전부 잠겨 보이는 이유를 미리 알려준다 */}
         {rows.length > 0 && !sel.showSelectColumn && (
           <p className="border-b border-line bg-warn/10 px-3 py-2 text-[17px] text-warn">
-            이 페이지에는 스티커를 출력할 수 있는 실물자산이 없습니다. 자산코드가 없거나 출력
+            이 페이지에는 스티커를 출력할 수 있는 비품이 없습니다. 자산코드가 없거나 출력
             제외로 지정된 자산은 선택할 수 없습니다. 위 “스티커” 조건으로 그 대상만 모아 볼 수
             있습니다.
           </p>
@@ -379,7 +379,7 @@ export default function PhysicalAssetListPage() {
           isPending={list.isPending}
           error={list.error}
           isEmpty={rows.length === 0}
-          emptyText={dirty ? '조건에 맞는 실물자산이 없습니다.' : '등록된 실물자산이 없습니다.'}
+          emptyText={dirty ? '조건에 맞는 비품이 없습니다.' : '등록된 비품이 없습니다.'}
         />
         {rows.length > 0 && (
           <>
@@ -727,7 +727,7 @@ function PhysicalAssetModal({
         : physicalAssetsApi.create(body).then(() => undefined);
     },
     onSuccess: () => {
-      toast.ok(item ? '수정했습니다.' : '실물자산을 등록했습니다.');
+      toast.ok(item ? '수정했습니다.' : '비품을 등록했습니다.');
       invalidate();
       onClose();
     },
@@ -746,7 +746,7 @@ function PhysicalAssetModal({
 
   return (
     <Modal
-      title={item ? '실물자산 수정' : '실물자산 등록'}
+      title={item ? '비품 수정' : '비품 등록'}
       width={900}
       onClose={onClose}
       footer={

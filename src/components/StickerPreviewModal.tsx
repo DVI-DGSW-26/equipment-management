@@ -74,7 +74,7 @@ type Props = Source & {
 };
 
 /**
- * 스티커 미리보기. 고정자산·실물자산 두 경로가 같은 라벨 서식을 쓴다.
+ * 스티커 미리보기. 고정자산·비품 두 경로가 같은 라벨 서식을 쓴다.
  *
  * 인쇄 항목 8개를 두 응답에서 각각 끌어온다. 값이 비어 있으면 "—" 로 둔다.
  *
@@ -159,7 +159,7 @@ export default function StickerPreviewModal(props: Props) {
         <span className="flex items-center gap-2">
           스티커 미리보기
           <span className="font-normal text-fg-sub">
-            {props.source === 'asset' ? '고정자산' : '실물자산'} {count}건 · 라벨지 {sheets}장
+            {props.source === 'asset' ? '고정자산' : '비품'} {count}건 · 라벨지 {sheets}장
           </span>
         </span>
       }

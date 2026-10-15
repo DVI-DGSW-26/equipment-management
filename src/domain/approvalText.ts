@@ -43,11 +43,11 @@ const RULES: Rule[] = [
   { method: 'PATCH', re: /^\/asset\/account\/\d+$/, what: '계정과목 수정' },
   { method: 'DELETE', re: /^\/asset\/account\/\d+$/, what: '계정과목 삭제' },
 
-  /* 실물자산 */
-  { method: 'POST', re: /^\/physical-asset$/, what: '실물자산 등록' },
-  { method: 'POST', re: /^\/physical-asset\/sticker$/, what: '실물자산 스티커 출력' },
-  { method: 'PATCH', re: /^\/physical-asset\/\d+$/, what: '실물자산 수정' },
-  { method: 'DELETE', re: /^\/physical-asset\/\d+$/, what: '실물자산 삭제' },
+  /* 비품 */
+  { method: 'POST', re: /^\/physical-asset$/, what: '비품 등록' },
+  { method: 'POST', re: /^\/physical-asset\/sticker$/, what: '비품 스티커 출력' },
+  { method: 'PATCH', re: /^\/physical-asset\/\d+$/, what: '비품 수정' },
+  { method: 'DELETE', re: /^\/physical-asset\/\d+$/, what: '비품 삭제' },
 
   /* 계측기 · 교정 */
   { method: 'POST', re: /^\/instrument$/, what: '계측기 등록' },
@@ -222,7 +222,7 @@ const FIELD_LABEL: Record<string, string> = {
   actionNote: '이상발생 조치',
   confirmedBy: '확인자',
 
-  /* 실물자산 */
+  /* 비품 */
   maker2: '제조업체',
   rental: '렌탈',
 
