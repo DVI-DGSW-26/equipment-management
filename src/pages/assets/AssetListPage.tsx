@@ -432,7 +432,8 @@ export default function AssetListPage() {
 
         {all.length > 0 && (
           <>
-            <TableScroll>
+            {/* 계정과목까지 남긴다 — 스티커 선택 열이 있으면 한 칸 더 (요청 2026-10-15) */}
+            <TableScroll stickyColumns={sel.showSelectColumn ? 4 : 3}>
               <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="text-left text-fg-sub">

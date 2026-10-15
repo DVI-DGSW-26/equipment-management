@@ -42,11 +42,18 @@ export const seqThClass = `${thClass} w-14 text-right`;
  * 내려야 스크롤바에 닿아서, 오른쪽 열을 보려고 한 번 내렸다 다시 올라와야 한다.
  * 높이를 화면 안으로 묶어 두 방향 스크롤바가 늘 손 닿는 데 있게 한다.
  * 대신 안에서 내릴 때 열 이름이 사라지지 않도록 표 머리를 고정한다(stickyThClass).
- * 옆으로 넘길 때는 앞 3열이 남는다(useStickyColumns).
+ * 옆으로 넘길 때는 앞 3열이 남는다(useStickyColumns). 표마다 stickyColumns 로 바꿀 수 있다.
  */
-export function TableScroll({ children }: { children: ReactNode }) {
+export function TableScroll({
+  children,
+  stickyColumns,
+}: {
+  children: ReactNode;
+  /** 옆으로 넘길 때 남길 앞 열 수. 없으면 3 */
+  stickyColumns?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  useStickyColumns(ref);
+  useStickyColumns(ref, stickyColumns);
   return (
     <div ref={ref} className="max-h-[70vh] overflow-auto">
       {children}
