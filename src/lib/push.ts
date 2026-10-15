@@ -199,7 +199,7 @@ export async function onPushMessage(
  *
  * linkUrl 은 화면 주소가 아니라 서버 API 경로(/asset/12)라 그대로 열면 없는 주소다.
  * 앞부분을 보고 우리 화면으로 옮긴다 (백엔드 회신 2026-09-10).
- * 실물자산·안전검사는 한 건만 여는 화면이 없어 목록으로 보낸다.
+ * 비품·안전검사는 한 건만 여는 화면이 없어 목록으로 보낸다.
  */
 export function routeOfPush(linkUrl?: string, type?: string): string {
   const path = (linkUrl ?? '').split('?')[0];

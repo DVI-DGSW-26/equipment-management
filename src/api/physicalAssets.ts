@@ -3,7 +3,7 @@ import type { AssetStatus, StickerPrintPayload } from './assets';
 import { toPage, type IsoDate, type Page, type SpringPage, type Won } from './types';
 
 /**
- * 실물자산 = 비품관리대장.
+ * 비품 = 비품관리대장. 서버 이름은 physical-asset(옛 화면 이름 "실물자산") 그대로다.
  * 고정자산에 연결되면 registered=true (스티커 O), 연결이 없으면 소액 비품이다.
  */
 export interface PhysicalAsset {
@@ -87,5 +87,5 @@ export const physicalAssetsApi = {
     request<void>('PATCH', `/physical-asset/${id}`, { body }),
   remove: (id: number) => request<void>('DELETE', `/physical-asset/${id}`),
   sticker: (body: StickerPrintPayload): Promise<DownloadResult> =>
-    requestFile('POST', '/physical-asset/sticker', '실물자산스티커.pdf', { body }),
+    requestFile('POST', '/physical-asset/sticker', '비품스티커.pdf', { body }),
 };
