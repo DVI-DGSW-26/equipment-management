@@ -20,6 +20,7 @@ import {
   fmtNum,
   gridFrom,
   isBlockPaste,
+  estimateGrr,
   isNumberText,
   JUDGMENT_TONE,
   PARTS,
@@ -44,10 +45,10 @@ const planLabel = (p: GaugeRrPlan): string =>
  * 게이지 R&R 등록·수정.
  *
  * 양식의 파란 칸만 받는다. 양식은 측정자 3명 × 반복 3회 × 시료 10개로 고정이다.
- * 측정값 90칸이 다 차면 서버의 미리보기(저장 안 함)로 %R&R·ndc 를 바로 보여 주고,
- * 그 뒤로는 칸을 고칠 때마다 다시 계산한다. 머리 정보는 계산에 들지 않아 비어 있어도 된다.
+ * 측정값을 칠 때마다 찬 칸만으로 낸 임시 %R&R·ndc 를 보여 주고(화면 계산),
+ * 90칸이 다 차면 서버의 미리보기(저장 안 함) 값으로 바꾼다. 머리 정보는 계산에 들지 않아 비어 있어도 된다.
  * %R&R 이 10 을 넘으면 사유 칸을 띄운다 — 사유 없이는 서버가 저장을 막는다.
- * 계산은 화면에서 하지 않는다. 서버 값과 어긋날 여지를 두지 않는다.
+ * 사유 요구·판정은 서버 값으로만 한다. 임시 값은 보기용이다.
  * 수정도 양식을 통째로 다시 보낸다(PATCH 이지만 부분 수정이 아니다).
  */
 export default function GaugeRrModal({
@@ -246,6 +247,8 @@ export default function GaugeRrModal({
    * 계산에 들지 않는 칸은 키에서 빠지니 그 칸을 칠 때마다 다시 묻지 않는다. 손이 멎은 뒤에 한 번만 보낸다.
    */
   const filledCells = APPRAISERS * TRIALS * PARTS - bad;
+  /* 90칸이 차기 전, 또는 서버 값이 오기 전까지 보여 줄 임시 값 */
+  const estimate = useMemo(() => estimateGrr(grid), [grid]);
   const calcMeasurements = toMeasurements(grid);
   const calcKey = ((): string | null => {
     if (!calcMeasurements) return null;
@@ -547,18 +550,39 @@ export default function GaugeRrModal({
         {/* ---------- 계산 결과 (미리보기) ---------- */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-sm border border-line bg-bg px-3 py-2 text-[18px]">
           <span className="font-medium text-fg-sub">계산 결과</span>
-          {calcKey == null ? (
-            <span className="text-fg-muted">
-              측정값 <b className="num text-fg-sub">{filledCells}</b> / {APPRAISERS * TRIALS * PARTS}칸
-              입력 — 다 채우는 순간 %R&amp;R·ndc 가 계산되고, 그 뒤로는 값을 고칠 때마다 바로
-              바뀝니다.
-            </span>
-          ) : preview.isError && !stale ? (
+          {calcKey != null && preview.isError && !stale ? (
             <span className="text-danger">
               계산하지 못했습니다 — {preview.error instanceof Error ? preview.error.message : ''}
             </span>
-          ) : result == null ? (
-            <span className="text-fg-muted">계산 중…</span>
+          ) : calcKey == null || result == null ? (
+            estimate ? (
+              <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <span>
+                  %R&amp;R{' '}
+                  <b className={`num ${estimate.pctGrr > EXCEED_LIMIT ? 'text-danger' : ''}`}>
+                    {fmtNum(estimate.pctGrr, 2)}%
+                  </b>
+                </span>
+                <span>
+                  ndc <b className="num">{fmtNum(estimate.ndc, 2)}</b>
+                </span>
+                <span className="text-fg-sub">
+                  EV {fmtNum(estimate.ev, 4)} · AV {fmtNum(estimate.av, 4)} · PV{' '}
+                  {fmtNum(estimate.pv, 4)}
+                </span>
+                <Badge tone="muted">임시</Badge>
+                <span className="text-fg-muted">
+                  {calcKey == null
+                    ? `측정값 ${filledCells} / ${APPRAISERS * TRIALS * PARTS}칸 — 다 채우면 확정됩니다`
+                    : '확정 값 계산 중…'}
+                </span>
+              </span>
+            ) : (
+              <span className="text-fg-muted">
+                측정값 {filledCells} / {APPRAISERS * TRIALS * PARTS}칸 — 같은 시료를 2회 이상, 시료
+                2개 이상 넣으면 값이 보이기 시작합니다.
+              </span>
+            )
           ) : (
             <span className={`flex flex-wrap items-center gap-x-5 gap-y-1 ${stale ? 'opacity-50' : ''}`}>
               <span>
