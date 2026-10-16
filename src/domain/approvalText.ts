@@ -49,6 +49,11 @@ const RULES: Rule[] = [
   { method: 'PATCH', re: /^\/physical-asset\/\d+$/, what: '비품 수정' },
   { method: 'DELETE', re: /^\/physical-asset\/\d+$/, what: '비품 삭제' },
 
+  /* 사내 설비 */
+  { method: 'POST', re: /^\/equipment$/, what: '사내 설비 등록' },
+  { method: 'PATCH', re: /^\/equipment\/\d+$/, what: '사내 설비 수정' },
+  { method: 'DELETE', re: /^\/equipment\/\d+$/, what: '사내 설비 삭제' },
+
   /* 계측기 · 교정 */
   { method: 'POST', re: /^\/instrument$/, what: '계측기 등록' },
   { method: 'PATCH', re: /^\/instrument\/\d+\/discard$/, what: '계측기 폐기 처리' },
@@ -163,6 +168,7 @@ const FIELD_LABEL: Record<string, string> = {
   modelName: '모델명',
   spec: '규격',
   equipmentCode: '설비코드',
+  accountingCode: '회계 자산코드',
   instrumentMgmtNo: '계측기 관리번호',
   disposalDate: '양도/폐기일',
   disposalAmount: '양도폐기금액',
@@ -176,6 +182,12 @@ const FIELD_LABEL: Record<string, string> = {
   amount: '증가 금액',
   note: '메모',
   assetId: '연결 고정자산',
+
+  /* 사내 설비 */
+  equipmentGroup: '설비군',
+  storageLocation: '보관장소',
+  parentAssetId: '연결 고정자산',
+  unlinkParent: '고정자산 연결 해제',
 
   /* 세무 기록 13종 */
   priorDisallowedAccumulated: '전기말부인누계',

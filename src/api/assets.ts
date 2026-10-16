@@ -68,7 +68,15 @@ export interface Asset extends AssetTaxRecord {
   assetCode: string | null;
   /** 기존 자료의 7단 코드(일련번호 없음) 여부 */
   sequenceMissing: boolean;
+  /** 회계 프로그램 자산코드 (계정별 6자리). 같은 계정과목 안에서 겹치면 409 */
+  accountingCode: string | null;
+  /**
+   * 연결된 사내 설비의 설비코드를 쉼표로 이은 것 — 표시용.
+   * 설비코드는 사내 설비 화면에서만 관리한다. 고정자산 등록·수정으로는 바꿀 수 없다 (백엔드 2026-10-16)
+   */
   equipmentCode: string | null;
+  /** 연결된 사내 설비의 설비코드 (설비코드 순) */
+  equipmentCodes?: string[];
   /** 계측기 관리번호 (병행 관리) */
   instrumentMgmtNo: string | null;
 
@@ -210,7 +218,8 @@ export interface UpdateAssetPayload {
   assignee?: string;
   modelName?: string;
   spec?: string;
-  equipmentCode?: string;
+  /** 빈 문자열을 보내면 지워진다 */
+  accountingCode?: string;
   instrumentMgmtNo?: string;
   excludedFromPrint?: boolean;
   disposalDate?: IsoDate | null;
@@ -238,7 +247,8 @@ export interface CreateAssetPayload {
   /** 비우면 서버가 8단 규칙으로 채번 */
   assetCode?: string;
   name: string;
-  equipmentCode?: string;
+  /** 회계 프로그램 자산코드 (계정별 6자리, 선택) */
+  accountingCode?: string;
   instrumentMgmtNo?: string;
   categoryCode: string;
   /** P05(비품)일 때 필수 */

@@ -7,6 +7,7 @@ import type { CodeMasterKind } from './masters';
 import type { SafetyEquipmentQuery } from './inspections';
 import type { InstrumentListQuery } from './instruments';
 import type { PhysicalAssetListQuery } from './physicalAssets';
+import type { EquipmentListQuery } from './equipment';
 import type { PartnerType } from './instrumentMasters';
 
 /** TanStack Query 키 팩토리. 무효화 범위를 한 곳에서 관리 */
@@ -42,6 +43,11 @@ export const queryKeys = {
     all: ['physical-assets'] as const,
     list: (q: PhysicalAssetListQuery) => ['physical-assets', 'list', q] as const,
     detail: (id: number) => ['physical-assets', 'detail', id] as const,
+  },
+  equipment: {
+    all: ['equipment'] as const,
+    list: (q: EquipmentListQuery) => ['equipment', 'list', q] as const,
+    codePreview: (prefix: string) => ['equipment', 'code-preview', prefix] as const,
   },
   depreciation: {
     all: ['depreciation'] as const,
