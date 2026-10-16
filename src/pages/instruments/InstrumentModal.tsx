@@ -15,6 +15,7 @@ import Modal from '@/components/Modal';
 import SearchSelect, { type SearchOption } from '@/components/SearchSelect';
 import { useToast } from '@/components/toastContext';
 import { btnClass, btnPrimaryClass, Field, inputClass } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 /** 계측기명 후보를 뽑을 목록. 목록 화면과 같은 조건이라 캐시를 함께 쓴다 */
 const INSTRUMENT_ALL = { page: 0, size: 500 };
@@ -245,12 +246,11 @@ export default function InstrumentModal({
           label="구매가격 (원)"
           hint={form.purchasePrice ? wonUnit(Number(form.purchasePrice)) : '숫자만 적습니다.'}
         >
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            className={inputClass}
             placeholder="0"
             value={form.purchasePrice}
-            onChange={(e) => set('purchasePrice', e.target.value.replace(/[^\d]/g, ''))}
+            onChange={(v) => set('purchasePrice', v)}
           />
         </Field>
         {/*

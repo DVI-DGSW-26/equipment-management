@@ -4,6 +4,7 @@ import {
   type TaxFormState,
 } from '@/domain/taxRecord';
 import { Field, inputClass } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 /**
  * 세무 기록 13종 입력칸.
@@ -32,17 +33,26 @@ export default function TaxRecordFields({
           </label>
         ) : (
           <Field key={f.key} label={f.label} hint={f.hint}>
-            <input
-              className={`${inputClass} ${f.kind === 'text' ? '' : 'num'}`}
-              inputMode={f.kind === 'text' ? undefined : f.kind === 'int' ? 'numeric' : 'decimal'}
-              value={String(form[f.key] ?? '')}
-              onChange={(e) =>
-                onChange(
-                  f.key,
-                  f.kind === 'text' ? e.target.value : taxDigitsOnly(f.kind, e.target.value),
-                )
-              }
-            />
+            {f.kind === 'money' ? (
+              <AmountInput
+                decimal
+                className={inputClass}
+                value={String(form[f.key] ?? '')}
+                onChange={(v) => onChange(f.key, v)}
+              />
+            ) : (
+              <input
+                className={`${inputClass} ${f.kind === 'text' ? '' : 'num'}`}
+                inputMode={f.kind === 'text' ? undefined : f.kind === 'int' ? 'numeric' : 'decimal'}
+                value={String(form[f.key] ?? '')}
+                onChange={(e) =>
+                  onChange(
+                    f.key,
+                    f.kind === 'text' ? e.target.value : taxDigitsOnly(f.kind, e.target.value),
+                  )
+                }
+              />
+            )}
           </Field>
         ),
       )}

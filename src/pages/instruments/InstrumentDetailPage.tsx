@@ -33,6 +33,7 @@ import {
   QueryState,
   ReadOnlyChip,
 } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 export default function InstrumentDetailPage() {
   const { id } = useParams();
@@ -377,11 +378,10 @@ function CalibrationModal({
           />
         </Field>
         <Field label="교정비용">
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            className={inputClass}
             value={form.cost}
-            onChange={(e) => set('cost', e.target.value.replace(/[^\d]/g, ''))}
+            onChange={(v) => set('cost', v)}
           />
         </Field>
         <Field label="확인자">
