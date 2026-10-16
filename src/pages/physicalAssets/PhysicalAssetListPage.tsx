@@ -37,6 +37,7 @@ import {
   TableScroll,
   ReadOnlyChip,
 } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 /**
  * 목록을 한 번에 다 받아 온다.
@@ -937,11 +938,10 @@ function PhysicalAssetModal({
           />
         </Field>
         <Field label="구입금액">
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            className={inputClass}
             value={form.purchasePrice}
-            onChange={(e) => set('purchasePrice', e.target.value.replace(/[^\d]/g, ''))}
+            onChange={(v) => set('purchasePrice', v)}
           />
         </Field>
         <Field label="모델명" hint="제품 본체나 명판에 찍힌 모델명. 없으면 비워 둡니다">

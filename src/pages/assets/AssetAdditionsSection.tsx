@@ -17,6 +17,7 @@ import {
   Section,
   thClass,
 } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 /**
  * 발생일의 **연도부터** 상각 기준가액이 (취득가액 + 증가누계)로 커진다.
@@ -232,12 +233,12 @@ function AddModal({
           error={amount !== '' && !amountValid ? '0보다 큰 금액을 입력하세요.' : undefined}
           hint={amountValid ? wonUnit(amountNumber) : undefined}
         >
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            decimal
+            className={inputClass}
             placeholder="15800000"
             value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))}
+            onChange={(v) => setAmount(v)}
           />
         </Field>
         <Field label="메모" hint={`${note.length}/${NOTE_MAX}자`}>

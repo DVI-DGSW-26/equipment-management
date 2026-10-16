@@ -21,6 +21,7 @@ import { useToast } from '@/components/toastContext';
 import { emptyTaxForm, hasTaxInput, TAX_NOTE, taxBody, type TaxFormState } from '@/domain/taxRecord';
 import TaxRecordFields from '@/components/TaxRecordFields';
 import { Badge, btnClass, btnPrimaryClass, Field, inputClass, Section } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 interface FormState {
   name: string;
@@ -395,19 +396,17 @@ export default function AssetNewPage() {
               />
             </Field>
             <Field label="취득가액" required>
-              <input
-                className={`${inputClass} num`}
-                inputMode="numeric"
+              <AmountInput
+                className={inputClass}
                 value={form.acquisitionCost}
-                onChange={(e) => set('acquisitionCost', e.target.value.replace(/[^\d]/g, ''))}
+                onChange={(v) => set('acquisitionCost', v)}
               />
             </Field>
             <Field label="수량">
-              <input
-                className={`${inputClass} num`}
-                inputMode="numeric"
+              <AmountInput
+                className={inputClass}
                 value={form.quantity}
-                onChange={(e) => set('quantity', e.target.value.replace(/[^\d]/g, ''))}
+                onChange={(v) => set('quantity', v)}
               />
             </Field>
 
@@ -493,13 +492,10 @@ export default function AssetNewPage() {
               />
             </Field>
             <Field label="전기말상각누계액">
-              <input
-                className={`${inputClass} num`}
-                inputMode="numeric"
+              <AmountInput
+                className={inputClass}
                 value={form.openingAccumulatedDepreciation}
-                onChange={(e) =>
-                  set('openingAccumulatedDepreciation', e.target.value.replace(/[^\d]/g, ''))
-                }
+                onChange={(v) => set('openingAccumulatedDepreciation', v)}
               />
             </Field>
             <Field label="상태">

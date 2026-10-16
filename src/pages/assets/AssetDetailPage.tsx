@@ -41,6 +41,7 @@ import {
   thClass,
   ReadOnlyChip,
 } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 import AssetAdditionsSection from './AssetAdditionsSection';
 import AssetHistorySection from './AssetHistorySection';
 import AssetTaxRecordSection from './AssetTaxRecordSection';
@@ -641,19 +642,19 @@ function EditModal({
             />
           </Field>
           <Field label="양도폐기금액" hint="감가상각 계산에 쓰이지 않는 기록 항목">
-            <input
-              className={`${inputClass} num`}
-              inputMode="numeric"
+            <AmountInput
+              decimal
+              className={inputClass}
               value={disposalAmount}
-              onChange={(e) => setDisposalAmount(e.target.value.replace(/[^\d.]/g, ''))}
+              onChange={(v) => setDisposalAmount(v)}
             />
           </Field>
           <Field label="부분매각및폐기" hint="감가상각 계산에 쓰이지 않는 기록 항목">
-            <input
-              className={`${inputClass} num`}
-              inputMode="numeric"
+            <AmountInput
+              decimal
+              className={inputClass}
               value={partialDisposalAmount}
-              onChange={(e) => setPartialDisposalAmount(e.target.value.replace(/[^\d.]/g, ''))}
+              onChange={(v) => setPartialDisposalAmount(v)}
             />
           </Field>
         </div>
@@ -779,11 +780,11 @@ function CorrectModal({
           />
         </Field>
         <Field label="취득가액">
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            decimal
+            className={inputClass}
             value={form.acquisitionCost}
-            onChange={(e) => set('acquisitionCost', e.target.value.replace(/[^\d.]/g, ''))}
+            onChange={(v) => set('acquisitionCost', v)}
           />
         </Field>
         <Field label="계정과목">
@@ -837,13 +838,11 @@ function CorrectModal({
           />
         </Field>
         <Field label="전기말상각누계액">
-          <input
-            className={`${inputClass} num`}
-            inputMode="numeric"
+          <AmountInput
+            decimal
+            className={inputClass}
             value={form.openingAccumulatedDepreciation}
-            onChange={(e) =>
-              set('openingAccumulatedDepreciation', e.target.value.replace(/[^\d.]/g, ''))
-            }
+            onChange={(v) => set('openingAccumulatedDepreciation', v)}
           />
         </Field>
         <div className="col-span-full">

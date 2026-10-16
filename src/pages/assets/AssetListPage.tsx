@@ -41,6 +41,7 @@ import {
   TableScroll,
   ReadOnlyChip,
 } from '@/components/ui';
+import AmountInput from '@/components/AmountInput';
 
 /** 화면 입력값. select 는 전부 문자열로 다루고 요청 직전에 숫자로 바꾼다 */
 interface FormState {
@@ -393,20 +394,18 @@ export default function AssetListPage() {
 
           <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[18px] text-fg-sub">
             취득가액
-            <input
+            <AmountInput
               className={`${filterClass} num w-32`}
-              inputMode="numeric"
               aria-label="취득가액 이상"
               value={form.costFrom}
-              onChange={(e) => set('costFrom', e.target.value.replace(/[^\d]/g, ''))}
+              onChange={(v) => set('costFrom', v)}
             />
             ~
-            <input
+            <AmountInput
               className={`${filterClass} num w-32`}
-              inputMode="numeric"
               aria-label="취득가액 이하"
               value={form.costTo}
-              onChange={(e) => set('costTo', e.target.value.replace(/[^\d]/g, ''))}
+              onChange={(v) => set('costTo', v)}
             />
           </span>
 
