@@ -10,6 +10,7 @@ import AssetListPage from '@/pages/assets/AssetListPage';
 import AssetNewPage from '@/pages/assets/AssetNewPage';
 import AssetDetailPage from '@/pages/assets/AssetDetailPage';
 import PhysicalAssetListPage from '@/pages/physicalAssets/PhysicalAssetListPage';
+import EquipmentListPage from '@/pages/equipment/EquipmentListPage';
 import InstrumentListPage from '@/pages/instruments/InstrumentListPage';
 import InstrumentDetailPage from '@/pages/instruments/InstrumentDetailPage';
 import InstrumentCardPage from '@/pages/instruments/InstrumentCardPage';
@@ -76,6 +77,7 @@ export default function App() {
             <PhysicalAssetListPage />
           }
         />
+        <Route path="/equipment" element={<EquipmentListPage />} />
         <Route
           path="/instruments"
           element={

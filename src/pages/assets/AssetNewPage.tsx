@@ -48,7 +48,7 @@ interface FormState {
   assignee: string;
   modelName: string;
   spec: string;
-  equipmentCode: string;
+  accountingCode: string;
   instrumentMgmtNo: string;
   remark: string;
 }
@@ -77,7 +77,7 @@ const initialForm = (): FormState => ({
   assignee: '',
   modelName: '',
   spec: '',
-  equipmentCode: '',
+  accountingCode: '',
   instrumentMgmtNo: '',
   remark: '',
 });
@@ -184,7 +184,7 @@ export default function AssetNewPage() {
         assignee: form.assignee || undefined,
         modelName: form.modelName || undefined,
         spec: form.spec || undefined,
-        equipmentCode: form.equipmentCode || undefined,
+        accountingCode: form.accountingCode.trim() || undefined,
         instrumentMgmtNo: form.instrumentMgmtNo || undefined,
         remark: form.remark || undefined,
       };
@@ -545,11 +545,14 @@ export default function AssetNewPage() {
               onChange={(e) => set('spec', e.target.value)}
             />
           </Field>
-          <Field label="설비코드">
+          {/* 설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다 (백엔드 2026-10-16) */}
+          <Field label="회계 자산코드" hint="회계 프로그램의 자산코드(계정별 6자리). 선택 항목입니다">
             <input
-              className={inputClass}
-              value={form.equipmentCode}
-              onChange={(e) => set('equipmentCode', e.target.value)}
+              className={`${inputClass} code`}
+              placeholder="예: 000001"
+              maxLength={10}
+              value={form.accountingCode}
+              onChange={(e) => set('accountingCode', e.target.value.trim())}
             />
           </Field>
           <Field label="계측기 관리번호">

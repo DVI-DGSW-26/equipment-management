@@ -21,6 +21,8 @@ import { ToastProvider } from '@/components/Toast';
 const NAV: { to: string; label: string }[] = [
   { to: '/assets', label: '고정자산' },
   { to: '/physical-assets', label: '비품' },
+  /* 자산 분류는 고정자산 · 비품 · 사내 설비 셋이다 (백엔드 2026-10-16) */
+  { to: '/equipment', label: '사내 설비' },
   { to: '/instruments', label: '계측기' },
   { to: '/gauge-rr', label: '게이지 R&R' },
   { to: '/depreciation', label: '감가상각' },

@@ -44,6 +44,7 @@ import {
 import AmountInput from '@/components/AmountInput';
 import AssetAdditionsSection from './AssetAdditionsSection';
 import AssetHistorySection from './AssetHistorySection';
+import AssetEquipmentSection from './AssetEquipmentSection';
 import AssetTaxRecordSection from './AssetTaxRecordSection';
 
 /**
@@ -310,6 +311,9 @@ export default function AssetDetailPage() {
                   <Def label="매입처">{a.supplier ?? '-'}</Def>
                   <Def label="모델명">{a.modelName ?? '-'}</Def>
                   <Def label="규격">{a.spec ?? '-'}</Def>
+                  <Def label="회계 자산코드">
+                    {a.accountingCode ? <span className="code">{a.accountingCode}</span> : '-'}
+                  </Def>
                   <Def label="설비코드 / 계측기 관리번호">
                     {a.equipmentCode ?? '-'} / {a.instrumentMgmtNo ?? '-'}
                   </Def>
@@ -318,6 +322,7 @@ export default function AssetDetailPage() {
                 </Section>
               </div>
 
+              <AssetEquipmentSection assetId={a.id} />
               <DepreciationHistory assetId={a.id} />
             </>
           )}
@@ -443,7 +448,7 @@ function EditModal({
     assignee: asset.assignee ?? '',
     modelName: asset.modelName ?? '',
     spec: asset.spec ?? '',
-    equipmentCode: asset.equipmentCode ?? '',
+    accountingCode: asset.accountingCode ?? '',
     instrumentMgmtNo: asset.instrumentMgmtNo ?? '',
     excludedFromPrint: asset.excludedFromPrint,
     disposalDate: asset.disposalDate ?? '',
@@ -616,11 +621,17 @@ function EditModal({
             onChange={(e) => set('spec', e.target.value)}
           />
         </Field>
-        <Field label="설비코드">
+        {/* 설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다 (백엔드 2026-10-16) */}
+        <Field
+          label="회계 자산코드"
+          hint="회계 프로그램의 자산코드(계정별 6자리). 비우고 저장하면 지워집니다"
+        >
           <input
-            className={inputClass}
-            value={form.equipmentCode ?? ''}
-            onChange={(e) => set('equipmentCode', e.target.value)}
+            className={`${inputClass} code`}
+            placeholder="예: 000001"
+            maxLength={10}
+            value={form.accountingCode ?? ''}
+            onChange={(e) => set('accountingCode', e.target.value.trim())}
           />
         </Field>
         <Field label="계측기 관리번호">
