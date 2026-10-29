@@ -1,27 +1,32 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FROM_LIST } from '@/hooks/useBackToList';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import {
   assetsApi,
   ASSET_STATUS_LABEL,
   type Asset,
   type AssetFilter,
   type AssetStatus,
+  type AssetSummary,
 } from '@/api/assets';
 import { saveFile } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
 import { canEdit } from '@/lib/permissions';
-import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
+import { useAccounts, useDepartments } from '@/hooks/useMasters';
 import { useDebounced } from '@/hooks/useDebounced';
-import { appConfig } from '@/config/appConfig';
-import { codeText, isPrintable } from '@/domain/assetCode';
-import { useStickerSelection } from '@/hooks/useStickerSelection';
-import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, won } from '@/lib/won';
+import { accountingCodeText } from '@/domain/assetCode';
+import {
+  bookValue,
+  COST_PENDING,
+  COST_PENDING_NOTE,
+  depreciationBase,
+  PRE_SETTLEMENT_NOTE,
+  won,
+} from '@/lib/won';
 import { fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
-import StickerPreviewModal from '@/components/StickerPreviewModal';
 import { useToast } from '@/components/toastContext';
 import { ALL_ROWS, rowNo, slicePage } from '@/lib/paging';
 import { useUrlState } from '@/hooks/useUrlState';
@@ -39,36 +44,64 @@ import {
   StatCards,
   stickyThClass,
   TableScroll,
+  thClass,
   ReadOnlyChip,
 } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
 
+/**
+ * 목록 순서.
+ *
+ * 기본은 회계 대장과 같은 계정과목 → 회계 자산코드 순이다. 언제 들어온 자산인지 훑어보려면
+ * 취득일 순으로 바꿔 본다 (요청 2026-10-29). 정렬은 화면에서 한다 — 서버가 걸러 낸 전건을
+ * 한 번에 주기 때문이다.
+ */
+type SortKey = 'account' | 'acquiredAsc' | 'acquiredDesc';
+
+const SORT_LABEL: Record<SortKey, string> = {
+  account: '계정·자산코드순',
+  acquiredAsc: '취득일 오래된순',
+  acquiredDesc: '취득일 최근순',
+};
+
+const byAccount = (a: Asset, b: Asset) =>
+  a.accountCode.localeCompare(b.accountCode) ||
+  (a.accountingCode ?? '￿').localeCompare(b.accountingCode ?? '￿') ||
+  a.name.localeCompare(b.name, 'ko');
+
+const SORTERS: Record<SortKey, (a: Asset, b: Asset) => number> = {
+  account: byAccount,
+  acquiredAsc: (a, b) => a.acquisitionDate.localeCompare(b.acquisitionDate) || byAccount(a, b),
+  acquiredDesc: (a, b) => b.acquisitionDate.localeCompare(a.acquisitionDate) || byAccount(a, b),
+};
+
 /** 화면 입력값. select 는 전부 문자열로 다루고 요청 직전에 숫자로 바꾼다 */
 interface FormState {
   name: string;
-  assetCode: string;
+  accountingCode: string;
   accountId: string;
   usingDeptId: string;
-  locationId: string;
   status: string;
   acquiredFrom: string;
   acquiredTo: string;
   costFrom: string;
   costTo: string;
+  /** 거르는 조건이 아니라 보는 순서. 서버에는 보내지 않는다 */
+  sort: string;
 }
 
 const EMPTY_FORM: FormState = {
   name: '',
-  assetCode: '',
+  accountingCode: '',
   accountId: '',
   usingDeptId: '',
-  locationId: '',
   /* 폐기·매각한 자산은 기본으로 감춘다. 목록은 지금 쓰고 있는 것을 보는 자리다 */
   status: 'IN_USE',
   acquiredFrom: '',
   acquiredTo: '',
   costFrom: '',
   costTo: '',
+  sort: 'account',
 };
 
 /**
@@ -82,10 +115,11 @@ type AssetRow = Asset & { no: number };
 
 const SCREEN_COLUMNS: ExcelColumn<AssetRow>[] = [
   { header: 'No.', value: (a) => a.no, numeric: true, width: 6 },
-  { header: '자산코드', value: (a) => a.assetCode, width: 18 },
   { header: '계정과목', value: (a) => a.accountName, width: 16 },
+  { header: '자산코드', value: (a) => a.accountingCode, width: 12 },
   { header: '자산명', value: (a) => a.name, width: 26 },
   { header: '취득일자', value: (a) => a.acquisitionDate, width: 14 },
+  /* 미정은 빈칸으로 남긴다. 0 을 넣으면 엑셀 합계가 맞아 보여 금액이 없다는 것이 가려진다 */
   { header: '취득가액', value: (a) => a.acquisitionCost, numeric: true, width: 16 },
   {
     header: '상각기초가액',
@@ -96,7 +130,6 @@ const SCREEN_COLUMNS: ExcelColumn<AssetRow>[] = [
   { header: '상각누계액', value: (a) => a.accumulatedDepreciation, numeric: true, width: 16 },
   { header: '장부가액', value: (a) => a.bookValue, numeric: true, width: 16 },
   { header: '사용부서', value: (a) => a.usingDeptName, width: 14 },
-  { header: '사용위치', value: (a) => a.locationName, width: 14 },
   { header: '상태', value: (a) => a.statusLabel, width: 10 },
 ];
 
@@ -105,10 +138,9 @@ const URL_DEFAULTS = { ...EMPTY_FORM, page: '0', size: String(ALL_ROWS) };
 
 const toFilter = (f: FormState): AssetFilter => ({
   name: f.name.trim() || undefined,
-  assetCode: f.assetCode.trim() || undefined,
+  accountingCode: f.accountingCode.trim() || undefined,
   accountId: f.accountId ? Number(f.accountId) : undefined,
   usingDeptId: f.usingDeptId ? Number(f.usingDeptId) : undefined,
-  locationId: f.locationId ? Number(f.locationId) : undefined,
   status: (f.status || undefined) as AssetStatus | undefined,
   acquiredFrom: f.acquiredFrom || undefined,
   acquiredTo: f.acquiredTo || undefined,
@@ -123,7 +155,6 @@ export default function AssetListPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   /* 조건은 주소창에 담는다. 자산을 열었다 뒤로 와도 보던 그대로 돌아온다 */
@@ -131,6 +162,7 @@ export default function AssetListPage() {
   const form: FormState = q;
   const page = Number(q.page) || 0;
   const size = Number(q.size) || ALL_ROWS;
+  const sort: SortKey = q.sort in SORTERS ? (q.sort as SortKey) : 'account';
 
   const setPage = (n: number) => setQ({ page: String(n) });
   const setSize = (n: number) => setQ({ size: String(n), page: '0' });
@@ -145,10 +177,7 @@ export default function AssetListPage() {
   const settled = useDebounced(form);
   const filter = useMemo(() => toFilter(settled), [settled]);
 
-  const reset = () => {
-    setQ({ ...EMPTY_FORM, page: '0' });
-    sel.clear();
-  };
+  const reset = () => setQ({ ...EMPTY_FORM, page: '0' });
   /** 조건을 하나라도 건드렸는가. 처음 그대로면 초기화를 막는다 */
   const dirty = (Object.keys(EMPTY_FORM) as (keyof FormState)[]).some(
     (k) => form[k] !== EMPTY_FORM[k],
@@ -156,7 +185,6 @@ export default function AssetListPage() {
 
   const accounts = useAccounts();
   const departments = useDepartments();
-  const locations = useLocations();
 
   /*
    * 서버가 page/size 를 무시하고 걸러 낸 전건을 한 번에 준다 (백엔드 회신 2026-09-03).
@@ -171,35 +199,15 @@ export default function AssetListPage() {
     queryFn: () => assetsApi.summary(filter),
   });
 
-  const all = useMemo(() => list.data?.items ?? [], [list.data]);
+  const all = useMemo(
+    () => [...(list.data?.items ?? [])].sort(SORTERS[sort]),
+    [list.data, sort],
+  );
   const paged = slicePage(all, page, size);
   /** 지금 펼친 장에 보이는 것 */
   const rows = paged.items;
 
-  /**
-   * 스티커 선택.
-   *
-   * 기계장치·시설장치는 고정자산 1건이 곧 실물 1대라 비품으로 복제하지 않는다.
-   * 이런 자산의 스티커는 이 화면에서 /asset/sticker 로 뽑는다 — 비품 화면과
-   * 역할이 갈리는 영구 구조다. (여러 개를 한 건으로 산 비품만 비품 대장으로 쪼개
-   * /physical-asset/sticker 를 쓴다)
-   *
-   * 사용위치가 입력되면 서버가 자산코드를 채번하고, 그 시점부터 해당 행의
-   * 체크박스가 나타나 스티커를 뽑을 수 있다. 코드가 없는 동안만 열을 감춘다.
-   */
-  const sel = useStickerSelection(rows);
-
-  /** 체크박스가 잠긴 이유. null 이면 선택 가능 */
-  const rowBlockedReason = (a: Asset): string | null => {
-    // 소프트웨어·특허권은 위치를 넣어도 붙일 실물이 없다
-    if (appConfig.asset.intangibleAccountCodes.includes(a.accountCode))
-      return `${a.accountName}은 실물이 없는 자산이라 스티커 대상이 아닙니다.`;
-    if (!a.assetCode) return '자산코드 미부여 — 사용위치를 지정하면 저장 시 채번됩니다.';
-    if (a.excludedFromPrint) return '출력 제외로 지정된 자산입니다.';
-    return null;
-  };
-
-  /* 지금 걸러 놓은 것 전부를 화면에 보이는 열 그대로 내려받는다 */
+  /* 지금 걸러 놓은 것 전부를 화면에 보이는 열·순서 그대로 내려받는다 */
   const exportScreen = async () => {
     setExporting(true);
     try {
@@ -213,25 +221,18 @@ export default function AssetListPage() {
     }
   };
 
-  const download = useMutation({
-    mutationFn: ({
-      kind,
-      startPosition = 1,
-    }: {
-      /* 엑셀은 화면 표 그대로 여기서 만든다(exportScreen). 서버 목록표 양식은 PDF 만 쓴다 */
-      kind: 'pdf' | 'sticker';
-      startPosition?: number;
-    }) => {
-      if (kind === 'pdf') return assetsApi.exportPdf(filter);
-      return assetsApi.sticker({ ids: sel.ids(), startPosition });
-    },
+  /* 엑셀은 화면 표 그대로 여기서 만든다(exportScreen). 서버 목록표 양식은 PDF 만 쓴다 */
+  const exportPdf = useMutation({
+    mutationFn: () => assetsApi.exportPdf(filter),
     onSuccess: (file) => {
       saveFile(file);
       toast.ok(`${file.filename} 내려받기 시작`);
-      setPreviewing(false);
     },
     onError: toast.fail,
   });
+
+  /** 취득가액이 비어 있어 합계에서 빠진 건 */
+  const pendingCount = all.filter((a) => a.acquisitionCost == null).length;
 
   return (
     <div className="space-y-3">
@@ -260,6 +261,12 @@ export default function AssetListPage() {
           {
             label: '자산 건수',
             value: summary.data ? `${summary.data.totalCount.toLocaleString('ko-KR')}건` : '-',
+            hint:
+              pendingCount > 0 ? (
+                <span title={COST_PENDING_NOTE}>
+                  취득가액 {COST_PENDING} {pendingCount.toLocaleString('ko-KR')}건 포함
+                </span>
+              ) : undefined,
           },
           { label: '취득가액', value: won(summary.data?.totalAcquisitionCost) },
           { label: '상각누계액', value: won(summary.data?.totalAccumulatedDepreciation) },
@@ -267,24 +274,23 @@ export default function AssetListPage() {
         ]}
       />
 
+      <AccountTotals
+        filter={filter}
+        assets={list.data?.items ?? []}
+        grandTotal={summary.data}
+        selectedAccountId={form.accountId}
+        onSelectAccount={(id) => set('accountId', form.accountId === id ? '' : id)}
+      />
+
       <Section
-        title={
-          <>
-            고정자산 목록{' '}
-            {sel.showSelectColumn && (
-              <span className="font-normal text-fg-muted">
-                선택 {sel.selected.size}건 · 이 페이지 스티커 가능 {sel.printableRows.length}건
-              </span>
-            )}
-          </>
-        }
+        title="고정자산 목록"
         right={
           <>
             <button
               type="button"
               className={btnClass}
               disabled={all.length === 0 || exporting}
-              title={`걸러 놓은 ${all.length.toLocaleString('ko-KR')}건을 화면에 보이는 열 그대로 내려받습니다.`}
+              title={`걸러 놓은 ${all.length.toLocaleString('ko-KR')}건을 화면에 보이는 열·순서 그대로 내려받습니다.`}
               onClick={() => void exportScreen()}
             >
               {exporting ? '만드는 중…' : 'Excel'}
@@ -292,26 +298,11 @@ export default function AssetListPage() {
             <button
               type="button"
               className={btnClass}
-              disabled={download.isPending}
-              onClick={() => download.mutate({ kind: 'pdf' })}
+              disabled={exportPdf.isPending}
+              onClick={() => exportPdf.mutate()}
             >
               목록표 PDF
             </button>
-            {sel.showSelectColumn && (
-              <button
-                type="button"
-                className={btnClass}
-                title={
-                  sel.selected.size === 0
-                    ? '스티커를 출력할 행을 먼저 선택하세요.'
-                    : `선택한 ${sel.selected.size}건 스티커 출력`
-                }
-                disabled={download.isPending || sel.selected.size === 0}
-                onClick={() => setPreviewing(true)}
-              >
-                스티커 출력
-              </button>
-            )}
           </>
         }
       >
@@ -327,9 +318,9 @@ export default function AssetListPage() {
           />
           <FilterInput
             placeholder="자산코드"
-            width="w-36"
-            value={form.assetCode}
-            onChange={(v) => set('assetCode', v)}
+            width="w-32"
+            value={form.accountingCode}
+            onChange={(v) => set('accountingCode', v)}
           />
           <select
             className={`${filterClass} w-40`}
@@ -354,19 +345,6 @@ export default function AssetListPage() {
             {(departments.data ?? []).map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={`${filterClass} w-36`}
-            value={form.locationId}
-            aria-label="사용위치"
-            onChange={(e) => set('locationId', e.target.value)}
-          >
-            <option value="">사용위치 전체</option>
-            {(locations.data ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.code} {l.name}
               </option>
             ))}
           </select>
@@ -409,18 +387,22 @@ export default function AssetListPage() {
             />
           </span>
 
+          <select
+            className={`${filterClass} w-44`}
+            value={sort}
+            aria-label="정렬"
+            onChange={(e) => set('sort', e.target.value)}
+          >
+            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+              <option key={k} value={k}>
+                {SORT_LABEL[k]}
+              </option>
+            ))}
+          </select>
+
           {/* 안내 문구는 자리만 먹고 알려 주는 것이 없다. 조회 중 표시만 남긴다 */}
           {list.isFetching && <span className="shrink-0 text-[18px] text-accent">조회 중…</span>}
         </FilterBar>
-
-        {/* 선택 열을 숨긴 이유를 알린다 */}
-        {all.length > 0 && !sel.showSelectColumn && (
-          <p className="border-b border-line bg-warn/10 px-3 py-2 text-[17px] text-warn">
-            이 페이지에는 스티커를 출력할 수 있는 자산이 없어 선택 열을 숨겼습니다. 자산코드가
-            없거나(사용위치 미확정), 출력 제외로 지정됐거나, 실물이 없는 무형자산은 라벨 대상이
-            아닙니다. 상세에서 사용위치를 지정하면 자산코드가 채번되어 선택할 수 있게 됩니다.
-          </p>
-        )}
 
         <QueryState
           isPending={list.isPending}
@@ -431,36 +413,35 @@ export default function AssetListPage() {
 
         {all.length > 0 && (
           <>
-            {/* 계정과목까지 남긴다 — 스티커 선택 열이 있으면 한 칸 더 (요청 2026-10-15) */}
-            <TableScroll stickyColumns={sel.showSelectColumn ? 4 : 3}>
+            {/* No. · 계정과목 · 자산코드까지 남긴다 — 회계 자산코드는 계정별로 매겨 계정과 함께 읽는다 */}
+            <TableScroll stickyColumns={3}>
               <table className="w-max min-w-full text-[19px]">
                 <thead>
                   <tr className="text-left text-fg-sub">
-                    {sel.showSelectColumn && (
-                      /* 무엇을 위한 선택인지 열 제목으로 알린다 */
-                      <th className={`${stickyThClass} w-24`}>
-                        <label className="flex w-fit items-center gap-2 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={sel.allOnPageSelected}
-                            onChange={sel.toggleAll}
-                            title={`출력 가능한 ${sel.printableRows.length}건 전체 선택`}
-                            aria-label="스티커 출력 대상 전체 선택"
-                          />
-                          스티커
-                        </label>
-                      </th>
-                    )}
                     <th className={`${stickyThClass} w-14 text-right`}>No.</th>
-                    <th className={stickyThClass}>자산코드</th>
                     <th className={stickyThClass}>계정과목</th>
+                    <th className={stickyThClass} title="회계 프로그램의 자산코드 (계정별 6자리)">
+                      자산코드
+                    </th>
                     <th className={stickyThClass}>자산명</th>
-                    <th className={stickyThClass}>취득일자</th>
+                    <th className={stickyThClass}>
+                      {/* 머리를 눌러도 취득일 순으로 바뀐다. 한 번 더 누르면 반대로 */}
+                      <button
+                        type="button"
+                        className="font-medium hover:text-fg"
+                        title="취득일 순으로 정렬"
+                        onClick={() =>
+                          set('sort', sort === 'acquiredAsc' ? 'acquiredDesc' : 'acquiredAsc')
+                        }
+                      >
+                        취득일자
+                        {sort === 'acquiredAsc' ? ' ▲' : sort === 'acquiredDesc' ? ' ▼' : ' ↕'}
+                      </button>
+                    </th>
                     <th className={`${stickyThClass} text-right`}>취득가액</th>
                     <th className={`${stickyThClass} text-right`}>상각누계액</th>
                     <th className={`${stickyThClass} text-right`}>장부가액</th>
                     <th className={stickyThClass}>사용부서</th>
-                    <th className={stickyThClass}>사용위치</th>
                     <th className={stickyThClass}>상태</th>
                   </tr>
                 </thead>
@@ -471,39 +452,14 @@ export default function AssetListPage() {
                       onClick={() => navigate(`/assets/${a.id}`, { state: FROM_LIST })}
                       className="cursor-pointer border-b border-line hover:bg-bg"
                     >
-                      {sel.showSelectColumn && (
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={sel.isSelected(a.id)}
-                            disabled={!isPrintable(a)}
-                            onChange={() => sel.toggle(a)}
-                            title={rowBlockedReason(a) ?? `${a.name} 선택`}
-                            aria-label={`${a.name} 선택`}
-                          />
-                        </td>
-                      )}
                       <td className="num px-3 py-2 text-fg-muted">{rowNo(i, paged.page, size)}</td>
-                      <td className="code px-3 py-2">
-                        {a.assetCode ? (
-                          codeText(a.assetCode)
-                        ) : (
-                          <Badge tone="warn">미부여</Badge>
-                        )}
-                        {a.sequenceMissing && (
-                          <span className="ml-1">
-                            <Badge tone="muted" title="기존 자료의 7단 코드">
-                              7단
-                            </Badge>
-                          </span>
-                        )}
-                      </td>
                       <td className="px-3 py-2">{a.accountName}</td>
+                      <td className="code px-3 py-2">{accountingCodeText(a.accountingCode)}</td>
                       <td className="px-3 py-2">
                         {a.name}
                         {a.excludedFromPrint && (
                           <span className="ml-1">
-                            <Badge tone="muted" title="목록표·스티커 출력 제외">
+                            <Badge tone="muted" title="목록표 출력 제외">
                               출력제외
                             </Badge>
                           </span>
@@ -521,9 +477,15 @@ export default function AssetListPage() {
                       </td>
                       <td className="px-3 py-2">{fmtDate(a.acquisitionDate)}</td>
                       <td className="num px-3 py-2">
-                        {won(a.acquisitionCost)}
+                        {a.acquisitionCost == null ? (
+                          <span title={COST_PENDING_NOTE}>
+                            <Badge tone="warn">{COST_PENDING}</Badge>
+                          </span>
+                        ) : (
+                          won(a.acquisitionCost)
+                        )}
                         {/* 자본적지출이 있는 자산만 상각기초가액을 덧붙인다 — 없으면 취득가액과 같다 */}
-                        {a.additionTotal > 0 && (
+                        {a.acquisitionCost != null && a.additionTotal > 0 && (
                           <span
                             className="block text-[16px] text-fg-muted"
                             title="취득가액 + 자본적지출 증가 누계"
@@ -537,7 +499,6 @@ export default function AssetListPage() {
                         {bookValue(a.bookValue)}
                       </td>
                       <td className="px-3 py-2">{a.usingDeptName ?? '-'}</td>
-                      <td className="px-3 py-2">{a.locationName ?? '-'}</td>
                       <td className="px-3 py-2">{a.statusLabel}</td>
                     </tr>
                   ))}
@@ -556,16 +517,121 @@ export default function AssetListPage() {
           </>
         )}
       </Section>
-
-      {previewing && (
-        <StickerPreviewModal
-          source="asset"
-          items={sel.items()}
-          isDownloading={download.isPending}
-          onClose={() => setPreviewing(false)}
-          onDownload={(startPosition) => download.mutate({ kind: 'sticker', startPosition })}
-        />
-      )}
     </div>
+  );
+}
+
+/* ---------- 계정별 합계 ---------- */
+
+/**
+ * 계정과목마다 건수와 금액 합계 (요청 2026-10-29).
+ *
+ * 금액은 화면에서 더하지 않는다 — 계정마다 요약(/asset/summary)을 지금 조건에 계정만 바꿔
+ * 다시 묻는다. 그래야 위 요약 카드와 같은 규칙(취득가액 미정 제외 등)으로 맞아떨어진다.
+ * 묻는 계정은 지금 목록에 나온 계정뿐이라 많아야 계정과목 수만큼이다.
+ *
+ * 줄을 누르면 그 계정만 목록에 남기고, 한 번 더 누르면 풀린다.
+ */
+function AccountTotals({
+  filter,
+  assets,
+  grandTotal,
+  selectedAccountId,
+  onSelectAccount,
+}: {
+  filter: AssetFilter;
+  /** 지금 조건으로 받은 목록. 어느 계정이 나왔는지와 미정 건수만 본다 */
+  assets: Asset[];
+  grandTotal: AssetSummary | undefined;
+  selectedAccountId: string;
+  onSelectAccount: (accountId: string) => void;
+}) {
+  const accounts = useAccounts();
+
+  /** 목록에 나온 계정 — 계정코드 순 */
+  const shown = useMemo(() => {
+    const codes = new Set(assets.map((a) => a.accountCode));
+    return (accounts.data ?? [])
+      .filter((acc) => codes.has(acc.code))
+      .sort((a, b) => a.code.localeCompare(b.code));
+  }, [accounts.data, assets]);
+
+  const sums = useQueries({
+    queries: shown.map((acc) => {
+      const f: AssetFilter = { ...filter, accountId: acc.id };
+      return {
+        queryKey: queryKeys.assets.summary(f),
+        queryFn: () => assetsApi.summary(f),
+      };
+    }),
+  });
+
+  if (shown.length === 0) return null;
+
+  const pendingOf = (code: string) =>
+    assets.filter((a) => a.accountCode === code && a.acquisitionCost == null).length;
+
+  return (
+    <Section
+      title="계정별 합계"
+      right={
+        <span className="text-[18px] text-fg-muted">
+          지금 조건 기준 · 줄을 누르면 그 계정만 봅니다
+        </span>
+      }
+    >
+      <table className="w-max min-w-full text-[19px]">
+        <thead>
+          <tr className="border-b border-line bg-bg text-left text-fg-sub">
+            <th className={thClass}>계정과목</th>
+            <th className={`${thClass} text-right`}>건수</th>
+            <th className={`${thClass} text-right`}>취득가액</th>
+            <th className={`${thClass} text-right`}>상각누계액</th>
+            <th className={`${thClass} text-right`}>장부가액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((acc, i) => {
+            const s = sums[i]?.data;
+            const pending = pendingOf(acc.code);
+            const active = selectedAccountId === String(acc.id);
+            return (
+              <tr
+                key={acc.id}
+                onClick={() => onSelectAccount(String(acc.id))}
+                aria-selected={active}
+                className={`cursor-pointer border-b border-line hover:bg-bg ${active ? 'bg-accent/5' : ''}`}
+              >
+                <td className="px-3 py-2">
+                  {acc.code} {acc.name}
+                </td>
+                <td className="num px-3 py-2">
+                  {s ? `${s.totalCount.toLocaleString('ko-KR')}건` : '-'}
+                  {pending > 0 && (
+                    <span className="block text-[16px] text-warn" title={COST_PENDING_NOTE}>
+                      {COST_PENDING} {pending}건
+                    </span>
+                  )}
+                </td>
+                <td className="num px-3 py-2">{won(s?.totalAcquisitionCost)}</td>
+                <td className="num px-3 py-2">{won(s?.totalAccumulatedDepreciation)}</td>
+                <td className="num px-3 py-2">{won(s?.totalBookValue)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        {grandTotal && (
+          <tfoot>
+            <tr className="bg-bg font-semibold">
+              <td className="px-3 py-2">합계</td>
+              <td className="num px-3 py-2">{grandTotal.totalCount.toLocaleString('ko-KR')}건</td>
+              <td className="num px-3 py-2">{won(grandTotal.totalAcquisitionCost)}</td>
+              <td className="num px-3 py-2">{won(grandTotal.totalAccumulatedDepreciation)}</td>
+              <td className="num px-3 py-2">{won(grandTotal.totalBookValue)}</td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </Section>
   );
 }

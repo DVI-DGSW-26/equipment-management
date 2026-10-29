@@ -61,14 +61,13 @@ export interface AssetTaxRecord {
 /**
  * 고정자산 1건. 목록·상세가 같은 스키마(AssetResponse)다.
  * 필드명은 서버 스키마를 그대로 쓴다 — Swagger 와 대조하기 쉽게.
+ *
+ * 고정자산은 회계 대장이다. 물건 단위의 8단 자산코드와 사용위치는 비품·사내 설비가
+ * 맡기로 해서 응답에서 빠졌다 (백엔드 2026-10-29). 화면의 자산코드 자리는 accountingCode 를 쓴다.
  */
 export interface Asset extends AssetTaxRecord {
   id: number;
-  /** 8단 자산코드. 위치 미확정이면 null */
-  assetCode: string | null;
-  /** 기존 자료의 7단 코드(일련번호 없음) 여부 */
-  sequenceMissing: boolean;
-  /** 회계 프로그램 자산코드 (계정별 6자리). 같은 계정과목 안에서 겹치면 409 */
+  /** 회계 프로그램 자산코드 (계정별 6자리, 예: 000044). 같은 계정과목 안에서 겹치면 409 */
   accountingCode: string | null;
   /**
    * 연결된 사내 설비의 설비코드를 쉼표로 이은 것 — 표시용.
@@ -85,8 +84,11 @@ export interface Asset extends AssetTaxRecord {
   name: string;
   acquisitionDate: IsoDate;
   quantity: number;
-  /** 기초가액(취득가액) */
-  acquisitionCost: Won;
+  /**
+   * 기초가액(취득가액). 회계 대장에 금액이 아직 없으면 null —
+   * 금액이 들어올 때까지 감가상각과 합계에서 빠진다. 화면에는 "미정" 으로 둔다
+   */
+  acquisitionCost: Won | null;
   /**
    * 자본적지출 증가 누계(신규취득및증가).
    * 상각 기준가액 = acquisitionCost + additionTotal — 합은 lib/won 의 depreciationBase 로만 구한다.
@@ -94,10 +96,8 @@ export interface Asset extends AssetTaxRecord {
   additionTotal: Won;
   status: AssetStatus;
   statusLabel: string;
-  /** 목록표·스티커 출력 제외 (금형 등) */
+  /** 목록표 출력 제외 (금형 등) */
   excludedFromPrint: boolean;
-  /** 자산등록 여부 — 스티커의 '자산등록 O/X'. 고정자산은 대장 등재분이라 항상 true */
-  registered: boolean;
 
   /** 전기말상각누계액 */
   priorAccumulated: Won;
@@ -114,8 +114,6 @@ export interface Asset extends AssetTaxRecord {
   categoryName: string | null;
   itemTypeCode: string | null;
   itemCode: string | null;
-  locationCode: string | null;
-  locationName: string | null;
   usingDeptCode: string | null;
   usingDeptName: string | null;
   managingDeptCode: string | null;
@@ -173,10 +171,10 @@ export type UpdateTaxRecordPayload = Partial<AssetTaxRecord>;
 export interface AssetFilter {
   accountId?: number;
   usingDeptId?: number;
-  locationId?: number;
   acquiredFrom?: IsoDate;
   acquiredTo?: IsoDate;
-  assetCode?: string;
+  /** 회계 자산코드 부분일치 */
+  accountingCode?: string;
   /** 자산명 부분일치 */
   name?: string;
   status?: AssetStatus;
@@ -200,21 +198,11 @@ export interface AssetSummary {
 
 /** 회계 영향 없는 수정 */
 export interface UpdateAssetPayload {
-  /**
-   * 자산코드를 손으로 바꾼다 (백엔드 회신 2026-09-09).
-   *
-   * 비우거나 null 이면 지금 코드를 그대로 둔다 — 자동 채번도 그대로다.
-   * 넣을 때는 8단 완성형이어야 하고(최대 40자), 형식이 틀리면 400,
-   * 이미 쓰는 코드면 409 가 온다. 그 안내는 서버 문구를 그대로 띄운다.
-   */
-  assetCode?: string | null;
   name?: string;
   status?: AssetStatus;
   supplier?: string;
   managingDeptCode?: string;
   usingDeptCode?: string;
-  /** 미부여 자산에 위치가 확정되면 자산코드가 자동 채번된다 */
-  locationCode?: string;
   assignee?: string;
   modelName?: string;
   spec?: string;
@@ -233,6 +221,7 @@ export interface UpdateAssetPayload {
 /** 감가상각 재계산을 유발하는 정정. 사유 필수 */
 export interface CorrectAssetPayload {
   acquisitionDate?: IsoDate;
+  /** 취득가액이 비어 있던 자산은 여기서 금액을 넣으면 그때 상각이 계산된다 */
   acquisitionCost?: number;
   accountId?: number;
   usefulLifeYears?: number;
@@ -244,8 +233,6 @@ export interface CorrectAssetPayload {
 }
 
 export interface CreateAssetPayload {
-  /** 비우면 서버가 8단 규칙으로 채번 */
-  assetCode?: string;
   name: string;
   /** 회계 프로그램 자산코드 (계정별 6자리, 선택) */
   accountingCode?: string;
@@ -254,13 +241,13 @@ export interface CreateAssetPayload {
   /** P05(비품)일 때 필수 */
   itemTypeCode?: string;
   itemCode?: string;
-  locationCode?: string;
   usingDeptCode?: string;
   /** 비우면 사용부서와 동일 */
   managingDeptCode?: string;
   accountId: number;
   acquisitionDate: IsoDate;
-  acquisitionCost: number;
+  /** 회계 대장에 금액이 아직 없으면 비운다. 나중에 회계 정정으로 넣는다 */
+  acquisitionCost?: number;
   quantity?: number;
   expenseType?: ExpenseType;
   depreciationMethod?: DepreciationMethod;
@@ -275,14 +262,14 @@ export interface CreateAssetPayload {
   modelName?: string;
   spec?: string;
   disposalDate?: IsoDate;
-  remark?: string;
+  remark?: string;
   /**
    * 수량만큼 비품을 함께 만든다.
    *
    * 의자 열 개를 한 건으로 산 비품은 고정자산 1건에 비품 10건이다. 그 열 건을
-   * 손으로 만들던 것을 서버가 대신 만들어 연결해 준다 — 위치·부서가 있으면 코드도
-   * 순번대로 채번한다 (백엔드 회신 2026-09-09). 개당 구입금액은 비워 두므로
-   * 필요하면 비품 화면에서 채운다.
+   * 손으로 만들던 것을 서버가 대신 만들어 연결해 준다 (백엔드 회신 2026-09-09).
+   * 위치는 물려주지 않아 비품은 위치·자산코드가 빈 채로 생기고, 비품 화면에서 위치를
+   * 넣으면 그때 자산코드가 붙는다 (백엔드 2026-10-29). 개당 구입금액도 비워 둔다.
    */
   createPhysicals?: boolean;
 }
@@ -297,28 +284,6 @@ export interface AssetChangeLog {
   afterValue: string | null;
   changedBy: string | null;
   changedAt: IsoDateTime;
-}
-
-export interface AssetCodePreview {
-  /** 앞 7단 */
-  prefix: string;
-  /** 저장 시 부여될 완성 코드 (현재 시점 기준) */
-  nextCode: string;
-}
-
-export interface CodePreviewQuery {
-  categoryCode: string;
-  itemTypeCode?: string;
-  itemCode?: string;
-  locationCode: string;
-  deptCode: string;
-  acquisitionDate: IsoDate;
-}
-
-export interface StickerPrintPayload {
-  ids: number[];
-  /** 라벨지 시작 위치 1~10 */
-  startPosition?: number;
 }
 
 export const assetsApi = {
@@ -348,11 +313,7 @@ export const assetsApi = {
   updateTaxRecord: (id: number, body: UpdateTaxRecordPayload) =>
     request<void>('PATCH', `/asset/${id}/tax-record`, { body }),
 
-  codePreview: (query: CodePreviewQuery) =>
-    request<AssetCodePreview>('GET', '/asset/code-preview', { query }),
-
-  sticker: (body: StickerPrintPayload): Promise<DownloadResult> =>
-    requestFile('POST', '/asset/sticker', '자산스티커.pdf', { body }),
+  /* 스티커·자산코드 미리보기는 고정자산에서 빠졌다. 스티커는 비품(/physical-asset/sticker)에서 뽑는다 */
   exportPdf: (query: AssetFilter = {}): Promise<DownloadResult> =>
     requestFile('GET', '/asset/export/pdf', '고정자산목록표.pdf', { query }),
   /**

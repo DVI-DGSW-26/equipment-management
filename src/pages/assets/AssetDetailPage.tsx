@@ -18,12 +18,20 @@ import { depreciationApi } from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
 import { usePerms } from '@/hooks/useMe';
 import { canEdit } from '@/lib/permissions';
-import { useAccounts, useDepartments, useLocations } from '@/hooks/useMasters';
-import { codeText, NO_CODE_REASON, SEQUENCE_MISSING_REASON } from '@/domain/assetCode';
+import { useAccounts, useDepartments } from '@/hooks/useMasters';
 import { allowedMethods } from '@/domain/depreciationMethod';
 import { LOCKED_NOTICE } from '@/domain/editability';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
-import { bookValue, depreciationBase, PRE_SETTLEMENT_NOTE, rateText, won, wonUnit } from '@/lib/won';
+import {
+  bookValue,
+  COST_PENDING,
+  COST_PENDING_NOTE,
+  depreciationBase,
+  PRE_SETTLEMENT_NOTE,
+  rateText,
+  won,
+  wonUnit,
+} from '@/lib/won';
 import AttachmentsSection from '@/components/AttachmentsSection';
 import Modal from '@/components/Modal';
 import { useToast } from '@/components/toastContext';
@@ -135,14 +143,15 @@ export default function AssetDetailPage() {
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">{a?.name ?? '자산 상세'}</h1>
-        {a?.assetCode ? (
-          <span className="code text-[19px] text-fg-sub">{codeText(a.assetCode)}</span>
-        ) : (
-          a && <Badge tone="warn" title={NO_CODE_REASON}>자산코드 미부여</Badge>
+        {/* 고정자산의 자산코드는 회계 프로그램의 것이다. 계정별로 매기므로 계정코드를 앞에 붙인다 */}
+        {a?.accountingCode && (
+          <span className="code text-[19px] text-fg-sub" title="계정코드-회계 자산코드">
+            {a.accountCode}-{a.accountingCode}
+          </span>
         )}
-        {a?.sequenceMissing && (
-          <Badge tone="muted" title={SEQUENCE_MISSING_REASON}>
-            7단 코드
+        {a && a.acquisitionCost == null && (
+          <Badge tone="warn" title={COST_PENDING_NOTE}>
+            취득가액 미정
           </Badge>
         )}
         {gone && a && (
@@ -225,8 +234,8 @@ export default function AssetDetailPage() {
             <>
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Section title="기본 정보">
-                  <Def label="자산코드">
-                    <span className="code">{codeText(a.assetCode)}</span>
+                  <Def label="회계 자산코드">
+                    {a.accountingCode ? <span className="code">{a.accountingCode}</span> : '-'}
                   </Def>
                   <Def label="자산명">{a.name}</Def>
                   <Def label="계정과목">
@@ -254,14 +263,22 @@ export default function AssetDetailPage() {
 
                 <Section title="회계 정보">
                   <Def label="취득가액">
-                    <span className="num-left block">{wonUnit(a.acquisitionCost)}</span>
+                    {a.acquisitionCost == null ? (
+                      <span title={COST_PENDING_NOTE}>
+                        <Badge tone="warn">{COST_PENDING}</Badge>
+                      </span>
+                    ) : (
+                      <span className="num-left block">{wonUnit(a.acquisitionCost)}</span>
+                    )}
                   </Def>
                   <Def label="신규취득및증가">
                     <span className="num-left block">{won(a.additionTotal)}</span>
                   </Def>
                   <Def label="상각기초가액">
                     <span className="num-left block font-semibold" title="취득가액 + 자본적지출 증가 누계">
-                      {wonUnit(depreciationBase(a.acquisitionCost, a.additionTotal))}
+                      {a.acquisitionCost == null
+                        ? COST_PENDING
+                        : wonUnit(depreciationBase(a.acquisitionCost, a.additionTotal))}
                     </span>
                   </Def>
                   <Def label="상각방법 / 내용연수">
@@ -304,16 +321,10 @@ export default function AssetDetailPage() {
                 <Section title="관리 정보">
                   <Def label="사용부서">{a.usingDeptName ?? a.usingDeptCode ?? '-'}</Def>
                   <Def label="관리부서">{a.managingDeptName ?? a.managingDeptCode ?? '-'}</Def>
-                  <Def label="사용위치">
-                    {a.locationCode ? `${a.locationCode} ${a.locationName ?? ''}` : '-'}
-                  </Def>
                   <Def label="담당자">{a.assignee ?? '-'}</Def>
                   <Def label="매입처">{a.supplier ?? '-'}</Def>
                   <Def label="모델명">{a.modelName ?? '-'}</Def>
                   <Def label="규격">{a.spec ?? '-'}</Def>
-                  <Def label="회계 자산코드">
-                    {a.accountingCode ? <span className="code">{a.accountingCode}</span> : '-'}
-                  </Def>
                   <Def label="설비코드 / 계측기 관리번호">
                     {a.equipmentCode ?? '-'} / {a.instrumentMgmtNo ?? '-'}
                   </Def>
@@ -438,13 +449,11 @@ function EditModal({
 }) {
   const toast = useToast();
   const [form, setForm] = useState<UpdateAssetPayload>({
-    assetCode: asset.assetCode ?? '',
     name: asset.name,
     status: asset.status,
     supplier: asset.supplier ?? '',
     usingDeptCode: asset.usingDeptCode ?? '',
     managingDeptCode: asset.managingDeptCode ?? '',
-    locationCode: asset.locationCode ?? '',
     assignee: asset.assignee ?? '',
     modelName: asset.modelName ?? '',
     spec: asset.spec ?? '',
@@ -463,7 +472,6 @@ function EditModal({
   );
 
   const departments = useDepartments();
-  const locations = useLocations();
 
   const set = <K extends keyof UpdateAssetPayload>(k: K, v: UpdateAssetPayload[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -472,8 +480,6 @@ function EditModal({
     mutationFn: () =>
       assetsApi.update(asset.id, {
         ...form,
-        /* 빈 칸은 "지금 코드를 그대로" 라는 뜻이다. '' 를 보내면 형식 오류가 난다 */
-        assetCode: form.assetCode ? form.assetCode : undefined,
         disposalDate: form.disposalDate ? form.disposalDate : null,
         disposalAmount: toAmount(disposalAmount),
         partialDisposalAmount: toAmount(partialDisposalAmount),
@@ -512,22 +518,6 @@ function EditModal({
         고칩니다.
       </p>
       <div className="form-lg grid grid-cols-1 gap-3 md:grid-cols-2">
-        {/*
-          자산코드는 위치·부서로 서버가 채번하지만, 기존 자료에서 옮겨 온 코드를 맞춰
-          넣어야 하는 일이 있어 손으로도 바꾼다 (백엔드 회신 2026-09-09).
-          비워 두면 지금 코드를 그대로 둔다 — 지우는 것이 아니다.
-        */}
-        <Field
-          label="자산코드"
-          hint="8단 완성형으로 넣습니다. 비워 두면 지금 코드를 그대로 둡니다."
-        >
-          <input
-            className={`${inputClass} code`}
-            placeholder="DV-24-P05-2-10-C13-MA-01"
-            value={form.assetCode ?? ''}
-            onChange={(e) => set('assetCode', e.target.value.trim())}
-          />
-        </Field>
         <Field label="자산명">
           <input
             className={inputClass}
@@ -576,23 +566,6 @@ function EditModal({
             ))}
           </select>
         </Field>
-        <Field
-          label="사용위치"
-          hint={!asset.assetCode ? '위치를 지정하면 저장 시 자산코드가 채번됩니다.' : undefined}
-        >
-          <select
-            className={inputClass}
-            value={form.locationCode ?? ''}
-            onChange={(e) => set('locationCode', e.target.value)}
-          >
-            <option value="">미지정</option>
-            {(locations.data ?? []).map((l) => (
-              <option key={l.id} value={l.code}>
-                {l.code} {l.name}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label="담당자">
           <input
             className={inputClass}
@@ -621,7 +594,10 @@ function EditModal({
             onChange={(e) => set('spec', e.target.value)}
           />
         </Field>
-        {/* 설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다 (백엔드 2026-10-16) */}
+        {/*
+          고정자산의 자산코드는 회계 프로그램의 것 하나다 (백엔드 2026-10-29).
+          설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다 (백엔드 2026-10-16).
+        */}
         <Field
           label="회계 자산코드"
           hint="회계 프로그램의 자산코드(계정별 6자리). 비우고 저장하면 지워집니다"
@@ -685,7 +661,7 @@ function EditModal({
             checked={form.excludedFromPrint ?? false}
             onChange={(e) => set('excludedFromPrint', e.target.checked)}
           />
-          목록표·스티커 출력에서 제외 (금형 등)
+          목록표 출력에서 제외 (금형 등)
         </label>
       </div>
     </Modal>
@@ -790,7 +766,10 @@ function CorrectModal({
             onChange={(e) => set('acquisitionDate', e.target.value)}
           />
         </Field>
-        <Field label="취득가액">
+        <Field
+          label="취득가액"
+          hint={asset.acquisitionCost == null ? '지금은 미정입니다. 금액을 넣으면 그때 상각이 계산됩니다.' : undefined}
+        >
           <AmountInput
             decimal
             className={inputClass}

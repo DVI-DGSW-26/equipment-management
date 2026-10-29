@@ -11,7 +11,8 @@ export interface DepreciationCalculation {
 /** 연도별 조회 — 자산 1건의 특정 연도 */
 export interface YearlyRow {
   assetId: number;
-  assetCode: string | null;
+  /** 회계 자산코드 (계정별 6자리) */
+  accountingCode: string | null;
   assetName: string;
   accountCode: string;
   accountName: string;
@@ -37,7 +38,8 @@ export interface ScheduleRow {
   expenseTypeCode: string | null;
   accountCode: string;
   accountName: string;
-  assetCode: string | null;
+  /** 회계 자산코드 (계정별 6자리) */
+  accountingCode: string | null;
   assetName: string;
   acquisitionDate: IsoDate;
   /** 1~12월 */
@@ -67,7 +69,8 @@ export interface LedgerRow {
   assetId: number;
   accountCode: string;
   accountName: string;
-  assetCode: string | null;
+  /** 회계 자산코드 (계정별 6자리) */
+  accountingCode: string | null;
   assetName: string;
   acquisitionDate: IsoDate;
   expenseTypeCode: string | null;
@@ -113,7 +116,7 @@ export type ForecastGroupBy = 'asset' | 'account' | 'dept' | 'total';
 export type ForecastGranularity = 'year' | 'month';
 
 export interface ForecastRow {
-  /** asset=자산코드, account=계정코드, total="TOTAL" */
+  /** asset="계정코드-회계 자산코드"(예: 206-000044), account=계정코드, total="TOTAL" */
   key: string;
   label: string;
   depreciationMethodLabel: string | null;

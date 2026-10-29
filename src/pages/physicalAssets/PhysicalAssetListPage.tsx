@@ -502,7 +502,6 @@ export default function PhysicalAssetListPage() {
 
       {previewing && (
         <StickerPreviewModal
-          source="physical"
           items={sel.items()}
           isDownloading={sticker.isPending}
           onClose={() => setPreviewing(false)}
@@ -707,11 +706,11 @@ function PhysicalAssetModal({
                 setForm((p) => ({
                   ...p,
                   assetId,
-                  // 부모에게 있는 값으로 빈 칸만 채운다. 이미 입력한 건 건드리지 않는다
+                  // 부모에게 있는 값으로 빈 칸만 채운다. 이미 입력한 건 건드리지 않는다.
+                  // 위치는 고정자산에 없다 — 비품이 직접 갖는다 (백엔드 2026-10-29)
                   categoryCode: p.categoryCode || parent?.categoryCode || '',
                   itemTypeCode: p.itemTypeCode || parent?.itemTypeCode || '',
                   itemCode: p.itemCode || parent?.itemCode || '',
-                  locationCode: p.locationCode || parent?.locationCode || '',
                   deptCode: p.deptCode || parent?.usingDeptCode || '',
                   acquisitionDate: p.acquisitionDate || parent?.acquisitionDate || '',
                   modelName: p.modelName || parent?.modelName || '',
