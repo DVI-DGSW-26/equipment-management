@@ -84,6 +84,7 @@ export const queryKeys = {
     all: ['notifications'] as const,
     emails: () => ['notifications', 'emails'] as const,
     settings: () => ['notifications', 'settings'] as const,
+    changeAlert: () => ['notifications', 'change-alert', 'me'] as const,
     logs: (q: object) => ['notifications', 'logs', q] as const,
   },
   masters: {

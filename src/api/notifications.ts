@@ -94,6 +94,25 @@ export interface AlertSendResult {
   skippedCount: number;
 }
 
+/**
+ * 내 등록·수정 알림 설정 (백엔드 2026-10-29).
+ *
+ * 등록·수정이 승인 없이 바로 반영되는 대신 관리자(admin)에게 가는 알림이다. 교정·안전검사
+ * 알림(notification-email 명단)과는 별개다. 기본은 둘 다 받기.
+ */
+export interface ChangeAlertPreference {
+  /** 메일로 받겠다고 했는지 */
+  email: boolean;
+  /** 웹푸시로 받겠다고 했는지 */
+  push: boolean;
+  /** 관리자라 이 알림 대상인지. 아니면 설정과 상관없이 받지 않는다 */
+  admin: boolean;
+  /** 지금 실제로 메일이 오는지 = admin · email 켜짐 · 계정 메일 주소 있음 */
+  receivingEmail: boolean;
+  /** 지금 실제로 웹푸시가 오는지 = admin · push 켜짐. 브라우저 기기 등록은 별도다 */
+  receivingPush: boolean;
+}
+
 /** 알림 발송 시점. 각 값 0~365 */
 export interface AlertSettings {
   /** 교정 알림 — 차기 교정일 며칠 전. 0 = 당일 */
@@ -139,6 +158,12 @@ export const notificationsApi = {
     request<AlertSendResult>('POST', '/notification/alert/send', { query: { baseDate } }),
   sendSafetyAlert: (baseDate: IsoDate) =>
     request<AlertSendResult>('POST', '/notification/safety-alert/send', { query: { baseDate } }),
+
+  /** 내 등록·수정 알림 설정. 로그인한 본인 것만 본다 */
+  changeAlert: () => request<ChangeAlertPreference>('GET', '/notification/change-alert/me'),
+  /** 메일·웹푸시를 따로 켜고 끈다. 안 보낸 쪽은 서버가 그대로 둔다 */
+  updateChangeAlert: (body: { email?: boolean; push?: boolean }) =>
+    request<ChangeAlertPreference>('PATCH', '/notification/change-alert/me', { body }),
 
   settings: () => request<AlertSettings>('GET', '/notification/settings'),
   updateSettings: (body: Partial<AlertSettings>) =>
