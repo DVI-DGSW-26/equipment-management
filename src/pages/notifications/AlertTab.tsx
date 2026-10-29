@@ -867,10 +867,17 @@ function SendModal({ type, onClose }: { type: AlertType; onClose: () => void }) 
  * 본인 인증 등록까지 두면 같은 일을 하는 길이 둘이 되어 오히려 헷갈린다.
  * 해지는 메일을 받은 사람이 관리자를 거치지 않고 끊을 수 있어야 해서 남긴다.
  */
-function UnsubscribeModal({ onClose }: { onClose: () => void }) {
+export function UnsubscribeModal({
+  onClose,
+  initialEmail = '',
+}: {
+  onClose: () => void;
+  /** 마이페이지에서 열면 내 주소를 미리 채운다 */
+  initialEmail?: string;
+}) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
 

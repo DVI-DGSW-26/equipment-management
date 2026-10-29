@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { notificationsApi } from '@/api/notifications';
+import { queryKeys } from '@/api/queryKeys';
 import { useMe, usePerms } from '@/hooks/useMe';
 import {
   askPushPermission,
@@ -16,12 +17,13 @@ import { personName } from '@/lib/koreanName';
 import { roleLabels } from '@/lib/permissions';
 import { useToast } from '@/components/toastContext';
 import { btnClass, btnPrimaryClass, QueryState } from '@/components/ui';
+import { UnsubscribeModal } from '@/pages/notifications/AlertTab';
 
 /**
  * 마이페이지.
  *
  * 내 계정에 딸린 것만 모은다 — 내가 누구로 들어와 있고 무엇을 할 수 있는지,
- * 이 컴퓨터로 알림을 받을지.
+ * 이 컴퓨터로 알림을 받을지, 등록·수정 알림과 메일 알림을 받을지.
  *
  * 다른 화면은 표를 빽빽하게 채우는 자리지만 여기는 한 사람의 자리다. 로고의 벌을
  * 크게 세우고 벌집(육각형)을 테두리로 쓴다. 꿀색과 육각형은 이 화면에만 둔다 —
@@ -115,6 +117,8 @@ export default function MyPage() {
           </section>
 
           <BrowserPush />
+          <ChangeAlerts />
+          <MailAlerts email={me.data.email} />
         </>
       )}
     </div>
@@ -274,6 +278,123 @@ function BrowserPush() {
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+/**
+ * 등록·수정 알림 받기 (백엔드 2026-10-29).
+ *
+ * 등록·수정이 승인 없이 바로 반영되는 대신 관리자에게 "누가 고쳤다" 는 알림이 간다.
+ * 이 컴퓨터 알림을 꺼도 메일은 계속 와서, 메일·웹푸시를 본인이 따로 끄고 켜게 한다.
+ * 관리자가 아니면 애초에 받지 않으므로 칸을 내보이지 않는다.
+ *
+ * 웹푸시를 켜 둬도 위 "이 컴퓨터로 알림 받기" 로 기기를 등록해야 실제로 온다.
+ */
+function ChangeAlerts() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const pref = useQuery({
+    queryKey: queryKeys.notifications.changeAlert(),
+    queryFn: () => notificationsApi.changeAlert(),
+  });
+
+  const save = useMutation({
+    mutationFn: (body: { email?: boolean; push?: boolean }) =>
+      notificationsApi.updateChangeAlert(body),
+    onSuccess: (next, body) => {
+      qc.setQueryData(queryKeys.notifications.changeAlert(), next);
+      const what = body.email !== undefined ? '메일' : '이 컴퓨터 알림';
+      const on = body.email ?? body.push;
+      toast.ok(`등록·수정 알림을 ${what}로 ${on ? '받습니다' : '받지 않습니다'}.`);
+    },
+    onError: toast.fail,
+  });
+
+  /* 관리자가 아니면 받을 일이 없다. 불러오지 못했을 때도 칸을 비워 두지 않고 감춘다 */
+  const p = pref.data;
+  if (!p?.admin) return null;
+
+  const rows: { key: 'email' | 'push'; label: string; on: boolean; note?: string }[] = [
+    {
+      key: 'email',
+      label: '메일로 받기',
+      on: p.email,
+      note: p.email && !p.receivingEmail ? '계정에 메일 주소가 없어 실제로는 가지 않습니다.' : undefined,
+    },
+    {
+      key: 'push',
+      label: '이 컴퓨터 알림으로 받기',
+      on: p.push,
+      note: p.push ? '위에서 이 컴퓨터 알림을 켜 둔 기기에만 옵니다.' : undefined,
+    },
+  ];
+
+  return (
+    <section className="rounded-sm border border-line bg-surface px-5 py-5">
+      <h2 className="text-[20px] font-semibold">등록·수정 알림</h2>
+      <p className="mt-2 text-[18px] text-fg-sub">
+        누군가 자산·계측기를 등록하거나 고치면 관리자에게 알림이 갑니다. 메일과 컴퓨터 알림을
+        따로 끄고 켤 수 있습니다. 꺼도 승인·반려는 그대로 할 수 있습니다.
+      </p>
+      <ul className="mt-3 divide-y divide-line rounded-sm border border-line">
+        {rows.map((r) => (
+          <li key={r.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+            <span className="text-[19px] font-medium">{r.label}</span>
+            <span className={`text-[17px] ${r.on ? 'text-accent' : 'text-fg-muted'}`}>
+              {r.on ? '받는 중' : '꺼져 있음'}
+            </span>
+            {r.note && <span className="w-full text-[17px] text-fg-muted sm:order-last">{r.note}</span>}
+            <div className="ml-auto">
+              <button
+                type="button"
+                className={r.on ? btnClass : btnPrimaryClass}
+                disabled={save.isPending}
+                onClick={() => save.mutate({ [r.key]: !r.on })}
+              >
+                {r.on ? '끄기' : '켜기'}
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * 교정·안전검사 메일 그만 받기.
+ *
+ * 이 컴퓨터 알림(위)과 메일은 길이 따로다 — 컴퓨터 알림을 꺼도 메일은 계속 간다.
+ * 메일까지 끊고 싶다는 요청이 있어(2026-10-29) 여기서 바로 끊을 수 있게 한다.
+ * 교정·안전검사는 수신 명단(notification-email)으로 가서 "내 설정" 자리가 없다.
+ * 알림 화면의 본인 해지(인증코드 2단계)를 그대로 쓰고 주소만 미리 채운다.
+ *
+ * 등록·수정 알림은 위 ChangeAlerts 에서 따로 끈다.
+ * 다시 받으려면 관리 담당자가 명단에 넣어 준다 — 본인 등록 경로는 두지 않았다.
+ */
+function MailAlerts({ email }: { email: string | null | undefined }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="rounded-sm border border-line bg-surface px-5 py-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="text-[20px] font-semibold">교정·안전검사 메일</h2>
+        {email && <span className="text-[17px] text-fg-muted">{email}</span>}
+        <div className="ml-auto">
+          <button type="button" className={btnClass} onClick={() => setOpen(true)}>
+            메일 그만 받기
+          </button>
+        </div>
+      </div>
+      <p className="mt-2 text-[18px] text-fg-sub">
+        교정일·안전검사 기한 알림 메일을 끊으려면 여기서 해지하세요. 메일로 온 인증코드 6자리를
+        넣으면 끊깁니다.
+      </p>
+      <p className="mt-2 text-[17px] text-fg-muted">
+        다시 받으려면 관리 담당자에게 수신 명단에 넣어 달라고 말씀해 주세요.
+      </p>
+      {open && <UnsubscribeModal initialEmail={email ?? ''} onClose={() => setOpen(false)} />}
     </section>
   );
 }
