@@ -11,7 +11,7 @@ import type { Won } from '@/api/types';
 import { accountingCodeText } from '@/domain/assetCode';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
-import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
+import { downloadExcel, stampedFileName, type ExcelColumn, type ExcelGroup } from '@/lib/excel';
 import { bookValue, chartUnit, chartValue, won, wonRatio, wonShort, wonSpan } from '@/lib/won';
 import { useToast } from '@/components/toastContext';
 import { useCanEdit } from '@/hooks/useMe';
@@ -204,18 +204,36 @@ function AccountPicker({
 }
 
 /**
+ * 엑셀에 계정별 소계를 달려면 같은 계정 행이 붙어 있어야 한다.
+ * 계정코드 순으로 모으되 계정 안의 순서(취득일 등 화면 정렬)는 그대로 둔다.
+ * 연번은 이렇게 모은 뒤에 매겨야 파일에서 1, 2, 3 으로 이어진다.
+ */
+const byAccount = <T extends { accountCode: string }>(rows: T[]): (T & { no: number })[] =>
+  [...rows]
+    .sort((a, b) => a.accountCode.localeCompare(b.accountCode))
+    .map((r, i) => ({ ...r, no: rowNo(i) }));
+
+const accountGroup: ExcelGroup<{ accountCode: string; accountName: string }> = {
+  key: (r) => r.accountCode,
+  label: (r) => `소계 · ${r.accountName}`,
+};
+
+/**
  * 표를 화면에 보이는 열 그대로 엑셀로 내려받는 단추.
  * 네 탭이 같은 자리에 같은 모양으로 둔다 — 어느 표를 보든 같은 곳을 누르면 된다.
- * 소계·총계는 넣지 않는다. 엑셀에서 직접 더해 쓰는 편이 낫고, 걸러낸 표에서는 맞지도 않는다.
+ * group 을 주면 계정별 소계·총계 행을 엑셀 수식으로 단다. 수식이라 걸러 낸 표에서도
+ * 내려받은 행들끼리 맞는다(화면의 서버 소계는 전체 기준이라 필터 중에는 감춘다).
  */
 function ExcelButton<T>({
   rows,
   columns,
   name,
+  group,
 }: {
   rows: T[];
   columns: ExcelColumn<T>[];
   name: string;
+  group?: ExcelGroup<T>;
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -223,7 +241,7 @@ function ExcelButton<T>({
   const run = async () => {
     setBusy(true);
     try {
-      await downloadExcel(rows, columns, stampedFileName(name, toIsoDate(getToday())));
+      await downloadExcel(rows, columns, stampedFileName(name, toIsoDate(getToday())), group);
       toast.ok(`${rows.length.toLocaleString('ko-KR')}건을 내려받았습니다.`);
     } catch (e) {
       toast.fail(e);
@@ -299,7 +317,8 @@ function ScheduleTab({
       right={
         <>
           <ExcelButton
-            rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
+            rows={byAccount(rows)}
+            group={accountGroup}
             columns={[
               { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
               { header: '계정과목', value: (r) => r.accountName, width: 16 },
@@ -310,9 +329,10 @@ function ScheduleTab({
                 header: `${m}월`,
                 value: (r: (typeof rows)[number]) => r.monthlyAmounts[mi] ?? null,
                 numeric: true,
+                sum: true,
                 width: 14,
               })),
-              { header: '합계', value: (r) => r.total, numeric: true, width: 16 },
+              { header: '합계', value: (r) => r.total, numeric: true, sum: true, width: 16 },
             ]}
             name={`${fiscalYear}년_감가상각비명세`}
           />
@@ -561,7 +581,8 @@ function YearlyTab({
         right={
           <>
             <ExcelButton
-              rows={shown.map((r, i) => ({ ...r, no: rowNo(i) }))}
+              rows={byAccount(shown)}
+              group={accountGroup}
               columns={[
                 { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
                 { header: '자산코드', value: (r) => r.accountingCode, width: 12 },
@@ -572,18 +593,21 @@ function YearlyTab({
                   header: `${y} 상각비`,
                   value: (r: (typeof shown)[number]) => r.byYear[y]?.depreciation ?? null,
                   numeric: true,
+                  sum: true,
                   width: 16,
                 })),
                 {
                   header: `${toYear} 상각누계액`,
                   value: (r) => r.byYear[toYear]?.accumulated ?? null,
                   numeric: true,
+                  sum: true,
                   width: 18,
                 },
                 {
                   header: `${toYear} 장부가액`,
                   value: (r) => r.byYear[toYear]?.bookValue ?? null,
                   numeric: true,
+                  sum: true,
                   width: 18,
                 },
               ]}
@@ -697,25 +721,27 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
         right={
           <>
             <ExcelButton
-              rows={rows.map((r, i) => ({ ...r, no: rowNo(i) }))}
+              rows={byAccount(rows)}
+              group={accountGroup}
+              /* 더하는 열은 화면 소계 행과 같다 — 내용연수·상각률·상각방법은 빼고 */
               columns={[
                 { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
                 { header: '계정과목', value: (r) => r.accountName, width: 16 },
                 { header: '자산코드', value: (r) => r.accountingCode, width: 12 },
                 { header: '자산명', value: (r) => r.assetName, width: 26 },
                 { header: '취득일', value: (r) => r.acquisitionDate, width: 14 },
-                { header: '수량', value: (r) => r.quantity, numeric: true, width: 8 },
-                { header: '기초가액', value: (r) => r.beginningValue, numeric: true, width: 16 },
-                { header: '신규취득및증가', value: (r) => r.additionAmount, numeric: true, width: 16 },
-                { header: '전기말누계', value: (r) => r.priorAccumulated, numeric: true, width: 16 },
-                { header: '전기말장부', value: (r) => r.priorBookValue, numeric: true, width: 16 },
+                { header: '수량', value: (r) => r.quantity, numeric: true, sum: true, width: 8 },
+                { header: '기초가액', value: (r) => r.beginningValue, numeric: true, sum: true, width: 16 },
+                { header: '신규취득및증가', value: (r) => r.additionAmount, numeric: true, sum: true, width: 16 },
+                { header: '전기말누계', value: (r) => r.priorAccumulated, numeric: true, sum: true, width: 16 },
+                { header: '전기말장부', value: (r) => r.priorBookValue, numeric: true, sum: true, width: 16 },
                 { header: '내용연수', value: (r) => r.usefulLifeYears, numeric: true, width: 10 },
                 { header: '상각률', value: (r) => r.depreciationRate, numeric: true, width: 10 },
                 { header: '상각방법', value: (r) => r.depreciationMethodLabel, width: 12 },
-                { header: '범위액', value: (r) => r.annualRangeAmount, numeric: true, width: 16 },
-                { header: '회사계상', value: (r) => r.currentDepreciation, numeric: true, width: 16 },
-                { header: '당기말누계', value: (r) => r.endingAccumulated, numeric: true, width: 16 },
-                { header: '당기말장부', value: (r) => r.endingBookValue, numeric: true, width: 16 },
+                { header: '범위액', value: (r) => r.annualRangeAmount, numeric: true, sum: true, width: 16 },
+                { header: '회사계상', value: (r) => r.currentDepreciation, numeric: true, sum: true, width: 16 },
+                { header: '당기말누계', value: (r) => r.endingAccumulated, numeric: true, sum: true, width: 16 },
+                { header: '당기말장부', value: (r) => r.endingBookValue, numeric: true, sum: true, width: 16 },
               ]}
               name={`${fiscalYear}년_고정자산관리대장`}
             />
