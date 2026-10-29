@@ -2,22 +2,23 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { assetsApi, type Asset } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
-import { codeText } from '@/domain/assetCode';
+import { accountingCodeText } from '@/domain/assetCode';
 import { fmtDate } from '@/lib/date';
-import { won } from '@/lib/won';
+import { COST_PENDING, wonUnit } from '@/lib/won';
 import { Field, filterClass } from '@/components/ui';
 
 /** 가나다 순. 숫자가 섞인 이름(2호기 vs 10호기)도 사람이 읽는 순서로 놓는다 */
 const koCollator = new Intl.Collator('ko', { numeric: true });
 
 /** 입력칸과 후보 목록에 같은 형식으로 자산을 적는다 */
-const assetLabel = (a: Asset) => `${a.name} — ${codeText(a.assetCode)} · ${a.accountName}`;
+const assetLabel = (a: Asset) =>
+  `${a.name} — ${a.accountName} ${accountingCodeText(a.accountingCode)}`;
 
 /**
  * 부모 고정자산 선택. 비품·사내 설비가 함께 쓴다.
  *
  * 예전에는 자산 ID 를 숫자로 직접 넣게 했는데, 그 번호는 DB 키라서 사용자가 알 길이 없다.
- * 자산명·자산코드로 찾아서 고르고, 고른 자산의 취득일·취득가액을 함께 보여줘 확인하게 한다.
+ * 자산명·회계 자산코드로 찾아서 고르고, 고른 자산의 취득일·취득가액을 함께 보여줘 확인하게 한다.
  * 고정자산이 수백 건이라 한 번 받아 화면에서 거른다.
  *
  * 검색칸과 셀렉트를 따로 두면 고른 자산이 옆 칸에 가 있어 눈이 두 번 움직인다.
@@ -60,7 +61,7 @@ export default function ParentAssetPicker({
     if (k === '') return assets;
     const has = (text: string | null) => (text ?? '').toLowerCase().includes(k);
     const hit = assets.filter(
-      (a) => has(a.name) || has(a.assetCode) || has(a.accountName) || has(a.accountingCode),
+      (a) => has(a.name) || has(a.accountName) || has(a.accountingCode),
     );
     /* 이름 첫머리가 걸린 것을 위로. sort 가 안정적이라 그 안의 가나다 순은 그대로다 */
     const first = (a: Asset) => Number(a.name.toLowerCase().startsWith(k));
@@ -129,9 +130,9 @@ export default function ParentAssetPicker({
       </div>
       {picked && !open && (
         <p className="mt-1 text-[17px] text-fg-sub">
-          취득 {fmtDate(picked.acquisitionDate)} · 취득가액 {won(picked.acquisitionCost)}원 · 수량{' '}
+          취득 {fmtDate(picked.acquisitionDate)} · 취득가액{' '}
+          {picked.acquisitionCost == null ? COST_PENDING : wonUnit(picked.acquisitionCost)} · 수량{' '}
           {picked.quantity}
-          {picked.accountingCode && ` · 회계 자산코드 ${picked.accountingCode}`}
         </p>
       )}
     </Field>

@@ -22,15 +22,6 @@ export interface StickerFieldOption {
 }
 
 export const appConfig = {
-  asset: {
-    /**
-     * 실물이 없어 스티커·라벨 대상이 아닌 계정과목.
-     * 서버 스키마에 유형/무형 구분 플래그가 없어 여기서 관리한다.
-     * 240 소프트웨어 / 232 특허권 — 현재 11건.
-     */
-    intangibleAccountCodes: ['240', '232'] as string[],
-  },
-
   sticker: {
     /** 라벨 규격 — A4 라벨지 2열 × 5행 = 10칸 */
     label: {

@@ -8,7 +8,7 @@ import {
 } from '@/api/depreciation';
 import { queryKeys } from '@/api/queryKeys';
 import type { Won } from '@/api/types';
-import { codeText } from '@/domain/assetCode';
+import { accountingCodeText } from '@/domain/assetCode';
 import { currentYear, fmtDate, getToday, toIsoDate } from '@/lib/date';
 import { searchIn } from '@/lib/search';
 import { downloadExcel, stampedFileName, type ExcelColumn } from '@/lib/excel';
@@ -289,7 +289,7 @@ function ScheduleTab({
   const all = d?.rows ?? [];
   const hit = searchIn(keyword);
   const rows = all.filter(
-    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+    (r) => (account === '' || r.accountCode === account) && hit(r.accountingCode, r.assetName),
   );
   const filtering = keyword.trim() !== '' || account !== '';
 
@@ -303,7 +303,7 @@ function ScheduleTab({
             columns={[
               { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
               { header: '계정과목', value: (r) => r.accountName, width: 16 },
-              { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+              { header: '자산코드', value: (r) => r.accountingCode, width: 12 },
               { header: '자산명', value: (r) => r.assetName, width: 26 },
               { header: '취득일', value: (r) => r.acquisitionDate, width: 14 },
               ...MONTHS.map((m, mi) => ({
@@ -377,7 +377,7 @@ function ScheduleTab({
                 <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                   <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                   <td className="px-3 py-1.5">{r.accountName}</td>
-                  <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
+                  <td className="code px-3 py-1.5">{accountingCodeText(r.accountingCode)}</td>
                   <td className="px-3 py-1.5">{r.assetName}</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.acquisitionDate)}</td>
                   {r.monthlyAmounts.map((v, i) => (
@@ -427,7 +427,7 @@ function ScheduleTab({
 
 interface PivotRow {
   assetId: number;
-  assetCode: string | null;
+  accountingCode: string | null;
   assetName: string;
   accountCode: string;
   accountName: string;
@@ -470,7 +470,7 @@ function YearlyTab({
         map.get(r.assetId) ??
         ({
           assetId: r.assetId,
-          assetCode: r.assetCode,
+          accountingCode: r.accountingCode,
           assetName: r.assetName,
           accountCode: r.accountCode,
           accountName: r.accountName,
@@ -486,7 +486,7 @@ function YearlyTab({
   /* 자산별 표만 거른다. 위의 연도별 합계는 서버가 준 전체 기준 값이라 건드리지 않는다 */
   const hit = searchIn(keyword);
   const shown = pivot.filter(
-    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+    (r) => (account === '' || r.accountCode === account) && hit(r.accountingCode, r.assetName),
   );
 
   const totals = q.data?.totalsByYear ?? {};
@@ -564,7 +564,7 @@ function YearlyTab({
               rows={shown.map((r, i) => ({ ...r, no: rowNo(i) }))}
               columns={[
                 { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
-                { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+                { header: '자산코드', value: (r) => r.accountingCode, width: 12 },
                 { header: '자산명', value: (r) => r.assetName, width: 26 },
                 { header: '계정과목', value: (r) => r.accountName, width: 16 },
                 { header: '상각방법', value: (r) => r.methodLabel, width: 12 },
@@ -632,7 +632,7 @@ function YearlyTab({
                 {shown.map((r, i) => (
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                     <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
-                    <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
+                    <td className="code px-3 py-1.5">{accountingCodeText(r.accountingCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
                     <td className="px-3 py-1.5">{r.accountName}</td>
                     <td className="px-3 py-1.5">{r.methodLabel ?? '-'}</td>
@@ -670,7 +670,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
   const all = d?.rows ?? [];
   const hit = searchIn(keyword);
   const rows = all.filter(
-    (r) => (account === '' || r.accountCode === account) && hit(r.assetCode, r.assetName),
+    (r) => (account === '' || r.accountCode === account) && hit(r.accountingCode, r.assetName),
   );
   const filtering = keyword.trim() !== '' || account !== '';
 
@@ -701,7 +701,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
               columns={[
                 { header: 'No.', value: (r) => r.no, numeric: true, width: 6 },
                 { header: '계정과목', value: (r) => r.accountName, width: 16 },
-                { header: '자산코드', value: (r) => r.assetCode, width: 18 },
+                { header: '자산코드', value: (r) => r.accountingCode, width: 12 },
                 { header: '자산명', value: (r) => r.assetName, width: 26 },
                 { header: '취득일', value: (r) => r.acquisitionDate, width: 14 },
                 { header: '수량', value: (r) => r.quantity, numeric: true, width: 8 },
@@ -776,7 +776,7 @@ function LedgerTab({ fiscalYear }: { fiscalYear: number }) {
                   <tr key={r.assetId} className="border-b border-line hover:bg-bg">
                     <td className="num px-3 py-1.5 text-fg-muted">{rowNo(i)}</td>
                     <td className="px-3 py-1.5">{r.accountName}</td>
-                    <td className="code px-3 py-1.5">{codeText(r.assetCode)}</td>
+                    <td className="code px-3 py-1.5">{accountingCodeText(r.accountingCode)}</td>
                     <td className="px-3 py-1.5">{r.assetName}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.acquisitionDate)}</td>
                     <td className="num px-3 py-1.5">{r.quantity?.toLocaleString('ko-KR')}</td>

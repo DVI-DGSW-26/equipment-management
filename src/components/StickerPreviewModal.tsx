@@ -1,5 +1,4 @@
 import { Fragment, useState } from 'react';
-import type { Asset } from '@/api/assets';
 import type { PhysicalAsset } from '@/api/physicalAssets';
 import { useItems } from '@/hooks/useMasters';
 import { appConfig, labelsPerSheet, type StickerFieldKey } from '@/config/appConfig';
@@ -61,32 +60,27 @@ function StickerFace({ value }: { value: (key: StickerFieldKey) => string }) {
   );
 }
 
-type Source =
-  /** 여러 개를 한 건으로 산 비품. 실물 단위로 쪼개져 있다 */
-  | { source: 'physical'; items: PhysicalAsset[] }
-  /** 기계장치·시설장치처럼 고정자산 1건 = 실물 1대인 자산 */
-  | { source: 'asset'; items: Asset[] };
-
-type Props = Source & {
+type Props = {
+  items: PhysicalAsset[];
   onClose: () => void;
   onDownload: (startPosition: number) => void;
   isDownloading: boolean;
 };
 
 /**
- * 스티커 미리보기. 고정자산·비품 두 경로가 같은 라벨 서식을 쓴다.
+ * 비품 스티커 미리보기.
  *
- * 인쇄 항목 8개를 두 응답에서 각각 끌어온다. 값이 비어 있으면 "—" 로 둔다.
+ * 고정자산 스티커는 없어졌다 — 고정자산은 회계 대장이라 물건 단위 번호를 비품이 맡는다
+ * (백엔드 2026-10-29). 인쇄 항목 8개 중 값이 비어 있으면 "—" 로 둔다.
  *
  * PDF 는 서버가 만든다. 이 화면은 배치 확인용이며 브라우저 인쇄를 쓰지 않는다.
  */
-export default function StickerPreviewModal(props: Props) {
-  const { onClose, onDownload, isDownloading } = props;
+export default function StickerPreviewModal({ items, onClose, onDownload, isDownloading }: Props) {
   const [startPosition, setStartPosition] = useState(1);
   const perSheet = labelsPerSheet();
   const { columns, rows, widthMm, heightMm } = appConfig.sticker.label;
 
-  // 품목명은 두 응답 모두 코드만 내려준다. 품목 코드는 비품구분 안에서만
+  // 품목명은 응답이 코드만 내려준다. 품목 코드는 비품구분 안에서만
   // 유일하므로 itemTypeCode 까지 맞춰서 마스터에서 찾는다.
   const itemMaster = useItems();
 
@@ -101,29 +95,7 @@ export default function StickerPreviewModal(props: Props) {
   const text = (v: string | null | undefined): string => (v && v !== '' ? v : NO_VALUE);
 
   const resolve = (index: number) => (key: StickerFieldKey): string => {
-    if (props.source === 'physical') {
-      const a = props.items[index];
-      switch (key) {
-        case 'assetCode':
-          return text(a.assetCode);
-        case 'registered':
-          return a.registered ? 'O' : 'X';
-        case 'category':
-          return text(a.categoryName);
-        case 'acquisitionDate':
-          return a.acquisitionDate ? fmtDate(a.acquisitionDate) : NO_VALUE;
-        case 'item':
-          return itemName(a.itemTypeCode, a.itemCode);
-        case 'modelName':
-          return text(a.modelName);
-        case 'supplier':
-          return text(a.supplier);
-        case 'department':
-          return text(a.deptName);
-      }
-    }
-
-    const a = props.items[index];
+    const a = items[index];
     switch (key) {
       case 'assetCode':
         return text(a.assetCode);
@@ -140,15 +112,15 @@ export default function StickerPreviewModal(props: Props) {
       case 'supplier':
         return text(a.supplier);
       case 'department':
-        return text(a.usingDeptName);
+        return text(a.deptName);
     }
   };
 
-  const count = props.items.length;
+  const count = items.length;
   /** 시작 위치만큼 앞칸을 비우고 라벨을 채운다. 값은 원본 인덱스 */
   const slots: (number | null)[] = [
     ...Array.from({ length: startPosition - 1 }, () => null),
-    ...props.items.map((_, i) => i),
+    ...items.map((_, i) => i),
   ];
   const sheets = Math.ceil(slots.length / perSheet) || 1;
   const firstSheet = Array.from({ length: perSheet }, (_, i) => slots[i] ?? null);
@@ -159,7 +131,7 @@ export default function StickerPreviewModal(props: Props) {
         <span className="flex items-center gap-2">
           스티커 미리보기
           <span className="font-normal text-fg-sub">
-            {props.source === 'asset' ? '고정자산' : '비품'} {count}건 · 라벨지 {sheets}장
+            비품 {count}건 · 라벨지 {sheets}장
           </span>
         </span>
       }

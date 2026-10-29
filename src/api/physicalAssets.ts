@@ -1,5 +1,5 @@
 import { request, requestFile, type DownloadResult } from './client';
-import type { AssetStatus, StickerPrintPayload } from './assets';
+import type { AssetStatus } from './assets';
 import { toPage, type IsoDate, type Page, type SpringPage, type Won } from './types';
 
 /**
@@ -73,6 +73,12 @@ export interface SavePhysicalAssetPayload {
   status?: AssetStatus;
   excludedFromPrint?: boolean;
   remark?: string;
+}
+
+export interface StickerPrintPayload {
+  ids: number[];
+  /** 라벨지 시작 위치 1~10 */
+  startPosition?: number;
 }
 
 export const physicalAssetsApi = {

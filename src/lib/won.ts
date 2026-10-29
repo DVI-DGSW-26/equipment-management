@@ -86,16 +86,30 @@ export const chartValue = (value: Won, unit: ChartUnit): string => {
 };
 
 /**
+ * 취득가액이 아직 정해지지 않은 고정자산의 표시.
+ *
+ * 회계 대장에 금액이 없는 자산은 취득가액을 비워 등록한다(금형·배기닥트 등). 서버는 null 로
+ * 주고, 금액이 들어올 때까지 감가상각과 합계에서 뺀다 (백엔드 2026-10-29). "-" 로 두면
+ * 0원과 헷갈려서 "미정" 으로 적는다.
+ */
+export const COST_PENDING = '미정';
+
+export const COST_PENDING_NOTE =
+  '회계 대장에 취득가액이 아직 없어 감가상각·합계에서 빠져 있습니다. 회계 정정에서 금액을 넣으면 그때 상각이 계산됩니다.';
+
+/**
  * 상각기초가액 = 취득가액 + 자본적지출 증가 누계.
  *
- * "화면에서 금액 산술을 하지 않는다" 규칙의 유일한 예외다. 서버가 합계 필드를 따로 주지 않고
+ * "화면에서 금액 산술을 하지 않는다" 규칙의 예외다. 서버가 합계 필드를 따로 주지 않고
  * acquisitionCost + additionTotal 로 표기하라고 정했다(백엔드 회신 2026-09-01).
  * 덧셈이 화면마다 흩어지지 않도록 여기 한 곳에서만 한다.
+ *
+ * 취득가액이 미정이면 기초가액도 미정이다 — 자본적지출만 더해 보이면 틀린 금액이 된다.
  */
 export const depreciationBase = (
   acquisitionCost: Won | null | undefined,
   additionTotal: Won | null | undefined,
-): Won => (acquisitionCost ?? 0) + (additionTotal ?? 0);
+): Won | null => (acquisitionCost == null ? null : acquisitionCost + (additionTotal ?? 0));
 
 /** 상각률 0.451 → "0.451" (표시 전용) */
 export const rateText = (rate: number | null | undefined): string =>

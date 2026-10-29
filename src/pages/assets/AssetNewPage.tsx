@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   assetsApi,
   ASSET_STATUS_LABEL,
@@ -12,7 +12,7 @@ import {
   type ExpenseType,
 } from '@/api/assets';
 import { queryKeys } from '@/api/queryKeys';
-import { useAccounts, useCategories, useDepartments, useItemTypes, useItems, useLocations, useRates } from '@/hooks/useMasters';
+import { useAccounts, useCategories, useDepartments, useItemTypes, useItems, useRates } from '@/hooks/useMasters';
 import { isSuppliesItemEnabled, SUPPLIES_CATEGORY } from '@/domain/assetCode';
 import { allowedMethods, defaultMethod, lookupRate } from '@/domain/depreciationMethod';
 import { rateText } from '@/lib/won';
@@ -20,7 +20,7 @@ import { toIsoDate } from '@/lib/date';
 import { useToast } from '@/components/toastContext';
 import { emptyTaxForm, hasTaxInput, TAX_NOTE, taxBody, type TaxFormState } from '@/domain/taxRecord';
 import TaxRecordFields from '@/components/TaxRecordFields';
-import { Badge, btnClass, btnPrimaryClass, Field, inputClass, Section } from '@/components/ui';
+import { btnClass, btnPrimaryClass, Field, inputClass, Section } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
 
 interface FormState {
@@ -28,7 +28,6 @@ interface FormState {
   categoryCode: string;
   itemTypeCode: string;
   itemCode: string;
-  locationCode: string;
   usingDeptCode: string;
   managingDeptCode: string;
   accountId: string;
@@ -58,7 +57,6 @@ const initialForm = (): FormState => ({
   categoryCode: '',
   itemTypeCode: '',
   itemCode: '',
-  locationCode: '',
   usingDeptCode: '',
   managingDeptCode: '',
   accountId: '',
@@ -95,7 +93,6 @@ export default function AssetNewPage() {
   const categories = useCategories();
   const itemTypes = useItemTypes();
   const departments = useDepartments();
-  const locations = useLocations();
   const rates = useRates();
   const items = useItems(form.itemTypeCode || undefined, { enabled: isSuppliesItemEnabled(form.categoryCode) });
 
@@ -107,40 +104,6 @@ export default function AssetNewPage() {
   const method = (form.depreciationMethod || defaultMethod(accounts.data ?? [], accountId)) as DepreciationMethod;
   const usefulLife = form.usefulLifeYears ? Number(form.usefulLifeYears) : null;
   const rate = lookupRate(rates.data ?? [], usefulLife, method);
-
-  /** 서버 채번 규칙 그대로 미리보기. 필수값이 모두 있을 때만 호출한다 */
-  const previewQuery = useMemo(
-    () => ({
-      categoryCode: form.categoryCode,
-      itemTypeCode: suppliesMode ? form.itemTypeCode : undefined,
-      itemCode: suppliesMode ? form.itemCode : undefined,
-      locationCode: form.locationCode,
-      deptCode: form.usingDeptCode,
-      acquisitionDate: form.acquisitionDate,
-    }),
-    [
-      form.categoryCode,
-      form.itemTypeCode,
-      form.itemCode,
-      form.locationCode,
-      form.usingDeptCode,
-      form.acquisitionDate,
-      suppliesMode,
-    ],
-  );
-  const canPreview =
-    !!form.categoryCode &&
-    !!form.locationCode &&
-    !!form.usingDeptCode &&
-    !!form.acquisitionDate &&
-    (!suppliesMode || (!!form.itemTypeCode && !!form.itemCode));
-
-  const preview = useQuery({
-    queryKey: queryKeys.assets.codePreview(previewQuery),
-    queryFn: () => assetsApi.codePreview(previewQuery),
-    enabled: canPreview,
-    retry: false,
-  });
 
   /*
    * 추가등록사항(세무 기록 13종).
@@ -162,12 +125,12 @@ export default function AssetNewPage() {
         categoryCode: form.categoryCode,
         itemTypeCode: suppliesMode ? form.itemTypeCode || undefined : undefined,
         itemCode: suppliesMode ? form.itemCode || undefined : undefined,
-        locationCode: form.locationCode || undefined,
         usingDeptCode: form.usingDeptCode || undefined,
         managingDeptCode: form.managingDeptCode || undefined,
         accountId: Number(form.accountId),
         acquisitionDate: form.acquisitionDate,
-        acquisitionCost: Number(form.acquisitionCost),
+        /* 회계 대장에 금액이 아직 없으면 비워 보낸다. 나중에 회계 정정으로 넣는다 */
+        acquisitionCost: form.acquisitionCost ? Number(form.acquisitionCost) : undefined,
         quantity: form.quantity ? Number(form.quantity) : undefined,
         expenseType: form.expenseType || undefined,
         depreciationMethod: method,
@@ -211,8 +174,7 @@ export default function AssetNewPage() {
     form.name.trim() !== '' &&
     form.categoryCode !== '' &&
     form.accountId !== '' &&
-    form.acquisitionDate !== '' &&
-    form.acquisitionCost !== '';
+    form.acquisitionDate !== '';
 
   /** 계정과목을 고르면 기본 내용연수·허용 상각방법을 따라간다 */
   const onAccountChange = (value: string) => {
@@ -237,26 +199,6 @@ export default function AssetNewPage() {
         <h1 className="text-[24px] font-semibold">자산 등록</h1>
       </div>
 
-
-      <Section
-        title="자산코드"
-        right={
-          <span className="text-[18px] text-fg-muted">
-            일련번호는 저장 시 서버가 채번합니다
-          </span>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-3 px-3 py-3">
-          <span className="code text-[26px] font-semibold">
-            {preview.data?.nextCode ?? (canPreview ? '조회 중…' : 'DV-··-···-·-··-···-··-··')}
-          </span>
-          {!canPreview && (
-            <Badge tone="muted">자산구분·사용위치·사용부서·취득일자를 입력하면 미리보기</Badge>
-          )}
-          {preview.isError && <Badge tone="danger">코드 미리보기 실패</Badge>}
-          {preview.data && <span className="text-[18px] text-fg-muted">앞 7단 {preview.data.prefix}</span>}
-        </div>
-      </Section>
 
       {/* 묶음 이름과 차례를 회계 프로그램 고정자산등록화면에 맞춘다 */}
       <h2 className="px-1 pt-1 text-[21px] font-semibold">주요등록사항</h2>
@@ -315,20 +257,6 @@ export default function AssetNewPage() {
                 {(items.data ?? []).map((i) => (
                   <option key={i.id} value={i.code}>
                     {i.code} {i.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="사용위치" hint="비우면 자산코드가 부여되지 않습니다.">
-              <select
-                className={inputClass}
-                value={form.locationCode}
-                onChange={(e) => set('locationCode', e.target.value)}
-              >
-                <option value="">미확정</option>
-                {(locations.data ?? []).map((l) => (
-                  <option key={l.id} value={l.code}>
-                    {l.code} {l.name}
                   </option>
                 ))}
               </select>
@@ -395,7 +323,10 @@ export default function AssetNewPage() {
                 onChange={(e) => set('acquisitionDate', e.target.value)}
               />
             </Field>
-            <Field label="취득가액" required>
+            <Field
+              label="취득가액"
+              hint="회계 대장에 금액이 아직 없으면 비워 둡니다. 금액이 들어올 때까지 감가상각·합계에서 빠집니다."
+            >
               <AmountInput
                 className={inputClass}
                 value={form.acquisitionCost}
@@ -425,10 +356,8 @@ export default function AssetNewPage() {
                 <span>
                   수량만큼 비품도 함께 만들기
                   <span className="block text-[17px] text-fg-muted">
-                    {physicalCount > 1
-                      ? `비품 ${physicalCount}건이 만들어지고 자산코드가 순번대로 붙습니다. `
-                      : '비품 1건이 만들어집니다. '}
-                    개당 구입금액은 비워 두니 필요하면 비품 화면에서 채웁니다.
+                    비품 {physicalCount}건이 위치·자산코드 없이 만들어집니다. 비품 화면에서 위치를
+                    넣으면 그때 자산코드가 붙습니다. 개당 구입금액도 비워 둡니다.
                   </span>
                 </span>
               </label>
@@ -545,7 +474,10 @@ export default function AssetNewPage() {
               onChange={(e) => set('spec', e.target.value)}
             />
           </Field>
-          {/* 설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다 (백엔드 2026-10-16) */}
+          {/*
+            고정자산의 자산코드는 회계 프로그램의 것 하나다. 8단 자산코드는 비품·사내 설비가 맡는다
+            (백엔드 2026-10-29). 설비코드는 사내 설비 화면에서 이 자산에 설비를 연결해 붙인다.
+          */}
           <Field label="회계 자산코드" hint="회계 프로그램의 자산코드(계정별 6자리). 선택 항목입니다">
             <input
               className={`${inputClass} code`}
@@ -577,7 +509,7 @@ export default function AssetNewPage() {
               checked={form.excludedFromPrint}
               onChange={(e) => set('excludedFromPrint', e.target.checked)}
             />
-            목록표·스티커 출력에서 제외 (금형 등)
+            목록표 출력에서 제외 (금형 등)
           </label>
         </div>
       </Section>
