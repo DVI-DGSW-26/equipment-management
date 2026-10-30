@@ -3,6 +3,7 @@ import type { AlertType } from '@/api/notifications';
 import { usePerms } from '@/hooks/useMe';
 import { TabGroups } from '@/components/ui';
 import AlertTab from './AlertTab';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 알림 화면.
@@ -28,7 +29,9 @@ export default function NotificationPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">알림</h1>
+      <h1 className="text-[24px] font-semibold">
+        알림 <HelpLink topic={tab === 'SAFETY' ? 'safetyAlerts' : 'calibrationAlerts'} />
+      </h1>
 
       <TabGroups
         groups={[

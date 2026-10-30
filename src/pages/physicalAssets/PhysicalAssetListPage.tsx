@@ -39,6 +39,7 @@ import {
 } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
 import ParentAssetPicker from '@/components/ParentAssetPicker';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 목록을 한 번에 다 받아 온다.
@@ -236,7 +237,8 @@ export default function PhysicalAssetListPage() {
   return (
     <div className="space-y-3">
       <h1 className="text-[24px] font-semibold">
-        비품 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>
+        비품 <span className="text-[19px] font-normal text-fg-sub">비품관리대장</span>{' '}
+        <HelpLink topic="physicalAssets" />
       </h1>
 
       <Section

@@ -32,6 +32,7 @@ import {
   thClass,
   ReadOnlyChip,
 } from '@/components/ui';
+import HelpLink from '@/components/HelpLink';
 
 type TabKey = 'list' | 'annual';
 
@@ -48,7 +49,7 @@ export default function InstrumentListPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">계측기</h1>
+      <h1 className="text-[24px] font-semibold">계측기 <HelpLink topic="instruments" /></h1>
       <Tabs
         tabs={[
           { key: 'list' as const, label: '계측기 목록' },

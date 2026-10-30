@@ -37,6 +37,7 @@ import {
   stickyThClass,
   TableScroll,
 } from '@/components/ui';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 사내 설비 — 설비 한 대가 한 줄 (백엔드 2026-10-16).
@@ -116,7 +117,8 @@ export default function EquipmentListPage() {
     <div className="space-y-3">
       <h1 className="text-[24px] font-semibold">
         사내 설비{' '}
-        <span className="text-[19px] font-normal text-fg-sub">설비 한 대가 한 줄 · 설비코드 관리</span>
+        <span className="text-[19px] font-normal text-fg-sub">설비 한 대가 한 줄 · 설비코드 관리</span>{' '}
+        <HelpLink topic="equipment" />
       </h1>
 
       <Section

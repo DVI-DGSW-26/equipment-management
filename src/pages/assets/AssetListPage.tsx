@@ -48,6 +48,7 @@ import {
   ReadOnlyChip,
 } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 목록 순서.
@@ -241,7 +242,7 @@ export default function AssetListPage() {
         내려가 있어 눈에 늦게 들어온다. 다른 화면과 같이 제목 줄 오른쪽으로 올린다.
       */}
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-[24px] font-semibold">고정자산</h1>
+        <h1 className="text-[24px] font-semibold">고정자산 <HelpLink topic="assets" /></h1>
         {/* 조회 전용 계정(IT)에는 내보이지 않는다. 눌러도 서버가 403 으로 막는다 */}
         {edit ? (
           <button

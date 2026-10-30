@@ -34,6 +34,7 @@ import {
   ReadOnlyChip,
 } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
+import HelpLink from '@/components/HelpLink';
 
 export default function InstrumentDetailPage() {
   const { id } = useParams();
@@ -122,6 +123,7 @@ export default function InstrumentDetailPage() {
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">{d?.name ?? '계측기'}</h1>
+        <HelpLink topic="instrumentDetail" />
         {d && <span className="code text-[19px] text-fg-sub">{d.mgmtNo}</span>}
         {gone && (
           <Badge tone="muted">

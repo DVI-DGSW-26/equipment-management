@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Tabs } from '@/components/ui';
 import CalendarTab from './CalendarTab';
 import EquipmentTab from './EquipmentTab';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 안전검사 화면. 현황과 일정을 한 화면에서 본다.
@@ -14,7 +15,7 @@ export default function InspectionListPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">안전검사</h1>
+      <h1 className="text-[24px] font-semibold">안전검사 <HelpLink topic="inspections" /></h1>
       <Tabs
         tabs={[
           { key: 'list' as const, label: '검사 현황' },

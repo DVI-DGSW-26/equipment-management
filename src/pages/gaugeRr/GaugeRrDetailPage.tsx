@@ -19,6 +19,7 @@ import {
 import GaugeRrModal from './GaugeRrModal';
 import GaugeRrSheet from './GaugeRrSheet';
 import GaugeRrPrintSheet from './GaugeRrPrintSheet';
+import HelpLink from '@/components/HelpLink';
 
 export default function GaugeRrDetailPage() {
   const { id } = useParams();
@@ -57,7 +58,7 @@ export default function GaugeRrDetailPage() {
         <button type="button" className={btnClass} onClick={backToList}>
           ← 목록
         </button>
-        <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
+        <h1 className="text-[24px] font-semibold">게이지 R&amp;R <HelpLink topic="gaugeRrDetail" /></h1>
         {d && (
           <>
             <span className="code text-[19px] text-fg-sub">{d.partNumber}</span>
