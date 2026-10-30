@@ -54,6 +54,7 @@ import AssetAdditionsSection from './AssetAdditionsSection';
 import AssetHistorySection from './AssetHistorySection';
 import AssetEquipmentSection from './AssetEquipmentSection';
 import AssetTaxRecordSection from './AssetTaxRecordSection';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 탭 구성은 회계 프로그램 고정자산등록화면을 그대로 따른다 —
@@ -143,6 +144,7 @@ export default function AssetDetailPage() {
           ← 목록
         </button>
         <h1 className="text-[24px] font-semibold">{a?.name ?? '자산 상세'}</h1>
+        <HelpLink topic="assetDetail" />
         {/* 고정자산의 자산코드는 회계 프로그램의 것이다. 계정별로 매기므로 계정코드를 앞에 붙인다 */}
         {a?.accountingCode && (
           <span className="code text-[19px] text-fg-sub" title="계정코드-회계 자산코드">

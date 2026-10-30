@@ -26,6 +26,7 @@ import {
   Tabs,
   thClass,
 } from '@/components/ui';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 승인 화면.
@@ -126,7 +127,7 @@ export default function ApprovalListPage() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-[24px] font-semibold">승인</h1>
+        <h1 className="text-[24px] font-semibold">승인 <HelpLink topic="approvals" /></h1>
         <span className="text-[18px] text-fg-muted">
           {perms.admin
             ? '삭제·폐기 요청을 검토합니다. 승인하면 그때 실제로 반영됩니다. 등록·수정은 승인 없이 바로 반영됩니다.'

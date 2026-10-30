@@ -18,6 +18,7 @@ import { roleLabels } from '@/lib/permissions';
 import { useToast } from '@/components/toastContext';
 import { btnClass, btnPrimaryClass, QueryState } from '@/components/ui';
 import { UnsubscribeModal } from '@/pages/notifications/AlertTab';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 마이페이지.
@@ -50,7 +51,7 @@ export default function MyPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-3">
-      <h1 className="text-[24px] font-semibold">마이페이지</h1>
+      <h1 className="text-[24px] font-semibold">마이페이지 <HelpLink topic="me" /></h1>
 
       <QueryState isPending={me.isPending} error={me.error} />
 

@@ -8,6 +8,7 @@ import ItemTab from './ItemTab';
 import RateTab from './RateTab';
 import InstrumentLocationTab from './InstrumentLocationTab';
 import PartnerTab from './PartnerTab';
+import HelpLink from '@/components/HelpLink';
 
 type TabKey =
   | 'account'
@@ -38,7 +39,7 @@ export default function MasterPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-[24px] font-semibold">기본설정</h1>
+      <h1 className="text-[24px] font-semibold">기본설정 <HelpLink topic="settings" /></h1>
 
       <TabGroups
         groups={[

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui';
 import PushBridge from '@/components/PushBridge';
 import ScrollMemory from '@/components/ScrollMemory';
 import { ToastProvider } from '@/components/Toast';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 차림표. 누구에게나 같다 — 역할에 따라 달라지는 것은 화면 안에서 할 수 있는 일뿐이다.
@@ -147,6 +148,8 @@ export default function AppLayout() {
               )}
               {me.data && (
                 <>
+                  {/* 설명서 첫 쪽(차례). 화면마다 제목 옆 "?" 는 그 화면 쪽을 바로 연다 */}
+                  <HelpLink topic="toc" />
                   <span className="whitespace-nowrap text-fg-sub">{personName(me.data.name)}</span>
                   {/* 서버 롤 문자열(asset·admin) 대신 한글 이름만 적는다 */}
                   {roleLabels(me.data.roles).map((label) => (

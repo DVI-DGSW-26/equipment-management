@@ -28,6 +28,7 @@ import {
 } from '@/components/ui';
 import GaugeRrModal from './GaugeRrModal';
 import GaugeRrPlanTab from './GaugeRrPlanTab';
+import HelpLink from '@/components/HelpLink';
 
 type TabKey = 'plans' | 'records';
 
@@ -45,7 +46,7 @@ export default function GaugeRrListPage() {
     <div className="space-y-3">
       {/* 계획표를 인쇄하면 종이에는 양식만 나간다 */}
       <div className="no-print space-y-3">
-        <h1 className="text-[24px] font-semibold">게이지 R&amp;R</h1>
+        <h1 className="text-[24px] font-semibold">게이지 R&amp;R <HelpLink topic="gaugeRr" /></h1>
         <Tabs
           tabs={[
             { key: 'plans' as const, label: '계획 및 관리 대장' },

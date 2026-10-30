@@ -30,6 +30,7 @@ import {
   Tabs,
   ReadOnlyChip,
 } from '@/components/ui';
+import HelpLink from '@/components/HelpLink';
 
 type TabKey = 'schedule' | 'yearly' | 'ledger' | 'forecast';
 
@@ -74,7 +75,7 @@ export default function DepreciationPage() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-[24px] font-semibold">감가상각</h1>
+        <h1 className="text-[24px] font-semibold">감가상각 <HelpLink topic="depreciation" /></h1>
         <select
           className="w-28 rounded-sm border border-line bg-surface px-2 py-1.5 text-[19px]"
           value={fiscalYear}

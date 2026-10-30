@@ -5,6 +5,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { printAs } from '@/lib/printTitle';
 import InstrumentCard from './InstrumentCard';
 import { btnClass, btnPrimaryClass } from '@/components/ui';
+import HelpLink from '@/components/HelpLink';
 
 /**
  * 이력카드만 크게 펼쳐 놓는 화면. 인쇄와 링크 공유용이다.
@@ -38,7 +39,7 @@ export default function InstrumentCardPage() {
         >
           ← 상세
         </button>
-        <h1 className="text-[24px] font-semibold">계측기 이력카드</h1>
+        <h1 className="text-[24px] font-semibold">계측기 이력카드 <HelpLink topic="instrumentCard" /></h1>
         <button
           type="button"
           className={`${btnPrimaryClass} ml-auto`}

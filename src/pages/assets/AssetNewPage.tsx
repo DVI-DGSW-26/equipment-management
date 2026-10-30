@@ -22,6 +22,7 @@ import { emptyTaxForm, hasTaxInput, TAX_NOTE, taxBody, type TaxFormState } from 
 import TaxRecordFields from '@/components/TaxRecordFields';
 import { btnClass, btnPrimaryClass, Field, inputClass, Section } from '@/components/ui';
 import AmountInput from '@/components/AmountInput';
+import HelpLink from '@/components/HelpLink';
 
 interface FormState {
   name: string;
@@ -196,7 +197,7 @@ export default function AssetNewPage() {
         <button type="button" className={btnClass} onClick={() => navigate('/assets')}>
           ← 목록
         </button>
-        <h1 className="text-[24px] font-semibold">자산 등록</h1>
+        <h1 className="text-[24px] font-semibold">자산 등록 <HelpLink topic="assetNew" /></h1>
       </div>
 
 
